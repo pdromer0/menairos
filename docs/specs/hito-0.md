@@ -1256,3 +1256,64 @@ después auto) a partir de encargos del chat. Sin issue. PR #1, fusionado por sq
 - Para T-03: el hueco de §0 (issues «desde T-03», pero el publicador llega en T-08).
 - Para T-10: los scripts `n1`/`n3` pasan a la plantilla `python-uv`.
 - Para T-12: CodeQL por la API, comprobado; puede salir de los pasos manuales de §3.4.
+
+### T-03 — Documentos al repo y los 20 ADRs
+
+*Hecha el 2026-11-25, en local (WSL2), con Claude Code (Sonnet, modo plan y después auto) a partir
+de un encargo del chat. Sin issue.*
+
+**Qué se hizo**
+
+- La especificación entra en `docs/`: `producto.md`, `diseno.md`, `hitos.md`, `abiertas.md`,
+  `specs/hito-0.md` y `specs/hito-0.tareas.yaml`.
+- 20 ADRs (0001–0020) con su índice `docs/decisiones/README.md`: punto → ADR, tipo y
+  reversibilidad.
+- `docs/proceso/lecciones.md` con las reglas de T-01 y T-02.
+- `AGENTS.md` actualizado: el paso del issue remite a §0 hasta T-09 y la sección «Dónde está el
+  resto» describe lo que ya hay en `docs/`.
+- Los ficheros los preparó el chat a partir del Project y llegaron en un zip; esta sesión los
+  comprobó y abrió el PR.
+
+**Decisiones del diff**
+
+Todas de Pedro, 2026-11-25.
+
+- T-01 a T-08 sin issue; los issues del hito se publican en T-08.
+- Los ficheros, preparados por el chat.
+- Los proyectos del método v2, citados de forma genérica; las referencias al documento de
+  seguimiento del Project, sustituidas por `docs/decisiones/` y su índice.
+- Formato de los ADRs: metadatos en líneas de lista y «Alternativas consideradas» solo con las que
+  constan.
+- `lecciones.md` sí y diario no (quitado de §1.3).
+- Desde T-04, los cambios de especificación entran en el PR de la tarea y el anexo lo escribe
+  Claude Code en el mismo PR.
+
+**Medidas**
+
+- 28 ficheros en `docs/`; 20 ADRs (0001–0020), uno de tipo `stack` (el 0020).
+- Duración de esta sesión: unos minutos desde la primera comprobación (20:23, hora local) hasta el
+  push; la hora de apertura del PR consta en su cuerpo (Métricas).
+
+**Comprobaciones**
+
+- 28 ficheros en `docs/`.
+- Búsqueda sobre todo el repo (sin `.git` ni `.venv`) de los nombres de proyectos anteriores y de
+  la ruta del documento de seguimiento: sin resultados.
+- Ningún email en `docs/`.
+- `hito-0.tareas.yaml` carga con `yaml` y tiene 28 tareas; sus 42 enlaces de `especificacion`
+  apuntan a encabezados existentes de `hito-0.md` (ancla calculada como GitHub).
+- 20 ADRs, cada uno con su línea `- **Tipo:** …`; solo el 0020 es de tipo `stack`.
+- Enlaces relativos y anclas entre los ficheros de `docs/`: ninguno roto.
+- `uv run pre-commit run --all-files`: en verde, sin cambios en `docs/`; `scripts/n3.sh` en 0.
+
+**Revisión**
+
+- Revisión propia de Claude Code sobre el diff completo; los hallazgos, sin corregir en `docs/`,
+  constan en el PR (restos de referencias al Project y a su documento de seguimiento en §0, §1.1, §1.4 y §6.6
+  de `hito-0.md`, y el hueco de §0 que T-02 dejó para T-03, resuelto en `AGENTS.md`).
+
+**Pendiente**
+
+- Archivar en el Project los documentos que ya viven en el repo (lo hace el chat tras fusionar).
+- Pedro revisa en el PR, sobre todo, la tabla de tipo y reversibilidad de
+  `docs/decisiones/README.md`.
