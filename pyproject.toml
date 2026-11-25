@@ -19,8 +19,24 @@ markers = [
     "slow: tests lentos, excluibles con -m 'not slow'",
 ]
 
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.pyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.14"
+include = ["src", "tests"]
+venvPath = "."
+venv = ".venv"
+
 [dependency-groups]
 dev = [
+    "pre-commit>=4.7.0",
+    "pyright[nodejs]>=1.1.414",
     "pytest>=9.2.0",
     "pytest-timeout>=2.4.0",
+    "ruff>=0.17.6",
 ]
