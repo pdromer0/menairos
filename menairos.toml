@@ -1,0 +1,31 @@
+# Configuración de Menairos para este proyecto.
+# El resto de claves toma sus valores por defecto del esquema (llega en una tarea posterior).
+
+[menairos]
+version = "3.0.0-dev"
+
+[proyecto]
+nombre = "menairos"
+repo = "pdromer0/menairos"
+visibilidad = "publico"
+idioma_docs = "es"
+idioma_codigo = "en"
+
+[stack]
+plantillas = ["base", "python-uv"]
+
+[modo]
+defecto = "manual"
+
+# Entornos por defecto de cada modo: son valores por defecto, no una restricción.
+# Solo una tarea con `donde: local` obliga a trabajar en local.
+[entornos]
+manual = "nube"
+didactico = "nube"
+automatico = "actions"
+
+[modulos]
+revisor_plan = "activo"
+mutante = "inactivo"
+orquestador = "inactivo"
+auto_merge = "inactivo"
