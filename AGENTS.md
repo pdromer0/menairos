@@ -12,7 +12,7 @@ documentación del método.
 
 Mientras no exista `/implementar`, cada tarea sigue estos pasos:
 
-1. Issue de la tarea.
+1. Issue de la tarea (desde T-09; hasta entonces, el encargo del chat: ver §0 de `docs/specs/hito-0.md`).
 2. Plan con 8 apartados, aprobado por Pedro antes de tocar nada:
    1. Contexto.
    2. Lo que el plan interpreta.
@@ -61,5 +61,8 @@ uv run pre-commit run --all-files        # todos los hooks
 
 ## Dónde está el resto
 
-- `docs/`: especificación y decisiones (llega en la siguiente tarea).
+- `docs/producto.md`, `docs/diseno.md` y `docs/hitos.md`: producto, diseño e hitos.
+- `docs/specs/`: especificación y tareas del hito en curso, con su anexo.
+- `docs/decisiones/`: ADRs, con su índice.
+- `docs/proceso/lecciones.md`: reglas aprendidas.
 - `menairos.toml`: configuración del método para este proyecto.
