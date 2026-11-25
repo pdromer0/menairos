@@ -1,0 +1,384 @@
+# Tareas del hito 0 de Menairos — núcleo en modo manual
+# Estado: v1 (2026-11-25), división aceptada por Pedro.
+# Formato: esquemas/tareas.schema.json (H0.1). Los enlaces apuntan a secciones de hito-0.md.
+
+hito: 0
+titulo: "Hito 0 — Núcleo en modo manual"
+tareas:
+
+  # ── H0.0 Arranque ──────────────────────────────────────────────────────────
+
+  - id: T-01
+    titulo: "Repo, protección y pasos manuales"
+    rama: chore/h0-repo
+    depende_de: []
+    area: arranque
+    donde: local
+    especificacion: ["hito-0.md#12-repo-y-protección"]
+    criterios_aceptacion:
+      - "pdromer0/menairos existe, es público y no contiene nada personal"
+      - "El ruleset «Proteger main» exige PR, el check ci y rama al día, impide push forzado y borrado, y solo Pedro (su usuario) está en la lista de excepciones, y solo por PR (`bypass_mode: pull_request`); comprobado por la API"
+      - "Escaneo de secretos, protección de push, alertas de Dependabot e informe privado de vulnerabilidades activados; comprobado por la API"
+      - "Fusión solo por squash, borrar la rama al fusionar y auto-merge permitido; comprobado por la API"
+      - "La aprobación obligatoria de los workflows de PR de forks (all_external_contributors) está activada; comprobado por la API"
+
+  - id: T-02
+    titulo: "Esqueleto del paquete, stack, CI y comprobaciones deliberadas"
+    rama: chore/h0-esqueleto
+    depende_de: [T-01]
+    area: arranque
+    especificacion:
+      - "hito-0.md#13-estructura-inicial"
+      - "hito-0.md#17-comprobaciones-deliberadas"
+    criterios_aceptacion:
+      - "La estructura de 1.3 existe; `menairos --version` responde con la versión del paquete"
+      - "El CI ejecuta ruff, pyright y pytest sin secretos, con las acciones fijadas por SHA, y está en verde; su job se llama ci, sin matriz, el check que exige el ruleset"
+      - "scripts/n1.sh y scripts/n3.sh salen con 0 o 1 y dicen qué ejecutaron; el CI llama a scripts/n3.sh"
+      - "CodeQL con la configuración por defecto (`python` y `actions`), activado por la API ya con código Python; comprobado por la API"
+      - "Las cinco comprobaciones deliberadas de 1.7 se provocaron, saltaron con el mensaje esperado y se deshicieron; anotado en el anexo"
+      - "Las versiones de las herramientas se verificaron con herramientas en el momento y constan en el anexo"
+
+  - id: T-03
+    titulo: "Documentos al repo y los 20 ADRs"
+    rama: docs/h0-documentos-adrs
+    depende_de: [T-02]
+    area: arranque
+    especificacion:
+      - "hito-0.md#14-documentos-del-project-al-repo"
+      - "hito-0.md#15-adrs-iniciales"
+    criterios_aceptacion:
+      - "producto.md, diseno.md, hitos.md, specs/hito-0.md, specs/hito-0.tareas.yaml y abiertas.md están en docs/ con el contenido del Project, citando los proyectos del método v2 de forma genérica (sin sus nombres)"
+      - "Ningún fichero del repo nombra los proyectos del método v2: comprobado con un grep de sus nombres lanzado desde la terminal (el patrón no se guarda en el repo)"
+      - "Los 20 ADRs de 1.5 están en docs/decisiones/ con los campos Tipo, Decidido por y Reversibilidad; el 0020 es de tipo stack"
+      - "Los documentos del Project, salvo su documento de seguimiento, están marcados como archivados"
+
+  - id: T-04
+    titulo: "Verificación temprana del plugin (V-plugin) y repo de prueba"
+    rama: ci/h0-v-plugin
+    depende_de: [T-02]
+    area: arranque
+    critica: true
+    motivo_critica: "Su resultado decide si se aplica el plan B del plugin (diseno.md 2.1), que cambia cómo se distribuye Menairos"
+    especificacion: ["hito-0.md#16-verificación-temprana-del-plugin-v-plugin"]
+    criterios_aceptacion:
+      - "El plugin tiene manifiesto y marketplace, y la skill menairos-hola responde con la versión del plugin"
+      - "pdromer0/menairos-prueba existe, público, con un .claude/settings.json que declara el marketplace y habilita el plugin"
+      - "Hay resultado de la skill en una sesión local nueva y en una sesión en la nube, anotado en el anexo y en abiertas.md"
+      - "Si en la nube no se instala solo, el plan B queda anotado como decisión de Pedro"
+
+  # ── H0.1 Contratos ─────────────────────────────────────────────────────────
+
+  - id: T-05
+    titulo: "Esquemas JSON"
+    rama: feat/h0-esquemas
+    depende_de: [T-02]
+    area: contratos
+    critica: true
+    motivo_critica: "Define el contrato versionado de Menairos: cambiarlo después es una versión mayor"
+    especificacion: ["hito-0.md#22-esquemas"]
+    criterios_aceptacion:
+      - "menairos.schema.json, tareas.schema.json y decisiones.schema.json están en esquemas/ con additionalProperties false en todos los objetos y sus valores por defecto"
+      - "tests/data/ tiene un ejemplo válido y uno inválido por cada regla de las tablas de 2.2"
+      - "La marca de una decisión se calcula (difícil o impacto alto) y difícil + alto + decidido_por agente es un error; los dos con test"
+
+  - id: T-06
+    titulo: "menairos spec validar (E01–E13 y avisos)"
+    rama: feat/h0-spec-validar
+    depende_de: [T-05]
+    area: contratos
+    especificacion: ["hito-0.md#23-menairos-spec-validar"]
+    criterios_aceptacion:
+      - "Detecta E01 a E13 y A01 a A03, cada uno con su test"
+      - "Salida JSON con codigo, mensaje, fichero y ruta; códigos de salida 0, 1 y 2"
+      - "Las anclas se calculan como GitHub, con acentos, signos, código y encabezados repetidos, con test"
+      - "Los casos límite de 2.3 tienen test"
+
+  - id: T-07
+    titulo: "Envoltorio de gh api y doble de GitHub con tope"
+    rama: feat/h0-gh
+    depende_de: [T-02]
+    area: contratos
+    especificacion:
+      - "hito-0.md#24-menairos-spec-publicar"
+    criterios_aceptacion:
+      - "Todas las llamadas a GitHub de la CLI pasan por un único envoltorio de gh api, solo REST"
+      - "El doble de GitHub registra las llamadas, simula paginación y fallos, y lanza un error claro al pasar su tope de llamadas"
+      - "Ningún test llama a GitHub de verdad"
+
+  - id: T-08
+    titulo: "menairos spec publicar"
+    rama: feat/h0-spec-publicar
+    depende_de: [T-06, T-07]
+    area: contratos
+    critica: true
+    motivo_critica: "Escribe en GitHub (etiquetas, milestones, issues, dependencias)"
+    especificacion: ["hito-0.md#24-menairos-spec-publicar"]
+    criterios_aceptacion:
+      - "Crea etiquetas, milestone, issues con la marca oculta y dependencias «blocked by», en ese orden; --seco no escribe nada"
+      - "Cada caso de la tabla de idempotencia y cada caso límite de 2.4 tiene test con el doble"
+      - "La ruta REST para crear y quitar dependencias está verificada en la documentación y en el repo de prueba; anotado en el anexo"
+      - "Publicación real en menairos-prueba ejecutada dos veces: la segunda no escribe nada"
+      - "Los issues del hito 0 publicados en pdromer0/menairos con spec publicar; los de T-01 a T-08, ya hechas, cerrados por Pedro con un enlace a su PR"
+
+  # ── H0.2 Plantillas y entorno ──────────────────────────────────────────────
+
+  - id: T-09
+    titulo: "Plantillas de documentos y sustitución {{…}}"
+    rama: feat/h0-plantillas-docs
+    depende_de: [T-05]
+    area: plantillas
+    especificacion: ["hito-0.md#32-plantillas-de-documentos"]
+    criterios_aceptacion:
+      - "Todas las plantillas de la tabla de 3.2 existen con sus secciones fijas"
+      - "La sustitución rellena {{clave}} desde menairos.toml; un hueco sin rellenar o una clave inexistente es un error, con test"
+      - "Un hito generado desde las plantillas pasa spec validar"
+
+  - id: T-10
+    titulo: "Plantillas base y python-uv, manifiesto y composición"
+    rama: feat/h0-plantillas-stack
+    depende_de: [T-09]
+    area: plantillas
+    critica: true
+    motivo_critica: "Fija el contrato común de las plantillas de stack, del que depende /implementar"
+    especificacion: ["hito-0.md#33-plantillas-de-stack-y-contrato-común"]
+    criterios_aceptacion:
+      - "base y python-uv tienen su plantilla.toml con herramientas, órdenes del contrato, ficheros fusionables y comprobaciones"
+      - "La composición respeta requiere y stack.plantillas; dos plantillas con el mismo fichero no fusionable dan error, con test"
+      - "Un proyecto generado con base + python-uv en una carpeta temporal pasa su propia N3 (test slow)"
+      - "n1.sh, n2.sh y n3.sh salen con 0 o 1 y dicen qué ejecutaron"
+
+  - id: T-11
+    titulo: "menairos entorno: capas local y repo"
+    rama: feat/h0-entorno-local
+    depende_de: [T-10]
+    area: entorno
+    especificacion:
+      - "hito-0.md#34-menairos-entorno"
+      - "hito-0.md#37-casos-límite"
+    criterios_aceptacion:
+      - "La capa local comprueba herramientas y versiones, la ruta (nunca /mnt/c) y .wslconfig, y no instala nada en el sistema"
+      - "La capa repo aplica las plantillas sin sobrescribir nunca un fichero existente y lista los conflictos"
+      - "Cada paso termina en ok, hecho, manual o error, y repetir la orden no cambia nada"
+      - "Los casos límite de 3.7 de estas dos capas tienen test"
+
+  - id: T-12
+    titulo: "menairos entorno: capas GitHub y nube, y --comprobar"
+    rama: feat/h0-entorno-github
+    depende_de: [T-11, T-07]
+    area: entorno
+    critica: true
+    motivo_critica: "Crea repos y cambia ajustes de GitHub"
+    donde: local
+    especificacion:
+      - "hito-0.md#34-menairos-entorno"
+      - "hito-0.md#37-casos-límite"
+    criterios_aceptacion:
+      - "La capa GitHub crea el repo y aplica los ajustes de 3.4; en un repo privado sin GitHub Pro, el ruleset es un aviso"
+      - "La capa nube genera scripts/entorno-nube.sh y las instrucciones para la nube de Claude Code y de Codex"
+      - "--comprobar no escribe nada y verifica por la API también lo que Pedro hizo en la web"
+      - "menairos entorno sobre menairos-prueba termina con --comprobar en verde"
+
+  - id: T-13
+    titulo: "Comprobaciones deliberadas automáticas"
+    rama: feat/h0-comprobaciones
+    depende_de: [T-10]
+    area: entorno
+    especificacion: ["hito-0.md#36-comprobaciones-deliberadas-automáticas"]
+    criterios_aceptacion:
+      - "Las comprobaciones locales del manifiesto se provocan en un worktree temporal y fallan con su mensaje; el árbol de trabajo queda intacto"
+      - "Las remotas se verifican leyendo por la API el ruleset y el check obligatorio, sin provocar un push"
+      - "La clave falsa se inventa en cada ejecución y nunca sale del worktree temporal"
+
+  - id: T-14
+    titulo: "/preparar-entorno"
+    rama: feat/h0-preparar-entorno
+    depende_de: [T-12, T-13]
+    area: entorno
+    especificacion: ["hito-0.md#35-preparar-entorno"]
+    criterios_aceptacion:
+      - "Sigue los siete pasos de 3.5: para sin menairos.toml y pide permiso antes de escribir en GitHub en manual y didáctico"
+      - "Los pasos manuales de Pedro se cronometran y caben en 15 minutos; anotado en el anexo"
+      - "Si la especificación está aprobada y sin publicar, ofrece publicarla con el --seco delante y el OK de Pedro"
+
+  # ── H0.3 Especificar ───────────────────────────────────────────────────────
+
+  - id: T-15
+    titulo: "/crear-spec (lluvia de ideas) con spec nuevo, estado y fase"
+    rama: feat/h0-crear-spec
+    depende_de: [T-09]
+    area: especificar
+    especificacion:
+      - "hito-0.md#42-crear-spec"
+      - "hito-0.md#44-lo-que-aporta-la-cli"
+    criterios_aceptacion:
+      - "spec nuevo crea la carpeta con git init, el esqueleto de documentos y los borradores de menairos.toml y .menairos/estado-spec.toml"
+      - "/crear-spec recorre las ocho fases, cada una con su commit, y escribe donde dice la tabla de 4.2"
+      - "Tras un /clear a mitad, spec estado indica la fase y la conversación sigue desde los ficheros"
+      - "Reabrir una fase marca «a revisar» las que dependen de ella (A04), con test"
+
+  - id: T-16
+    titulo: "Modo MVP, inventario-mvp y E14"
+    rama: feat/h0-crear-spec-mvp
+    depende_de: [T-15]
+    area: especificar
+    especificacion:
+      - "hito-0.md#42-crear-spec"
+      - "hito-0.md#45-comprobaciones-nuevas-de-spec-validar"
+    criterios_aceptacion:
+      - "La fase 0 decide evolucionar el repo o empezar uno nuevo, y pasa gitleaks por toda la historia del MVP si va a ser público"
+      - "inventario-mvp escribe docs/inventario-mvp.md con un hueco de decisión por elemento"
+      - "E14 detecta un elemento sin decidir sobre un MVP de ejemplo en los datos de test"
+
+  - id: T-17
+    titulo: "/crear-spec --siguiente"
+    rama: feat/h0-crear-spec-siguiente
+    depende_de: [T-15]
+    area: especificar
+    especificacion: ["hito-0.md#42-crear-spec"]
+    criterios_aceptacion:
+      - "Con un informe de cierre de ejemplo, recorre solo las fases 7 y 8 y produce hito-N+1.md y sus tareas"
+      - "Reabre las fases 4, 5 o 6 cuando el informe pide cambiar el stack, la arquitectura o los entornos"
+
+  - id: T-18
+    titulo: "/validar-spec, revisor (Claude y Codex), informe y E15"
+    rama: feat/h0-validar-spec
+    depende_de: [T-06, T-08, T-15]
+    area: especificar
+    especificacion:
+      - "hito-0.md#43-validar-spec"
+      - "hito-0.md#45-comprobaciones-nuevas-de-spec-validar"
+      - "hito-0.md#46-casos-límite"
+    criterios_aceptacion:
+      - "Con el revisor de Claude y con el de Codex, el informe sale en docs/specs/revision-hito-N.md con el formato de 4.3"
+      - "Las opciones de codex exec para solo lectura y salida a fichero están verificadas; anotado en el anexo"
+      - "E15 impide publicar con bloqueantes abiertos, con test"
+      - "La publicación funciona con el repo ya creado y desde /preparar-entorno"
+
+  # ── H0.4 Implementar ───────────────────────────────────────────────────────
+
+  - id: T-19
+    titulo: "menairos contexto"
+    rama: feat/h0-contexto
+    depende_de: [T-06, T-07]
+    area: implementar
+    especificacion: ["hito-0.md#53-menairos-contexto"]
+    criterios_aceptacion:
+      - "Devuelve todos los campos de la tabla de 5.3 en una sola salida JSON"
+      - "Solo los comentarios de Pedro y de la App llegan a la salida, y se cuentan los ignorados, con test"
+      - "Dependencias abiertas, desfase con el YAML y choque con donde: local tienen test"
+
+  - id: T-20
+    titulo: "Hooks en Python (incluido el anti-bucle)"
+    rama: feat/h0-hooks
+    depende_de: [T-10]
+    area: implementar
+    especificacion: ["hito-0.md#55-hooks"]
+    criterios_aceptacion:
+      - "SessionStart, Stop, PostToolUse y el anti-bucle funcionan como menairos hook <nombre>, sin jq"
+      - "Stop no hace nada en modo plan y avisa al empezar la N2"
+      - "El anti-bucle bloquea un comando que falla 3 veces sin cambios en el árbol y no lo bloquea con cambios; test con secuencias falsas"
+
+  - id: T-21
+    titulo: "menairos decisiones validar"
+    rama: feat/h0-decisiones
+    depende_de: [T-05]
+    area: implementar
+    especificacion:
+      - "hito-0.md#22-esquemas"
+      - "hito-0.md#54-el-fichero-de-decisiones-en-los-modos-manual-y-didáctico"
+    criterios_aceptacion:
+      - "Valida un fichero de decisiones contra su esquema y sus coherencias (marca calculada; difícil + alto + agente es error)"
+      - "Distingue decidido_por pedro (lo aprobado en el plan) de agente (lo decidido durante la implementación), con test"
+
+  - id: T-22
+    titulo: "/implementar (manual y didáctico) y revisor-plan"
+    rama: feat/h0-implementar
+    depende_de: [T-19, T-20, T-21]
+    area: implementar
+    critica: true
+    motivo_critica: "Es el ciclo central del método; desde aquí, las tareas restantes se hacen con él"
+    especificacion:
+      - "hito-0.md#52-implementar"
+      - "hito-0.md#57-subagentes"
+      - "hito-0.md#58-codex-como-implementador"
+      - "hito-0.md#59-casos-límite"
+    criterios_aceptacion:
+      - "Una tarea en modo manual en una sesión en la nube, de punta a punta: plan de 8 apartados, PR con anexo y fichero de decisiones"
+      - "Otra tarea en local y en modo didáctico, con la sección Conceptos antes del plan"
+      - "El modo efectivo respeta la prioridad comando > tarea > hito > proyecto, con test"
+      - "revisor-plan revisa el plan de las tareas críticas y su informe va al principio"
+
+  - id: T-23
+    titulo: "/sincronizar y mutante"
+    rama: feat/h0-sincronizar
+    depende_de: [T-07, T-22]
+    area: implementar
+    especificacion:
+      - "hito-0.md#56-sincronizar"
+      - "hito-0.md#57-subagentes"
+    criterios_aceptacion:
+      - "menairos sincronizar comprueba merged por REST y nunca da un PR por fusionado sin esa comprobación; test con un PR sin fusionar"
+      - "Borra la rama local solo si todos sus commits entraron y quita la etiqueta en-curso"
+      - "mutante está en el plugin como módulo inactivo, con su disparador"
+
+  # ── H0.5 Cierre y prueba ───────────────────────────────────────────────────
+
+  - id: T-24
+    titulo: "menairos informe"
+    rama: feat/h0-informe
+    depende_de: [T-21, T-07]
+    area: cierre
+    especificacion: ["hito-0.md#62-el-informe-del-hito"]
+    criterios_aceptacion:
+      - "Genera docs/specs/hito-N/informe.md con las cinco secciones de 6.2"
+      - "Ejecuta las órdenes de las comprobaciones ✅ y deja marcadas las que pasan; avisa de las que fallan"
+      - "Las métricas salen por REST, con test contra el doble"
+
+  - id: T-25
+    titulo: "menairos cierre --aprobar y /cerrar-hito"
+    rama: feat/h0-cierre
+    depende_de: [T-24]
+    area: cierre
+    critica: true
+    motivo_critica: "Fusiona el PR de cierre, crea issues, ADRs, etiqueta y Release"
+    especificacion:
+      - "hito-0.md#63-menairos-cierre-n---aprobar"
+      - "hito-0.md#67-casos-límite"
+    criterios_aceptacion:
+      - "Sigue los ocho pasos de 6.3 y para si el informe está incompleto"
+      - "La regla ask de las plantillas impide lanzarlo sin la confirmación de Pedro"
+      - "Repetir tras un fallo a mitad no duplica issues, ADRs ni etiquetas; casos límite de 6.7 con test"
+
+  - id: T-26
+    titulo: "Verificaciones en Actions (App menairos-agente)"
+    rama: ci/h0-verificaciones
+    depende_de: [T-04]
+    area: cierre
+    donde: local
+    especificacion: ["hito-0.md#65-verificaciones-pendientes"]
+    criterios_aceptacion:
+      - "La App menairos-agente está creada e instalada en menairos-prueba (paso manual de Pedro)"
+      - "Cada verificación de la tabla de 6.5 tiene resultado, anotado en el anexo y en abiertas.md"
+
+  - id: T-27
+    titulo: "Prueba de punta a punta"
+    rama: test/h0-punta-a-punta
+    depende_de: [T-14, T-16, T-17, T-18, T-22, T-23, T-25]
+    area: cierre
+    donde: local
+    especificacion: ["hito-0.md#64-la-prueba-de-punta-a-punta"]
+    criterios_aceptacion:
+      - "La demo funcional se recorre entera en menairos-prueba y pasa las siete comprobaciones"
+      - "Los tiempos de Pedro están medidos y anotados en el anexo"
+
+  - id: T-28
+    titulo: "Cierre del H0 y v3.0.0"
+    rama: chore/h0-cierre
+    depende_de: [T-26, T-27]
+    area: cierre
+    donde: local
+    especificacion: ["hito-0.md#66-cierre-del-propio-h0"]
+    criterios_aceptacion:
+      - "El H0 se cierra con /cerrar-hito 0 sobre el propio repo y --aprobar publica v3.0.0"
+      - "La skill menairos-hola está retirada y diseno.md incluye /sincronizar"
+      - "El documento de seguimiento del Project está marcado como archivado"
