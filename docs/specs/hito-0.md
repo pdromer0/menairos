@@ -53,7 +53,7 @@
 
 El repo `pdromer0/menairos`, con su protección, su CI y los documentos de este Project dentro, más
 una **verificación temprana del plugin**: comprobar cuanto antes el mayor riesgo técnico del
-diseño (que el plugin se instale solo en la nube).
+diseño (que el plugin llegue a los proyectos en local y en la nube).
 
 ### 1.2 Repo y protección
 
@@ -585,7 +585,7 @@ instrucciones) o `error`.
 | **local** | Herramientas del manifiesto y sus versiones (`git`, `gh` con sesión, `uv`, `claude`; `codex` y `docker` si hacen falta); el repo bajo `~/proyectos/` y nunca en `/mnt/c`; `.wslconfig` con memoria y swap (solo aviso); `pre-commit install` |
 | **repo** | Aplica las plantillas; `uv sync`; primer commit en `main` si el repo es nuevo |
 | **github** | Crea el repo con la visibilidad de `menairos.toml` (con `--source --push`); ruleset de `main` (solo en público o con GitHub Pro; si no, aviso); escaneo de secretos y protección de push; Dependabot; informe privado de vulnerabilidades; fusión solo por *squash*; borrar la rama al fusionar; auto-merge permitido; etiquetas (las mismas de `spec publicar`) |
-| **nube** | Genera `scripts/entorno-nube.sh` (instala la CLI de Menairos fijada a la versión, `uv sync`, comprueba `gh`, amplía el tiempo máximo de los comandos para la N3) y las instrucciones para pegarlo en el entorno de la nube de Claude Code y de Codex |
+| **nube** | Genera `scripts/entorno-nube.sh` (instala la CLI de Menairos y el plugin de Menairos fijados a la versión —`claude plugin marketplace add` y `claude plugin install`, comprobado en T-04—, `uv sync`, comprueba `gh`, amplía el tiempo máximo de los comandos para la N3) y las instrucciones para pegarlo en el entorno de la nube de Claude Code y de Codex |
 
 Decisiones de comportamiento:
 
@@ -1350,3 +1350,81 @@ Todas de Pedro, 2026-11-25.
 - Archivar en el Project los documentos que ya viven en el repo (lo hace el chat tras fusionar).
 - Pedro revisa en el PR, sobre todo, la tabla de tipo y reversibilidad de
   `docs/decisiones/README.md`.
+
+### T-04 — Verificación temprana del plugin (V-plugin) y repo de prueba
+
+*Hecha el 2026-11-26, en local y en la nube, con Claude Code. Sin issue.*
+
+**Qué se hizo**
+
+- Marketplace en `.claude-plugin/marketplace.json` y plugin mínimo en `plugin/` con la skill
+  `hola`.
+- `tests/test_plugin.py`: comprobaciones del marketplace, del manifiesto del plugin y de la skill.
+- Repo de prueba `pdromer0/menairos-prueba`, con su `.claude/settings.json` y la copia de la skill
+  en `.claude/skills/hola/`.
+- Las pruebas de §1.6, hechas por Pedro con Claude Code 2.1.326:
+
+| Prueba | Entorno | Cómo llega el plugin | Resultado |
+| --- | --- | --- | --- |
+| A1 | Local | Solo por el `.claude/settings.json` de `menairos-prueba`, tras aceptar la confianza en la carpeta | **Carga**: `/menairos:hola` responde con una ruta de la caché local de plugins. A2 no hizo falta. La copia (`/hola`) responde con `${CLAUDE_PLUGIN_ROOT}` sin sustituir |
+| B | Nube | Solo por el `.claude/settings.json` del repo | **No carga**: `/menairos:hola` no existe y `claude plugin list` no muestra `menairos`. Coincide con la documentación |
+| C | Nube, entorno dedicado `menairos-prueba` | El script de entorno ejecuta `claude plugin marketplace add "pdromer0/menairos#ci/h0-v-plugin"` y `claude plugin install menairos@menairos`, con `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` | **Carga**: `/menairos:hola` responde «menairos 3.0.0.dev0 · cargado desde: /root/.claude/plugins/cache/menairos/menairos/3.0.0.dev0». `claude plugin list` muestra `menairos@menairos` 3.0.0.dev0 dos veces, habilitado, con Scope `user` (lo instaló el script) y Scope `project` (el `enabledPlugins` del repo): es un solo plugin |
+| D | Nube | La copia de la skill en `.claude/skills/` (plan B) | **Carga**: `/hola` responde con `${CLAUDE_PLUGIN_ROOT}` sin sustituir |
+
+- **Decisión de Pedro (2026-11-26):** opción 1, plugin más script de entorno en la nube; el plan B,
+  probado, queda como respaldo; los plugins de la cuenta de claude.ai, como alternativa sin probar.
+  Resultado reflejado en `diseno.md` 2.1 y 8, `hitos.md`, el ADR 0002 y `abiertas.md`.
+
+**Decisiones del diff**
+
+- El plugin vive en `plugin/` y no en la raíz: la caché solo copia el plugin, y `claude plugin
+  validate` no avisa del `CLAUDE.md` de la raíz.
+- Skill `hola` (`/menairos:hola`), cuya respuesta dice desde dónde se cargó.
+- `description` añadida al marketplace por el aviso de `validate`.
+- Sin `LICENSE` ni icono: son requisitos del catálogo de Anthropic (`--profile directory`) que no
+  cambian el veredicto; la licencia queda aplazada (`abiertas.md`).
+- La prueba A se hizo en dos pasos (A1 y, solo si hacía falta, A2).
+- Entorno dedicado en la nube para la prueba C.
+- Decisión de Pedro: opción 1, plan B como respaldo y claude.ai como alternativa sin probar.
+
+**Medidas**
+
+- Claude Code 2.1.326.
+- `claude plugin validate` de `.` y de `./plugin`: «Validation passed», sin avisos.
+- Ruta de carga en la nube: `/root/.claude/plugins/cache/menairos/menairos/3.0.0.dev0`.
+
+**Diferencias con la documentación**
+
+- `plugins/loading.md` y `plugins/org.md` no coinciden para un marketplace `github` con plugin de
+  ruta relativa; en la práctica (A1) carga en local solo con el `settings.json` del proyecto.
+- En la nube, con el marketplace registrado por el script, el `enabledPlugins` del repo también
+  surte efecto (el plugin aparece con Scope `user` y `project`).
+- Los plugins sincronizados desde claude.ai («Synced from claude.ai», por ejemplo
+  `cowork-plugin-management@synced`) llegan a las sesiones en la nube. No se probó con Menairos.
+
+**Versiones incorrectas**
+
+Las seis del plan, cada una deshecha sin commit y con el test de `tests/test_plugin.py` que falló:
+
+| Versión incorrecta | Test que falló |
+| --- | --- |
+| `version` de `plugin.json` distinta de la del paquete | `test_la_version_de_plugin_json_es_la_del_paquete` |
+| Versión de la skill distinta de la del paquete | `test_la_version_de_la_skill_es_la_del_paquete` |
+| Skill sin la línea de respuesta | `test_la_version_de_la_skill_es_la_del_paquete` |
+| `source` mal | `test_el_source_de_la_entrada_existe_y_contiene_el_plugin` |
+| Nombre de la entrada distinto del del plugin | `test_la_entrada_del_marketplace_se_llama_como_el_plugin` |
+| Marketplace sin `owner` | `test_marketplace_es_json_valido_con_sus_campos_obligatorios` |
+
+**Revisión**
+
+- Revisión propia de Claude Code. El chat leyó la rama y `menairos-prueba` en GitHub; la copia de
+  la skill es idéntica byte a byte.
+
+**Pendiente**
+
+- Tras fusionar: quitar el ref de `.claude/settings.json` de `menairos-prueba` y cambiar el script
+  del entorno `menairos-prueba` a `"pdromer0/menairos"` sin ref.
+- La capa nube de T-12 genera ese script.
+- Actions, en T-26.
+- La versión del plugin durante el desarrollo, en T-22.
+- La línea de instalación del `README`, cuando se documente cómo se instala Menairos.

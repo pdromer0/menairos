@@ -27,3 +27,4 @@ Con el método v2, cada proyecto nuevo copia el método a mano y cuesta un hito 
 
 - Las mejoras llegan a los proyectos actualizando el plugin.
 - Hay que verificar que el plugin se instala solo en la nube y en Actions (plan B en `diseno.md` 2.1).
+- Actualización (2026-11-26, T-04): en local, el plugin carga con el `.claude/settings.json` del proyecto; en la nube, lo instala el script de entorno (el `settings.json` del repo no basta); en Actions, por verificar en T-26. Ver `diseno.md` 2.1.

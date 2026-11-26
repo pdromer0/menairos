@@ -8,19 +8,10 @@
 
 ## Verificaciones del hito 0
 
-### ¿Carga en la nube el plugin instalado desde el script de entorno?
-
-**Justificación:** la documentación de los entornos en la nube ya responde que el
-`.claude/settings.json` del repo no basta: una sesión en la nube no instala los plugins que
-declara (las pruebas B y D lo comprobarán). Queda abierta la prueba C: instalar el plugin desde el
-script de entorno, antes de que arranque Claude Code, que la documentación no cubre. Se cierra en
-**T-04** (V-plugin, §1.6 de `specs/hito-0.md`). Si no carga, plan B de `diseno.md` 2.1: copiar el
-plugin a `.claude/` del proyecto.
-
 ### ¿Se instala el plugin en `claude-code-action`?
 
 **Justificación:** igual que la anterior, pero en GitHub Actions; necesita un workflow mínimo. Se
-cierra en **T-26**. Si no, el mismo plan B.
+cierra en **T-26**. Si no, el plan B de `diseno.md` 2.1 (probado en T-04).
 
 ### ¿Sirve el token OAuth de Max para sesiones largas en `claude-code-action`?
 
@@ -82,6 +73,13 @@ entra por PR, como cualquier otro cambio.
 **Justificación:** con `version` fijada en `plugin.json`, un proyecto se queda en esa versión
 hasta que cambie, así que durante `3.0.0.dev0` los cambios del plugin no llegan solos. Se decide
 en **T-22**, cuando el plugin empiece a cambiar de verdad.
+
+### ¿Sirven los plugins de la cuenta de claude.ai para distribuir Menairos?
+
+**Justificación:** en T-04 se vio que los plugins sincronizados desde claude.ai llegan a las
+sesiones en la nube. Sería una vía sin script de entorno, pero con una sola versión para todos los
+proyectos y subida a mano. No hace falta mientras funcione el script de entorno; se revisa al
+cerrar el H0 (T-28).
 
 ## Producto
 

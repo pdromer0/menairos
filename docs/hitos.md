@@ -50,8 +50,9 @@ H0.3 y H0.4 se pueden hacer en cualquier orden una vez cerrados H0.1 y H0.2.
 Las de `abiertas.md`, que se resuelven aquí y alimentan el diseño del H1:
 
 - que `/implementar` funciona de punta a punta en una sesión en la nube de Claude Code;
-- que el plugin se instala solo en la nube y en `claude-code-action` (si no, plan B de
-  `diseno.md` 2.1);
+- que el plugin llega a los proyectos (verificado en T-04: en local, por el `.claude/settings.json`
+  del proyecto; en la nube, instalado por el script de entorno) y a `claude-code-action`
+  (pendiente);
 - que el token OAuth de Max sirve para sesiones largas en `claude-code-action`;
 - que la revisión de Codex se puede convertir en check;
 - que la etiqueta y la Release se pueden crear con el token de una App;

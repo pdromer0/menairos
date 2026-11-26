@@ -55,3 +55,12 @@ tareas a las que afecta.
 - **En modo auto, Claude Code bloquea las acciones destructivas** (por ejemplo, `git reset --hard`)
   y pide autorización; es el comportamiento buscado. Las prohibiciones de
   `.claude/settings.json` son una segunda barrera; la primera es el ruleset. *Origen:* T-02.
+
+## Plugins y Claude Code
+
+- **La documentación de Claude Code puede contradecirse entre páginas**: cuando pasa, se prueba y
+  se anota el resultado. *Origen:* T-04.
+- **Una skill que imprime su origen (`${CLAUDE_PLUGIN_ROOT}`) distingue si se cargó como plugin o
+  como copia en `.claude/skills/`**: en la copia, la variable sale sin sustituir. *Origen:* T-04.
+- **En la nube, el `.claude/settings.json` del repo no instala plugins**: los instala el script de
+  entorno. *Origen:* T-04.
