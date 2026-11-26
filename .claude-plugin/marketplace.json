@@ -1,0 +1,14 @@
+{
+  "name": "menairos",
+  "description": "Menairos: método de desarrollo con agentes de IA",
+  "owner": {
+    "name": "pdromer0"
+  },
+  "plugins": [
+    {
+      "name": "menairos",
+      "source": "./plugin",
+      "description": "Menairos: método de desarrollo con agentes de IA"
+    }
+  ]
+}
