@@ -8,12 +8,14 @@
 
 ## Verificaciones del hito 0
 
-### ¿Se instala solo el plugin en una sesión en la nube de Claude Code?
+### ¿Carga en la nube el plugin instalado desde el script de entorno?
 
-**Justificación:** depende del comportamiento real de las sesiones en la nube con un marketplace
-declarado en el `.claude/settings.json` del proyecto; solo se sabe probándolo. Se cierra en
-**T-04** (V-plugin). Si no se instala solo, plan B de `diseno.md` 2.1: copiar el plugin a
-`.claude/` del proyecto.
+**Justificación:** la documentación de los entornos en la nube ya responde que el
+`.claude/settings.json` del repo no basta: una sesión en la nube no instala los plugins que
+declara (las pruebas B y D lo comprobarán). Queda abierta la prueba C: instalar el plugin desde el
+script de entorno, antes de que arranque Claude Code, que la documentación no cubre. Se cierra en
+**T-04** (V-plugin, §1.6 de `specs/hito-0.md`). Si no carga, plan B de `diseno.md` 2.1: copiar el
+plugin a `.claude/` del proyecto.
 
 ### ¿Se instala el plugin en `claude-code-action`?
 
@@ -74,6 +76,12 @@ varias piezas (REST, rama del issue, script de entorno, N3 dentro del tiempo má
 adaptar el plugin. Pedro lo decide antes de publicar `v3.0.0` (T-28); opciones valoradas: MIT y
 Apache-2.0, con el aviso de copyright a nombre de `pdromer0` (nada personal). El fichero `LICENSE`
 entra por PR, como cualquier otro cambio.
+
+### ¿Qué versión lleva el plugin durante el desarrollo?
+
+**Justificación:** con `version` fijada en `plugin.json`, un proyecto se queda en esa versión
+hasta que cambie, así que durante `3.0.0.dev0` los cambios del plugin no llegan solos. Se decide
+en **T-22**, cuando el plugin empiece a cambiar de verdad.
 
 ## Producto
 

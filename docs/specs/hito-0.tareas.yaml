@@ -61,10 +61,11 @@ tareas:
     motivo_critica: "Su resultado decide si se aplica el plan B del plugin (diseno.md 2.1), que cambia cómo se distribuye Menairos"
     especificacion: ["hito-0.md#16-verificación-temprana-del-plugin-v-plugin"]
     criterios_aceptacion:
-      - "El plugin tiene manifiesto y marketplace, y la skill menairos-hola responde con la versión del plugin"
-      - "pdromer0/menairos-prueba existe, público, con un .claude/settings.json que declara el marketplace y habilita el plugin"
-      - "Hay resultado de la skill en una sesión local nueva y en una sesión en la nube, anotado en el anexo y en abiertas.md"
-      - "Si en la nube no se instala solo, el plan B queda anotado como decisión de Pedro"
+      - "El marketplace (.claude-plugin/marketplace.json) y el plugin (plugin/) pasan claude plugin validate sin avisos, y la skill hola responde con la versión del plugin y la ruta desde la que se cargó"
+      - "tests/test_plugin.py comprueba que la versión de plugin.json y la de la skill coinciden con la del paquete"
+      - "pdromer0/menairos-prueba existe, público, con un .claude/settings.json que declara el marketplace y habilita el plugin, y una copia de la skill en .claude/skills/"
+      - "Las pruebas A, B, C y D de 1.6 tienen resultado, anotado en el anexo y en abiertas.md"
+      - "La decisión sobre la nube (plugin + script de entorno, o plan B) la toma Pedro y queda en diseno.md 2.1"
 
   # ── H0.1 Contratos ─────────────────────────────────────────────────────────
 
@@ -380,5 +381,5 @@ tareas:
     especificacion: ["hito-0.md#66-cierre-del-propio-h0"]
     criterios_aceptacion:
       - "El H0 se cierra con /cerrar-hito 0 sobre el propio repo y --aprobar publica v3.0.0"
-      - "La skill menairos-hola está retirada y diseno.md incluye /sincronizar"
+      - "La skill hola está retirada y diseno.md incluye /sincronizar"
       - "El documento de seguimiento del Project está marcado como archivado"
