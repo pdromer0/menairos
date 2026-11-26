@@ -1,0 +1,9 @@
+{
+  "name": "menairos",
+  "version": "3.0.0.dev0",
+  "description": "Menairos: método de desarrollo con agentes de IA",
+  "author": {
+    "name": "pdromer0"
+  },
+  "repository": "https://github.com/pdromer0/menairos"
+}

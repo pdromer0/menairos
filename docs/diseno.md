@@ -63,11 +63,22 @@ tokens.
 
 - Los prompts de los comandos son cortos y delegan en la CLI todo lo que se pueda calcular: el
   modelo recibe el resultado, no lo reconstruye.
-- **Disponibilidad en la nube y en Actions:** el `.claude/settings.json` de cada proyecto declara
-  el marketplace de Menairos y el plugin habilitado, fijado a la versión de `menairos.toml`.
-  *Por verificar en el hito 0* que las sesiones en la nube y `claude-code-action` lo instalan
-  solos. Plan B: `/preparar-entorno` copia los ficheros del plugin a `.claude/` del proyecto (como
-  hacía el método v2 con sus skills) y `/actualizar-menairos` los mantiene al día.
+- **Disponibilidad (verificada en T-04; decisión de Pedro, 2026-11-26):**
+  - *Local:* basta con el `.claude/settings.json` del proyecto, que declara el marketplace de
+    Menairos fijado a la versión de `menairos.toml` y habilita el plugin; carga tras aceptar la
+    confianza en la carpeta.
+  - *Nube de Claude Code:* el `.claude/settings.json` del repo no basta (las sesiones en la nube
+    no instalan los plugins que declara). El script de entorno de la nube instala el plugin fijado
+    a la versión del proyecto antes de que arranque Claude Code
+    (`claude plugin marketplace add "pdromer0/menairos#<versión>"` y
+    `claude plugin install menairos@menairos`); lo genera la capa nube de `menairos entorno` y
+    Pedro lo pega en el entorno.
+  - *GitHub Actions (`claude-code-action`):* pendiente de verificar en T-26.
+  - *Plan B, probado como respaldo:* `/preparar-entorno` copia los ficheros del plugin a
+    `.claude/` del proyecto (como hacía el método v2 con sus skills) y `/actualizar-menairos` los
+    mantiene al día; se usaría si el script de entorno dejara de servir.
+  - *Alternativa sin probar:* subir el plugin a la cuenta de claude.ai, cuyos plugins llegan a las
+    sesiones en la nube (una sola versión para todos los proyectos, subida a mano).
 
 ### 2.2 CLI determinista `menairos` **[aceptada]**
 
@@ -303,7 +314,7 @@ reversibilidad, impacto, por qué no escaló, agente, revisor, marcada y estado 
 
 | Riesgo | Mitigación |
 | --- | --- |
-| El plugin no se instala solo en la nube o en Actions | Plan B: copiar el plugin a `.claude/` del proyecto (2.1) |
+| El plugin no llega a la nube o a Actions | En la nube lo instala el script de entorno (verificado en T-04); en Actions, por verificar (T-26); plan B probado como respaldo (2.1) |
 | El token OAuth de Max no sirve para sesiones largas en Actions | Verificar en el hito 0; si no, el modo automático corre en tareas programadas de Claude Code o en local |
 | La revisión de Codex no se puede convertir en check | Claude como revisor bloqueante; Codex como segunda opinión |
 | Las funciones en vista previa cambian (tareas programadas, Agent Teams) | No son la opción por defecto; quedan como alternativas configurables |
