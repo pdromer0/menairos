@@ -1,0 +1,10 @@
+## Python (python-uv)
+
+```bash
+uv sync                                  # instala las dependencias
+uv run --frozen pytest tests/test_x.py   # los tests de un fichero
+uv run --frozen ruff format .            # formatea
+```
+
+- El código va en `src/{{paquete}}/` y los tests en `tests/`; los lentos llevan `@pytest.mark.slow`.
+- Las dependencias se añaden con `uv add`, que fija la versión en `uv.lock`; nunca a mano.

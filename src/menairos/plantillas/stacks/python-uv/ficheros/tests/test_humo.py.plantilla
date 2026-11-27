@@ -1,0 +1,7 @@
+"""Test de humo: el paquete se importa."""
+
+import {{paquete}}
+
+
+def test_el_paquete_se_importa() -> None:
+    assert {{paquete}}.__version__ == "0.1.0"

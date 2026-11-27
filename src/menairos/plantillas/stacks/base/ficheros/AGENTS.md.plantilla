@@ -1,0 +1,54 @@
+# AGENTS.md
+
+Instrucciones para cualquier agente de IA que trabaje en este repositorio. El proyecto
+{{proyecto.nombre}} sigue el método Menairos; su configuración está en `menairos.toml`.
+
+## Flujo de trabajo de una tarea
+
+1. Issue de la tarea, con las secciones de la especificación que la definen (`docs/specs/`).
+2. Plan con 8 apartados, aprobado antes de tocar nada:
+   1. Contexto.
+   2. Lo que el plan interpreta.
+   3. Diferencias con las notas.
+   4. Valores a mano, con su cálculo ejecutado.
+   5. Casos límite.
+   6. Versiones incorrectas.
+   7. Comprobaciones.
+   8. Cuándo parar.
+3. Rama de la tarea.
+4. Commits pequeños, cada uno comprobado con `scripts/n1.sh`.
+5. Una sola `scripts/n3.sh` antes de abrir el PR.
+6. PR con la plantilla de `.github/pull_request_template.md` y `Closes #N`.
+7. La persona que dirige el proyecto revisa y fusiona (por squash).
+
+## Órdenes
+
+Las del contrato común de las plantillas de stack. Dicen qué ejecutan y salen con 0 si todo pasa y
+con 1 si algo falla:
+
+```bash
+scripts/n1.sh [rutas de tests]   # comprobación rápida, antes de cada commit
+scripts/n2.sh                    # la rápida con sello: solo si algo cambió desde el último verde
+scripts/n3.sh                    # comprobación completa, antes del push y en el CI
+```
+
+Las rutas de `scripts/n1.sh` son rutas de tests; cada una va a la plantilla que la tiene por suya
+(`scripts/stack/plantillas.txt`).
+
+## Idiomas
+
+- Documentación, commits, mensajes de PR y tests: `{{proyecto.idioma_docs}}`.
+- Código, nombres y docstrings: `{{proyecto.idioma_codigo}}`.
+
+## Git
+
+- Ramas con prefijo `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/` o `ci/`.
+- Commits convencionales: `feat:`, `fix:`, `docs:`, `chore:`, `ci:`, `test:`, `refactor:`.
+- Nunca `git push` a `main` ni push forzado.
+- Nunca `--no-verify`.
+- Nunca fusionar un PR.
+- Nunca borrar nada por la API.
+
+## Reglas de contenido
+
+- Nada personal en el repositorio: datos sintéticos en los tests y ningún secreto.
