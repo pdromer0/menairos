@@ -1827,3 +1827,186 @@ deshizo con `git checkout`; el árbol quedó limpio.
   `a`» (T-06-D17).
 - **El grep de los nombres de los proyectos anteriores:** lo lanza Pedro o el chat. Esta sesión no
   los conoce y no escribió ninguno.
+
+### T-07 — Envoltorio de `gh api` y doble de GitHub con tope
+
+*Hecha el 2026-11-27, en local (WSL2), con Claude Code (Opus 5.5, modo plan y después auto) a partir
+de un encargo del chat. Sin issue. El plan llevaba las dudas P1–P4. Pedro lo aprobó sin
+responderlas una a una, así que se aplicaron las recomendaciones. La excepción del `DELETE` venía
+decidida en el encargo.*
+
+**Qué se hizo**
+
+- `src/menairos/github.py`, en dos capas:
+  - **transporte `GhCli`:**
+    - una orden `gh api --method M --include --header … -- RUTA` por petición;
+    - el cuerpo va en JSON por stdin (`--input -`);
+    - 30 s de tiempo máximo y `GH_PROMPT_DISABLED=1`;
+    - lee la línea de estado, las cabeceras y el cuerpo de la salida de `--include`;
+  - **cliente `GitHub`:**
+    - `request`, `get`, `get_all`, `post`, `patch`, `put` y `delete`;
+    - valida la ruta y rechaza GraphQL;
+    - rechaza todo `DELETE` salvo el de `_ALLOWED_DELETES` (quitar una relación «blocked by»);
+    - pagina siguiendo `Link: rel="next"`, con `per_page=100`;
+    - reintenta solo un `GET` con 5xx, como mucho 3 veces, con esperas de 1, 2 y 4 s;
+    - convierte los fallos en `GitHubError` o `RateLimited`, con el código HTTP y un mensaje en
+      español.
+- `tests/doble_github.py`:
+  - `FakeGitHub`, que guarda en memoria etiquetas, milestones, issues y PRs y relaciones «blocked
+    by»;
+  - registra las llamadas, pagina como GitHub y admite fallos programables (por número de llamada,
+    método o ruta, una o varias veces, y con la escritura hecha);
+  - lanza `RunawayLoop` al pasar su tope (500 por defecto).
+- `tests/conftest.py`:
+  - la fixture `doble_github`, que conecta el doble a `menairos.github` y anota las esperas sin
+    esperar;
+  - la fixture autouse `_sin_github_real`, que hace fallar cualquier ejecución de `gh`, en dos capas:
+    - en el proceso de pytest, un `subprocess.Popen` que la rechaza con `RealGitHubCall` (también tras
+      `env`, en `sh -c` y en cada orden de una línea de shell);
+    - en los procesos hijos y en `os.system`, un `gh` falso, primero en el `PATH`, que sale con 97.
+- Tests:
+  - `tests/test_github.py` (137): argv, salida, rutas, `DELETE`, GraphQL, errores, reintentos y
+    paginación;
+  - `tests/test_doble_github.py` (47): paginación, fidelidad, fallos, tope y fixture;
+  - `tests/test_sin_github_real.py` (34): la fixture autouse y el test estático, que recorre con
+    `ast` los módulos de `src/menairos/` salvo `github.py`.
+- Cambios de especificación:
+  - §2.4 de este documento: la excepción del `DELETE` y dónde están el envoltorio y el doble;
+  - el 4.º criterio de T-07 en `hito-0.tareas.yaml`;
+  - en `abiertas.md`, la nota sobre la ruta de «blocked by» (para T-08) y un punto nuevo, la
+    versión de `gh` en la nube;
+  - `lecciones.md`.
+
+**Decisiones del diff**
+
+Las de `decisiones/T-07.yaml`.
+
+De Pedro, en el encargo y en el plan:
+- la excepción del `DELETE`, sin tocar `.claude/settings.json` ni `AGENTS.md` (P4);
+- dónde van el envoltorio, el doble y la fixture;
+- las dos capas;
+- la paginación propia con `Link`;
+- solo cuatro opciones de `gh`, con la versión mínima comprobada (P2);
+- solo REST;
+- los errores;
+- los reintentos (P1);
+- la fidelidad del doble;
+- `RunawayLoop` como `BaseException`;
+- las dos barreras;
+- la comprobación real;
+- el criterio nuevo (P3).
+
+Del agente (`decidido_por: agente`):
+- rutas más estrictas que en el plan: solo ASCII visible, sin tramos vacíos ni `.`/`..`, sin
+  cuerpo en `GET`/`DELETE` y con `--` antes de la ruta (T-07-D15);
+- `Response.text` y las piezas públicas para probarlas por separado (T-07-D16);
+- el doble rechaza también los parámetros y campos que no modela (T-07-D17);
+- tras la revisión, la barrera en dos capas (T-07-D18);
+- tras la revisión, más reglas de la ruta, los parámetros, el `next` y las cabeceras de límite
+  (T-07-D19).
+
+**Medidas**
+
+- **Comprobación real**, una vez y en solo lectura, contra `pdromer0/menairos-prueba` con
+  `GitHub(GhCli())`:
+  - `get_all("repos/pdromer0/menairos-prueba/labels", {"per_page": 2})` dio 10 etiquetas en 5
+    páginas, de unos 1,2 s cada una;
+  - el `Link` de cada página apunta a `https://api.github.com/repositories/1473593649/labels?per_page=2&page=N`
+    (no a `repos/{dueño}/{repo}`), con `prev`, `next`, `last` y `first` en ese orden. La primera
+    página solo lleva `next` y `last`, y la última, `prev` y `first`. El doble copia esa forma;
+  - un `GET` de una etiqueta que no existe: `gh` sale con 1 y escribe `gh: Not Found (HTTP 404)`
+    en stderr, pero la línea de estado, las cabeceras y el cuerpo salen por stdout. El cuerpo es
+    `{"message": "Not Found", "documentation_url": …, "status": "404"}`, con `status` como texto;
+  - en la salida de `--include`, la línea de estado acaba en LF y las cabeceras en CRLF.
+- **Versiones de `gh`:**
+  - `--method`, `--include`, `--input` y `--header` ya están en el código fuente de `gh` en sus
+    versiones 1.0.0 y 2.0.0 (leído por la API de contenidos): la versión mínima es 1.0.0;
+  - WSL2: 2.103.3;
+  - Actions (`ubuntu-24.04`, según la lista de software de la imagen del runner): 2.105.0;
+  - la nube: sin comprobar desde aquí (`abiertas.md`).
+- **Tests:** 620 en el repo, en unos 3 s; los 218 de T-07, en 0,3 s, sin ninguna espera real.
+- **Tiempo:**
+  - plan desde las 13:31 (hora local);
+  - primer commit a las 13:34;
+  - comprobación real a las 13:39;
+  - implementación y versiones incorrectas hasta las 13:49;
+  - revisión propia y correcciones hasta las 14:01.
+
+  La apertura del PR y la N3 constan en su cuerpo.
+
+**Diferencias con la documentación y hallazgos**
+
+- **Ayuda de `gh api`:** sin `--slurp`, `--paginate` no junta las páginas en un solo JSON. Con él
+  haría falta una versión reciente de `gh` que en la nube no está comprobada.
+- **El `Link` de GitHub** cambia `repos/{dueño}/{repo}` por `repositories/{id}`: quien siga las
+  páginas no puede reconstruir la URL a mano, y el doble tiene que aceptar las dos formas.
+- **`--input` y `-f`** cambian el método por defecto de `gh api` a POST: el envoltorio pasa
+  siempre `--method`.
+- **`gh api` también sustituye `:owner`, `:repo` y `:branch`** en la ruta (lo dice su código, no
+  su ayuda): un nombre de etiqueta como `estado:repo` sin codificar iría a otra ruta.
+- **Patrón del `DELETE`:** sin prohibir los tramos `..`, `repos/x/../issues/1/…` lo pasaría, con
+  `..` como nombre de repo. Por eso las rutas rechazan `.` y `..`.
+
+**Versiones incorrectas**
+
+35: cada una se aplicó sin commit con un script, se lanzaron los tests de T-07 y se deshizo con
+`git checkout`; el árbol quedó limpio.
+
+| Versión incorrecta | Tests que fallaron |
+| --- | --- |
+| `DELETE` con `match` en vez de `fullmatch` / con ceros delante | 5 / 2 |
+| `DELETE` comprobado después de llamar al transporte | 23 |
+| Método sin pasar a mayúsculas | 13 |
+| GraphQL solo con `== "graphql"` | 4 |
+| Ruta que empieza por `-` / con llaves / con `.` y `..` | 1 / 1 / 2 |
+| Sin `--method` / cuerpo con `-f` / sin `timeout` | 2 / 1 / 1 |
+| Separador de cabeceras solo con LF / cabeceras sensibles a mayúsculas | 4 / 5 |
+| Paginación por página corta y `page+1` / sin `per_page=100` / sin detectar el `next` repetido | 5 / 8 / 1 |
+| Reintento en escrituras / en 4xx | 9 / 14 |
+| 2 reintentos / 4 reintentos | 4 / 2 |
+| Espera constante / sin inyectar | 3 / 6 |
+| 403 de límite como permiso / 422 sin el detalle | 4 / 4 |
+| Tope con `>=` / `RunawayLoop(Exception)` | 5 / 1 |
+| Tope que no se repite | 0: equivalente, porque las llamadas solo crecen. El indicador se quitó (commit `refactor:`) |
+| Doble con `state=all` por defecto / con `id == number` / con etiquetas sensibles a mayúsculas | 1 / 2 / 1 |
+| `fail(call=N)` desde 0 / `apply` que no escribe | 3 / 1 |
+| Sin la fixture autouse (con un `gh` falso primero en el `PATH`, para no llamar a GitHub) | 9 |
+| Sin el `gh` falso de la fixture (con otro `gh` falso que sale con 3) | 2: el proceso hijo y `os.system` |
+| Test estático que solo ve `"gh"` exacto | 4 |
+
+**Revisión**
+
+- `/code-review` alto sobre la rama, antes de la N3: 10 hallazgos, clasificados antes de tocar
+  nada.
+- **Corregidos**, cada uno con su test. Los 14 tests nuevos del envoltorio fallan con el código de
+  antes. Los de la barrera no se lanzaron contra la barrera de antes, porque habrían ejecutado el
+  `gh` real; la capa del `PATH` se comprobó con su versión incorrecta (tabla de arriba):
+  - la barrera solo vigilaba el proceso de pytest: un proceso hijo, `os.system` o `cd x && gh …`
+    lanzaban el `gh` real (ahora, el `gh` falso en el `PATH` y un `launches_gh` que mira más
+    allá de la primera palabra);
+  - `gh` sustituye `:owner`, `:repo` y `:branch` en la ruta (comprobado en su código);
+  - una lista o `None` en los parámetros se mandaba como texto de Python;
+  - un `next` de otro host (GitHub Enterprise) se habría seguido con el prefijo `/api/v3` repetido;
+  - un `Retry-After` con `²` o un `X-RateLimit-Reset` fuera de rango rompían el mensaje de error;
+  - preparar el doble con una etiqueta, un milestone o un issue que no existen daba la excepción
+    interna del doble (ahora, un `ValueError` que dice qué falta);
+  - el doble rehacía su tabla de rutas en cada llamada;
+  - `abiertas.md`, el registro y este anexo nombraban otros proyectos por su nombre (`AGENTS.md`):
+    ahora se citan de forma genérica.
+- **Sin corregir:** la doble comprobación de las etiquetas al crear un issue en el doble (422 en la
+  ruta y `ValueError` en `add_issue`) se queda: son dos errores distintos, para el código probado y
+  para quien prepara el test.
+
+**Pendiente**
+
+- **Para T-08:**
+  - verificar la ruta de «blocked by» y, si cambia, el patrón de `_ALLOWED_DELETES` y las rutas
+    del doble a la vez;
+  - ampliar el doble con lo que necesite, sin relajar su «más estricto ante la duda»;
+  - los tests de `spec publicar` usan la fixture `doble_github`.
+- **Versión de `gh` en la nube:** Pedro la mira con `gh --version` en una sesión en la nube, o se
+  cierra en T-22 (`abiertas.md`).
+- **Un ancla del anexo de T-06** («istanbul» con U+0307 tras la i) lleva la marca combinante
+  literal, porque es el ancla que dio GitHub. Ya estaba en `main`, y T-07 no la toca.
+- **El grep de los nombres de los proyectos anteriores:** lo lanza Pedro o el chat. Esta sesión no
+  los conoce y no escribió ninguno.

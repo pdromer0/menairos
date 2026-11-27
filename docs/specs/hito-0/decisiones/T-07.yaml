@@ -61,7 +61,7 @@ decisiones:
   - id: T-07-D6
     decision: >-
       Solo se usan --method (siempre), --include, --input - (cuerpo JSON por stdin) y --header; versión mínima
-      de gh 1.0.0, comprobada en el código de cli/cli; verificadas WSL2 (2.103.3) y Actions (2.105.0); la
+      de gh 1.0.0, comprobada en el código fuente de gh; verificadas WSL2 (2.103.3) y Actions (2.105.0); la
       nube queda en abiertas.md hasta que Pedro lance gh --version allí (P2)
     motivo: No depender de opciones de gh sin comprobar en los tres entornos
     alternativas:
@@ -192,3 +192,30 @@ decisiones:
     impacto: bajo
     decidido_por: agente
     por_que_no_escalo: Aplica el «más estricto ante la duda» del plan; T-08 amplía el doble si necesita más
+
+  - id: T-07-D18
+    decision: >-
+      Tras la revisión, la barrera tiene dos capas: el Popen vigilado del proceso de pytest (con env, sh -c,
+      cada orden de una línea de shell y executable posicional) y un gh falso, primero en el PATH, que sale
+      con 97 en los procesos hijos y en os.system
+    motivo: La revisión mostró que un proceso hijo, os.system o «cd x && gh …» lanzaban el gh real
+    alternativas:
+      - Dejar la barrera dentro del proceso y prohibir los procesos hijos en los tests
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Refuerza una barrera aprobada en el plan sin cambiar su interfaz
+
+  - id: T-07-D19
+    decision: >-
+      Tras la revisión, la ruta también rechaza :owner, :repo y :branch (gh los sustituye, según su código);
+      los parámetros solo admiten texto, enteros y booleanos; solo se sigue un next de https://api.github.com/;
+      y Retry-After y X-RateLimit-Reset solo valen con cifras ASCII y una fecha posible
+    motivo: Cada caso daba una petición equivocada en silencio o rompía el mensaje de error
+    alternativas:
+      - Convertir las listas de los parámetros en texto separado por comas
+      - Quitar el prefijo /api/v3 de los next de GitHub Enterprise
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Estricto donde es barato (lección de T-05); Menairos solo habla con github.com

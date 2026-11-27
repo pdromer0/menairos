@@ -30,12 +30,24 @@ tareas a las que afecta.
 - **`POST /markdown` no pone `id` a los encabezados**: para ver las anclas que GitHub calcula, se
   lee un fichero ya subido con la API de contenidos y `Accept: application/vnd.github.html+json`
   (vale con una rama, `?ref=`). *Origen:* T-06. *Afecta a:* T-09 y T-24.
+- **`gh api --include` da el código HTTP, las cabeceras y el cuerpo también en un error**, por
+  stdout (y sale con 1): el código se lee de la línea de estado, no del texto de stderr. La línea
+  de estado acaba en LF y las cabeceras en CRLF. *Origen:* T-07. *Afecta a:* todo lo que use
+  `menairos.github`.
+- **Las URLs del `Link` de la paginación usan `repositories/{id}`**, no `repos/{dueño}/{repo}`: se
+  siguen tal cual, sin rehacerlas, y un doble tiene que aceptar las dos formas. *Origen:* T-07.
+  *Afecta a:* T-08, T-19.
+- **`--input` y `-f` cambian el método por defecto de `gh api` a POST**: se pasa siempre
+  `--method`. *Origen:* T-07.
 
 ## Comprobaciones
 
 - **Una comprobación deliberada vale solo si el fallo cae dentro de lo que la herramienta
   revisa**: un error de tipos en un fichero fuera del `include` de pyright no hace fallar nada
   (lección de un proyecto anterior; repetida en T-02). *Afecta a:* T-13.
+- **Para probar que una barrera impide lanzar un programa real sin lanzarlo**, la versión incorrecta
+  que quita la barrera se ejecuta con un programa falso primero en el `PATH`. *Origen:* T-07
+  (`gh`). *Afecta a:* T-13.
 - **Un hook en verde no dice qué revisó**: los scripts de comprobación dicen siempre qué
   ejecutan. *Origen:* lección de un proyecto anterior; aplicada en T-02.
 

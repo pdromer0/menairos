@@ -52,10 +52,10 @@ admite el envoltorio de T-07 y las rutas del doble parten de la ruta documentada
 ### ¿Qué versión de `gh` hay en las sesiones en la nube?
 
 **Justificación:** el envoltorio de T-07 solo usa opciones de `gh api` que existen desde gh 1.0.0
-(`--method`, `--include`, `--input` y `--header`, comprobado en el código de `cli/cli`), y en WSL2
-(2.103.3) y Actions (2.105.0) está verificado; en la nube no se pudo mirar desde la sesión local. Se
-cierra cuando Pedro lance `gh --version` en una sesión en la nube, o en **T-22**, con la primera
-tarea hecha allí.
+(`--method`, `--include`, `--input` y `--header`, comprobado en el código fuente de `gh`), y en
+WSL2 (2.103.3) y Actions (2.105.0) está verificado; en la nube no se pudo mirar desde la sesión
+local. Se cierra cuando Pedro lance `gh --version` en una sesión en la nube, o en **T-22**, con la
+primera tarea hecha allí.
 
 ### ¿Qué opciones de `codex exec` dan solo lectura y salida a fichero?
 
