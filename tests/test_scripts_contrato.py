@@ -109,6 +109,24 @@ def test_las_rutas_se_toman_desde_donde_se_lanza(proyecto: Path) -> None:
     assert _argumentos(proyecto, "juguete2.n1") == ["juguete2/abs.jug2"]
 
 
+def test_las_rutas_valen_si_se_llega_al_repo_por_un_enlace(
+    proyecto: Path, tmp_path: Path
+) -> None:
+    """Manda la ruta lógica: un enlace simbólico no saca la ruta del repo."""
+    enlace = tmp_path / "enlace"
+    enlace.symlink_to(proyecto, target_is_directory=True)
+    resultado = subprocess.run(
+        ["scripts/n1.sh", "juguete/a.jug"],
+        cwd=enlace,
+        env=entorno_git() | {"PWD": str(enlace)},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert resultado.returncode == 0, resultado.stdout
+    assert _argumentos(proyecto, "juguete.n1") == ["juguete/a.jug"]
+
+
 def test_n1_ejecuta_todas_las_partes_aunque_falle_una(proyecto: Path) -> None:
     resultado = _ejecutar(proyecto, "n1.sh", SALIDA_JUGUETE="1")
     assert resultado.returncode == 1

@@ -230,6 +230,10 @@ def _template_problems(template: Template, folder: str) -> list[str]:
     else:
         allowed = LANGUAGE_ORDERS
         parts = tuple(f"scripts/stack/{template.name}/{n}.sh" for n in ("n1", "n3"))
+        if "base" not in template.requires:
+            problems.append(
+                "una plantilla de lenguaje requiere «base», que tiene que ir antes"
+            )
     problems += [
         f"la orden «{order}» no es de una plantilla de tipo {template.kind}"
         for order in template.orders
@@ -244,10 +248,10 @@ def _template_problems(template: Template, folder: str) -> list[str]:
         f"falta el fichero «{p}{SUFFIX}»" for p in parts if p not in template.files
     ]
     for path in sorted(template.mergeable):
-        if path not in _MERGERS:
+        if path not in MERGEABLE:
             problems.append(
                 f"«{path}» no se puede fusionar: los fusionables son "
-                + ", ".join(_MERGERS)
+                + ", ".join(MERGEABLE)
             )
         elif path not in template.files:
             problems.append(f"el fusionable «{path}» no está en {FILES_DIR}/")
@@ -510,9 +514,10 @@ def _merge_sections(texts: Sequence[str]) -> str:
 _MERGERS: dict[str, Callable[[Sequence[str]], str]] = {
     ".gitignore": _merge_gitignore,
     ".pre-commit-config.yaml": _merge_pre_commit,
-    CI_FILE: _merge_sections,  # not used: the CI goes through _merge_ci
     "AGENTS.md": _merge_sections,
 }
+MERGEABLE = (*_MERGERS, CI_FILE)
+"""The files that can be merged; the CI has its own rule (:func:`_merge_ci`)."""
 
 
 def _parse_problems(composed: Mapping[str, str]) -> list[str]:
@@ -622,16 +627,20 @@ class Contract:
 
     def owner(self, path: str | os.PathLike[str]) -> Owner | None:
         """The template that owns ``path``: by extension, then by folder."""
-        relative = self.relative(path)
-        ext = extension(relative)
-        if ext:
-            for owner in self.owners:
-                if ext in owner.extensions:
-                    return owner
+        return self._owner_of(self.relative(path))
+
+    def _owner_of(self, relative: str) -> Owner | None:
+        found = self._by_extension(relative)
+        if found is not None:
+            return found
         for owner in self.owners:
             if any(f"{relative}/".startswith(folder) for folder in owner.folders):
                 return owner
         return None
+
+    def _by_extension(self, relative: str) -> Owner | None:
+        ext = extension(relative)
+        return next((o for o in self.owners if ext and ext in o.extensions), None)
 
     def format_command(self, path: str | os.PathLike[str]) -> str | None:
         """The ``formato_fichero`` order for ``path``, chosen by its extension.
@@ -640,12 +649,12 @@ class Contract:
         a template formats only its own kind of file).
         """
         relative = self.relative(path)
-        ext = extension(relative)
-        for owner in self.owners:
-            if ext and ext in owner.extensions:
-                command = owner.orders["formato_fichero"]
-                return command.replace("{fichero}", shlex.quote(relative))
-        return None
+        owner = self._by_extension(relative)
+        if owner is None:
+            return None
+        return owner.orders["formato_fichero"].replace(
+            "{fichero}", shlex.quote(relative)
+        )
 
     def templates_for(
         self, touched: Iterable[str | os.PathLike[str]]
@@ -665,13 +674,14 @@ class Contract:
         found: dict[str, list[str]] = {}
         problems: list[str] = []
         for path in paths:
-            owner = self.owner(path)
+            relative = self.relative(path)
+            owner = self._owner_of(relative)
             if owner is None:
                 problems.append(
                     f"la ruta «{os.fspath(path)}» no es de ninguna plantilla"
                 )
             else:
-                found.setdefault(owner.name, []).append(self.relative(path))
+                found.setdefault(owner.name, []).append(relative)
         if problems:
             raise StackError(problems)
         return {o.name: found[o.name] for o in self.owners if o.name in found}
@@ -732,6 +742,13 @@ def contract(
         exts = tuple(p for p in owned if not p.endswith("/"))
         folders = tuple(p for p in owned if p.endswith("/"))
         owners.append(Owner(name, exts, folders, languages[name].orders))
+    listed = {o.name for o in owners}
+    problems += [
+        f"«{OWNERSHIP_FILE}» no tiene la línea de «{name}», que está en "
+        "stack.plantillas"
+        for name in languages
+        if name not in listed
+    ]
     if problems:
         raise StackError(problems)
     return Contract(owners, root)

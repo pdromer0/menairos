@@ -122,6 +122,14 @@ def test_una_plantilla_que_se_requiere_a_si_misma_es_un_error(tmp_path: Path) ->
     assert "se requiere a sí misma" in _error(stacks.load, "x", (tmp_path,))
 
 
+def test_una_plantilla_de_lenguaje_requiere_base(tmp_path: Path) -> None:
+    """Si no, podría ir antes que base, y las fusiones cuentan con base primero."""
+    plantilla(tmp_path, "x", manifiesto_lenguaje("x", requiere="[]"), partes("x"))
+    assert "una plantilla de lenguaje requiere «base»" in _error(
+        stacks.load, "x", (tmp_path,)
+    )
+
+
 def test_le_falta_una_parte(tmp_path: Path) -> None:
     ficheros = {"scripts/stack/x/n1.sh.plantilla": "#!/usr/bin/env bash\n"}
     plantilla(tmp_path, "x", manifiesto_lenguaje("x"), ficheros)
@@ -254,7 +262,9 @@ def test_un_ciclo_de_requiere_es_un_error(tmp_path: Path) -> None:
     plantilla(
         tmp_path,
         "b",
-        manifiesto_lenguaje("b", requiere='["a"]', extensiones='[".b"]', carpetas="[]"),
+        manifiesto_lenguaje(
+            "b", requiere='["base", "a"]', extensiones='[".b"]', carpetas="[]"
+        ),
         partes("b"),
     )
     mensaje = _error(
@@ -731,6 +741,13 @@ def test_plantillas_txt_con_una_plantilla_que_no_es_del_stack(tmp_path: Path) ->
     lista.parent.mkdir(parents=True)
     lista.write_text("rust .rs\n", "utf-8")
     assert "nombra «rust»" in _error(_contrato, tmp_path)
+
+
+def test_plantillas_txt_sin_una_plantilla_del_stack(tmp_path: Path) -> None:
+    lista = tmp_path / stacks.OWNERSHIP_FILE
+    lista.parent.mkdir(parents=True)
+    lista.write_text("python-uv .py\n", "utf-8")
+    assert "no tiene la línea de «juguete»" in _error(_contrato, tmp_path)
 
 
 def test_sin_plantillas_txt_es_un_error(tmp_path: Path) -> None:

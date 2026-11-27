@@ -10,10 +10,15 @@ set -uo pipefail
 raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 1
 lista="scripts/stack/plantillas.txt"
 
-# Las rutas, relativas a la raíz del repo; se calculan antes de cambiar de carpeta.
+# Las rutas, relativas a la raíz del repo; se calculan antes de cambiar de carpeta y con la
+# ruta lógica ($PWD, como raiz), para que un enlace simbólico en el camino no las saque del repo.
 relativas=()
 for ruta in "$@"; do
-    relativa="$(realpath -s -m --relative-to="$raiz" -- "$ruta")" || exit 1
+    completa=$ruta
+    if [[ $ruta != /* ]]; then
+        completa="${PWD}/${ruta}"
+    fi
+    relativa="$(realpath -s -m --relative-to="$raiz" -- "$completa")" || exit 1
     if [[ $relativa == ".." || $relativa == ../* ]]; then
         echo "N1 · la ruta «${ruta}» está fuera del repo"
         exit 1
