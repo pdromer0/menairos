@@ -198,6 +198,27 @@ def test_parse_include_con_crlf_y_con_lf(fin: str) -> None:
     assert respuesta.data == [{"name": "a"}]
 
 
+def test_parse_include_con_el_formato_real_de_gh() -> None:
+    """Visto en la comprobación real de T-07 (gh 2.103.3): la línea de estado acaba
+    en LF y las cabeceras en CRLF; un 404 sale igual por stdout aunque gh acabe con 1.
+    """
+    salida = (
+        b"HTTP/2.0 404 Not Found\n"
+        b"Access-Control-Allow-Origin: *\r\n"
+        b"Content-Type: application/json; charset=utf-8\r\n"
+        b"X-Ratelimit-Remaining: 4987\r\n"
+        b"\r\n"
+        b'{"message":"Not Found","documentation_url":'
+        b'"https://docs.github.com/rest/issues/labels#get-a-label","status":"404"}'
+    )
+    respuesta = parse_include(salida)
+    assert respuesta is not None
+    assert respuesta.status == 404
+    assert respuesta.header("X-RateLimit-Remaining") == "4987"
+    assert respuesta.header("content-type") == "application/json; charset=utf-8"
+    assert respuesta.data["status"] == "404"
+
+
 def test_parse_include_junta_las_cabeceras_repetidas() -> None:
     respuesta = parse_include(b"HTTP/1.1 200 OK\nVary: Accept\nvary: Origin\n\n{}")
     assert respuesta is not None
