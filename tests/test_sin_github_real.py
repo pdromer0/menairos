@@ -1,6 +1,7 @@
 """Barreras de T-07: ningún test llama a GitHub y solo menairos.github lanza gh."""
 
 import ast
+import os
 import re
 import subprocess
 import sys
@@ -107,14 +108,59 @@ def test_el_test_estatico_no_da_falsos_positivos(fuente: str) -> None:
         ("gh", {}),
         (["programa"], {"executable": "/usr/local/bin/gh"}),
         (["GH.EXE", "api"], {}),
+        ("cd . && gh api user", {"shell": True}),
+        ("GH_TOKEN=x gh api user", {"shell": True}),
+        ("true; (gh api user)", {"shell": True}),
+        (["gh api user"], {"shell": True}),
+        (["sh", "-c", "gh api user"], {}),
+        (["bash", "-lc", "x"], {"executable": "gh"}),
+        (["env", "-i", "GH_TOKEN=x", "gh", "api"], {}),
     ],
-    ids=["lista", "ruta", "bytes", "shell", "texto", "executable", "windows"],
+    ids=[
+        "lista",
+        "ruta",
+        "bytes",
+        "shell",
+        "texto",
+        "executable",
+        "windows",
+        "y-luego",
+        "variable",
+        "subshell",
+        "shell-lista",
+        "sh-c",
+        "executable-con-shell",
+        "env",
+    ],  # fmt: skip
 )
 def test_la_fixture_autouse_impide_ejecutar_gh(
     args: object, kwargs: dict[str, object]
 ) -> None:
     with pytest.raises(RealGitHubCall):
         subprocess.run(args, check=False, **kwargs)  # pyright: ignore[reportCallIssue, reportArgumentType]
+
+
+def test_executable_posicional() -> None:
+    with pytest.raises(RealGitHubCall):
+        subprocess.Popen(["programa"], -1, "/usr/bin/gh")
+
+
+def test_un_proceso_hijo_encuentra_el_gh_falso_y_no_el_real() -> None:
+    """Fuera del proceso de pytest no hay Popen vigilado: lo cubre el PATH."""
+    hijo = (
+        "import subprocess; r = subprocess.run(['gh', 'api', 'user'], "
+        "capture_output=True); print(r.returncode, r.stderr.decode().strip())"
+    )
+    resultado = subprocess.run(
+        [sys.executable, "-c", hijo], capture_output=True, text=True, check=True
+    )
+    assert resultado.stdout.strip() == (
+        "97 gh bloqueado en los tests: usa la fixture doble_github"
+    )
+
+
+def test_os_system_encuentra_el_gh_falso() -> None:
+    assert os.waitstatus_to_exitcode(os.system("gh api user 2>/dev/null")) == 97
 
 
 def test_la_fixture_autouse_tambien_cubre_popen_y_check_output() -> None:
@@ -140,3 +186,6 @@ def test_launches_gh_no_confunde_otros_programas() -> None:
     assert not launches_gh(["git", "gh"])
     assert not launches_gh([])
     assert not launches_gh("", shell=True)
+    assert not launches_gh("echo gh", shell=True)
+    assert not launches_gh(["sh", "-c", "echo gh"])
+    assert not launches_gh(["env", "GH=1", "git", "status"])

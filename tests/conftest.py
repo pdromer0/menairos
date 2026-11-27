@@ -1,24 +1,47 @@
 """Fixtures comunes de los tests.
 
-- ``_sin_github_real`` (autouse): ningún test puede lanzar ``gh``.
+- ``_sin_github_real`` (autouse): ningún test puede lanzar ``gh``. En el proceso
+  de pytest, ``subprocess.Popen`` lo rechaza con ``RealGitHubCall``; en los
+  procesos hijos y en ``os.system``, un ``gh`` falso, primero en el ``PATH``,
+  sale con 97 sin llamar a nada.
 - ``doble_github``: un ``FakeGitHub`` conectado a ``menairos.github``. Cualquier
   ``GitHub()`` creado en el test lo usa como transporte, y las esperas entre
   reintentos se anotan en ``doble_github.sleeps`` sin esperar. El tope se cambia
   con ``doble_github.limit``.
 """
 
+import os
 import subprocess
+from pathlib import Path
 
 import pytest
 from doble_github import FakeGitHub, GuardedPopen
 
 from menairos import github
 
+GH_FALSO = """#!/bin/sh
+echo "gh bloqueado en los tests: usa la fixture doble_github" >&2
+exit 97
+"""
+
+
+@pytest.fixture(scope="session")
+def _carpeta_gh_falso(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Carpeta con un ``gh`` falso que sale con 97."""
+    carpeta = tmp_path_factory.mktemp("gh-falso")
+    gh = carpeta / "gh"
+    gh.write_text(GH_FALSO, encoding="utf-8")
+    gh.chmod(0o755)
+    return carpeta
+
 
 @pytest.fixture(autouse=True)
-def _sin_github_real(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Hace fallar con ``RealGitHubCall`` cualquier ejecución de ``gh``."""
+def _sin_github_real(monkeypatch: pytest.MonkeyPatch, _carpeta_gh_falso: Path) -> None:
+    """Hace fallar cualquier ejecución de ``gh``, también en los procesos hijos."""
     monkeypatch.setattr(subprocess, "Popen", GuardedPopen)
+    monkeypatch.setenv(
+        "PATH", f"{_carpeta_gh_falso}{os.pathsep}{os.environ.get('PATH', '')}"
+    )
 
 
 @pytest.fixture

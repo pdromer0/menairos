@@ -27,38 +27,87 @@ class RealGitHubCall(AssertionError):
     """A test tried to run the real ``gh``."""
 
 
-def _program(args: Any, executable: Any, shell: bool) -> str | None:
-    """Name of the program a ``Popen`` call would start (``None`` if unknown)."""
-    if executable is not None:
-        return str(executable)
-    if isinstance(args, str | bytes | PurePath):
-        text = args.decode() if isinstance(args, bytes) else str(args)
-        if not shell:
-            return text
-        try:
-            words = shlex.split(text)
-        except ValueError:
-            return text
-        return words[0] if words else None
-    if isinstance(args, Sequence) and args:
-        first: Any = args[0]  # pyright: ignore[reportUnknownVariableType]
-        return first.decode() if isinstance(first, bytes) else str(first)
-    return None
+_SHELLS = frozenset({"sh", "bash", "dash", "zsh", "ksh"})
+_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
+
+
+def _name(program: str) -> str:
+    return PureWindowsPath(program).name.lower()
+
+
+def _text(value: Any) -> str:
+    return value.decode() if isinstance(value, bytes) else str(value)
+
+
+def _shell_programs(command: str) -> list[str]:
+    """Programs a shell command line starts: the first word of each simple command.
+
+    Leading ``VAR=value`` words are skipped; ``&&``, ``||``, ``;``, ``|``, ``&``
+    and parentheses start a new command.
+    """
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    try:
+        words = list(lexer)
+    except ValueError:
+        return command.split()[:1]
+    programs: list[str] = []
+    starts = True
+    for word in words:
+        if set(word) <= set("&|;()"):
+            starts = True
+        elif starts and not _ASSIGNMENT.fullmatch(word):
+            programs.append(word)
+            starts = False
+    return programs
+
+
+def _argv_programs(argv: list[str]) -> list[str]:
+    """Programs an argv starts, looking through ``env`` and ``sh -c``."""
+    if not argv:
+        return []
+    first = _name(argv[0])
+    if first in ("env", "env.exe"):
+        rest = [
+            w
+            for w in argv[1:]
+            if not w.startswith("-") and not _ASSIGNMENT.fullmatch(w)
+        ]
+        return [argv[0], *_argv_programs(rest)]
+    if first in _SHELLS and "-c" in argv[1:-1]:
+        return [argv[0], *_shell_programs(argv[argv.index("-c") + 1])]
+    return [argv[0]]
 
 
 def launches_gh(args: Any, executable: Any = None, shell: bool = False) -> bool:
-    """Whether a ``Popen(args, executable=..., shell=...)`` call starts ``gh``."""
-    program = _program(args, executable, shell)
-    if program is None:
+    """Whether a ``Popen(args, executable=..., shell=...)`` call starts ``gh``.
+
+    It sees ``gh`` as the program, after ``env`` or leading assignments, and in
+    each command of ``sh -c`` or of a ``shell=True`` line. Whatever it misses is
+    caught by the fake ``gh`` that ``conftest.py`` puts first in ``PATH``.
+    """
+    if executable is not None and _name(_text(executable)) in _GH_NAMES:
+        return True
+    if isinstance(args, str | bytes | PurePath):
+        text = _text(args)
+        programs = _shell_programs(text) if shell else [text]
+    elif isinstance(args, Sequence):
+        argv = [_text(word) for word in args]  # pyright: ignore[reportUnknownVariableType]
+        if shell and argv:
+            programs = _shell_programs(argv[0])
+        else:
+            programs = _argv_programs(argv)
+    else:
         return False
-    return PureWindowsPath(program).name.lower() in _GH_NAMES
+    return any(_name(program) in _GH_NAMES for program in programs)
 
 
 class GuardedPopen(subprocess.Popen):  # pyright: ignore[reportMissingTypeArgument]
     """``subprocess.Popen`` that refuses to start ``gh`` and runs anything else."""
 
     def __init__(self, args: Any, *rest: Any, **kwargs: Any) -> None:
-        if launches_gh(args, kwargs.get("executable"), bool(kwargs.get("shell"))):
+        executable = kwargs.get("executable", rest[1] if len(rest) > 1 else None)
+        if launches_gh(args, executable, bool(kwargs.get("shell"))):
             raise RealGitHubCall(
                 f"Un test intentó ejecutar gh de verdad: {args!r}. "
                 "Usa la fixture doble_github."
