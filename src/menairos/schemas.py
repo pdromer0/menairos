@@ -18,6 +18,7 @@ warning of ``spec validar``) must run on the document *before*
 """
 
 import copy
+import datetime
 import json
 import re
 import tomllib
@@ -25,7 +26,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -35,11 +36,11 @@ type SchemaName = Literal["menairos", "tareas", "decisiones"]
 type _Part = str | int
 type _Found = tuple[tuple[_Part, ...], str, str]
 
-SCHEMA_NAMES: tuple[SchemaName, ...] = ("menairos", "tareas", "decisiones")
+SCHEMA_NAMES: tuple[SchemaName, ...] = get_args(SchemaName.__value__)
 
 _SCHEMA_DIR = files("menairos") / "esquemas"
 _LOCAL_REF = "#/$defs/"
-_NOT_BLANK = r"\S"
+_NOT_BLANK = r"[^\s\uFEFF]"
 _TYPE_NAMES = {
     "string": "un texto",
     "integer": "un entero",
@@ -274,8 +275,13 @@ def _message(keyword: str, error: ValidationError) -> str:
 
 
 def _show(value: object) -> str:
-    """Show a value as it would be written in JSON."""
-    return json.dumps(value, ensure_ascii=False, default=str)
+    """Show a value as it would be written in JSON; dates say they are dates."""
+    if isinstance(value, datetime.date | datetime.time):
+        return f"{value.isoformat()}, una fecha u hora sin comillas"
+    try:
+        return json.dumps(value, ensure_ascii=False, default=str)
+    except ValueError:  # a YAML alias that contains itself
+        return "un valor que se contiene a sí mismo"
 
 
 def _resolve(schema: Mapping[str, Any], root: Mapping[str, Any]) -> dict[str, Any]:

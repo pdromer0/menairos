@@ -31,9 +31,9 @@
           "$ref": "#/$defs/texto_no_vacio"
         },
         "repo": {
-          "description": "Repositorio de GitHub: dueño/repo.",
+          "description": "Repositorio de GitHub: dueño/repo, con las reglas de GitHub (el dueño, letras, dígitos y guiones sueltos, sin guion al principio ni al final; el repo, distinto de . y ..).",
           "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$"
+          "pattern": "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*/(?!\\.\\.?$)[A-Za-z0-9._-]+$"
         },
         "visibilidad": {
           "description": "Visibilidad del repo (el modo automático en un repo privado necesita GitHub Pro).",
@@ -313,7 +313,7 @@
     "texto_no_vacio": {
       "description": "Texto con al menos un carácter que no sea un espacio.",
       "type": "string",
-      "pattern": "\\S"
+      "pattern": "[^\\s\\uFEFF]"
     },
     "idioma": {
       "description": "Código de idioma de 2 letras en minúsculas (es, en).",

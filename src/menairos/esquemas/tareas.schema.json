@@ -27,7 +27,7 @@
     "texto_no_vacio": {
       "description": "Texto con al menos un carácter que no sea un espacio.",
       "type": "string",
-      "pattern": "\\S"
+      "pattern": "[^\\s\\uFEFF]"
     },
     "id_tarea": {
       "description": "Id de una tarea: T- y 2 o 3 dígitos (T-01, T-104).",
@@ -49,9 +49,9 @@
           "$ref": "#/$defs/texto_no_vacio"
         },
         "rama": {
-          "description": "Rama de la tarea: un prefijo (feat/, fix/, docs/, refactor/, test/, chore/ o ci/) y después minúsculas, dígitos, puntos, guiones bajos y guiones.",
+          "description": "Rama de la tarea: un prefijo (feat/, fix/, docs/, refactor/, test/, chore/ o ci/) y después minúsculas, dígitos, puntos, guiones bajos y guiones, sin lo que git rechaza: dos puntos seguidos, un punto al principio o al final, o acabar en .lock.",
           "type": "string",
-          "pattern": "^(?:feat|fix|docs|refactor|test|chore|ci)/[a-z0-9._-]+$"
+          "pattern": "^(?:feat|fix|docs|refactor|test|chore|ci)/(?!.*\\.lock$)[a-z0-9_-]+(?:\\.[a-z0-9_-]+)*$"
         },
         "depende_de": {
           "description": "Ids de las tareas de las que depende, sin repetir.",

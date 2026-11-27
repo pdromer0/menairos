@@ -13,6 +13,7 @@ import yaml
 from jsonschema import Draft202012Validator, validators
 
 from menairos.schemas import (
+    SCHEMA_NAMES,
     DuplicateKeyError,
     Issue,
     SchemaName,
@@ -152,10 +153,65 @@ def _subesquemas(esquema: Any) -> Iterator[dict[str, Any]]:
         yield from _subesquemas(esquema.get(clave))
 
 
+# Las palabras clave que siguen el recorrido estricto y apply_defaults (properties,
+# items y $ref) y las que solo comprueba jsonschema. Una nueva (anyOf, oneOf,
+# prefixItems, patternProperties…) obliga a revisar antes esos dos recorridos.
+PALABRAS_CLAVE = {
+    "$schema",
+    "$id",
+    "$defs",
+    "$ref",
+    "title",
+    "description",
+    "default",
+    "type",
+    "properties",
+    "required",
+    "additionalProperties",
+    "items",
+    "if",
+    "then",
+    "enum",
+    "const",
+    "pattern",
+    "minimum",
+    "maximum",
+    "minItems",
+    "uniqueItems",
+    "contains",
+}
+
+
 # ── Los esquemas ───────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("esquema", list(REGLAS))
+def test_hay_reglas_para_cada_esquema() -> None:
+    assert set(REGLAS) == set(SCHEMA_NAMES) == {"menairos", "tareas", "decisiones"}
+
+
+@pytest.mark.parametrize("esquema", SCHEMA_NAMES)
+def test_los_esquemas_solo_usan_palabras_clave_que_se_recorren(
+    esquema: SchemaName,
+) -> None:
+    """Si falla, hay que enseñar la palabra clave nueva a _strict y a _fill."""
+    usadas: set[str] = set()
+    for subesquema in _subesquemas(load_schema(esquema)):
+        usadas |= set(subesquema)
+        if isinstance(subesquema.get("contains"), dict):
+            usadas |= set(subesquema["contains"])
+    assert usadas <= PALABRAS_CLAVE, usadas - PALABRAS_CLAVE
+
+
+def test_el_id_de_tarea_es_el_mismo_en_tareas_y_en_decisiones() -> None:
+    """El id de decisión es el de la tarea seguido de -Dn."""
+    tareas = load_schema("tareas")["$defs"]["id_tarea"]
+    decisiones = load_schema("decisiones")
+    assert decisiones["$defs"]["id_tarea"] == tareas
+    patron_decision = decisiones["$defs"]["decision"]["properties"]["id"]["pattern"]
+    assert patron_decision == tareas["pattern"].removesuffix("$") + "-D[1-9][0-9]*$"
+
+
+@pytest.mark.parametrize("esquema", SCHEMA_NAMES)
 def test_cada_esquema_es_json_schema_2020_12_valido(esquema: SchemaName) -> None:
     """El esquema pasa su metaesquema, declara 2020-12 y tiene un $id con su nombre."""
     contenido = load_schema(esquema)
@@ -165,7 +221,7 @@ def test_cada_esquema_es_json_schema_2020_12_valido(esquema: SchemaName) -> None
     Draft202012Validator.check_schema(contenido)
 
 
-@pytest.mark.parametrize("esquema", list(REGLAS))
+@pytest.mark.parametrize("esquema", SCHEMA_NAMES)
 def test_todos_los_objetos_rechazan_claves_desconocidas(esquema: SchemaName) -> None:
     """Cada subesquema de tipo objeto lleva additionalProperties: false."""
     objetos = [
@@ -176,7 +232,7 @@ def test_todos_los_objetos_rechazan_claves_desconocidas(esquema: SchemaName) -> 
         assert objeto.get("additionalProperties") is False, objeto.get("description")
 
 
-@pytest.mark.parametrize("esquema", list(REGLAS))
+@pytest.mark.parametrize("esquema", SCHEMA_NAMES)
 def test_cada_clave_opcional_tiene_valor_por_defecto(esquema: SchemaName) -> None:
     """Las claves no obligatorias llevan default, salvo las de SIN_DEFAULT."""
     for objeto in _subesquemas(load_schema(esquema)):
@@ -192,7 +248,7 @@ def test_cada_clave_opcional_tiene_valor_por_defecto(esquema: SchemaName) -> Non
                 assert "default" in propiedad, clave
 
 
-@pytest.mark.parametrize("esquema", list(REGLAS))
+@pytest.mark.parametrize("esquema", SCHEMA_NAMES)
 def test_el_minimo_con_valores_por_defecto_sigue_siendo_valido(
     esquema: SchemaName,
 ) -> None:
@@ -218,7 +274,7 @@ def test_cada_caso_da_exactamente_los_errores_declarados(
     assert all(p.message for p in problemas)
 
 
-@pytest.mark.parametrize("esquema", list(REGLAS))
+@pytest.mark.parametrize("esquema", SCHEMA_NAMES)
 def test_cada_regla_tiene_un_caso_valido_y_uno_invalido(esquema: SchemaName) -> None:
     """Los válidos y los inválidos cubren exactamente las reglas de REGLAS."""
     for tipo in ("validos", "invalidos"):
@@ -401,6 +457,41 @@ def test_un_id_de_otra_tarea_es_un_error() -> None:
 # ── Errores y mensajes ──────────────────────────────────────────────────────
 
 
+def test_un_alias_que_se_contiene_a_si_mismo_es_un_error_y_no_un_fallo(
+    tmp_path: Path,
+) -> None:
+    """2.3: un alias que crea un bucle es un error de esquema."""
+    minimo = (DATOS / "tareas" / "validos" / "minimo.yaml").read_text(encoding="utf-8")
+    ruta = tmp_path / "bucle.yaml"
+    ruta.write_text(
+        minimo.replace("titulo: Hito 1 — Ejemplo", "titulo: &t [*t]"), encoding="utf-8"
+    )
+    assert validate("tareas", load_document(ruta)) == [
+        Issue(
+            "titulo",
+            "type",
+            "debe ser un texto (valor: un valor que se contiene a sí mismo)",
+        )
+    ]
+
+
+def test_un_alias_en_bucle_dentro_de_una_lista_es_un_error(tmp_path: Path) -> None:
+    minimo = (DATOS / "tareas" / "validos" / "minimo.yaml").read_text(encoding="utf-8")
+    ruta = tmp_path / "bucle.yaml"
+    ruta.write_text(
+        minimo.replace(
+            "    rama: feat/h1-primera",
+            "    rama: feat/h1-primera\n    depende_de: &d [*d, *d]",
+        ),
+        encoding="utf-8",
+    )
+    problemas = validate("tareas", load_document(ruta))
+    assert {(p.path, p.keyword) for p in problemas} >= {
+        ("tareas[0].depende_de[0]", "type"),
+        ("tareas[0].depende_de[1]", "type"),
+    }
+
+
 def test_un_documento_vacio_da_un_error_en_la_raiz() -> None:
     assert validate("tareas", None) == [
         Issue("", "type", "debe ser una tabla (valor: null)")
@@ -424,6 +515,10 @@ def test_un_documento_vacio_da_un_error_en_la_raiz() -> None:
         ("tareas-vacia", "debe tener al menos un elemento"),
         ("depende-de-repetido", "tiene elementos repetidos"),
         ("hito-negativo", "debe ser como mínimo 0 (valor: -1)"),
+        (
+            "hito-fecha",
+            "debe ser un entero (valor: 2026-01-01, una fecha u hora sin comillas)",
+        ),
     ],
 )
 def test_los_mensajes_estan_en_espanol(caso: str, mensaje: str) -> None:

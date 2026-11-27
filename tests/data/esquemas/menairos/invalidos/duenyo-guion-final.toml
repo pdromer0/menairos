@@ -1,0 +1,12 @@
+# Inválido: un dueño que acaba en guion, que GitHub no admite.
+# regla: proyecto.repo
+# error: proyecto.repo pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo-/proyecto"
+
+[stack]
+plantillas = ["base"]
