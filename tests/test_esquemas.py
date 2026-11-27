@@ -507,7 +507,10 @@ def test_un_documento_vacio_da_un_error_en_la_raiz() -> None:
         ("hito-decimal", "debe ser un entero, no un decimal (valor: 1.0)"),
         ("donde-nube", 'valor "nube" no admitido; se admite: "cualquiera", "local"'),
         ("titulo-solo-espacios", "está vacío o solo tiene espacios"),
-        ("id-un-digito", '"T-1" no tiene el formato esperado (^T-[0-9]{2,3}$)'),
+        (
+            "id-un-digito",
+            '"T-1" no tiene el formato esperado (^T-(?:[0-9]{2}|[1-9][0-9]{2})$)',
+        ),
         (
             "id-con-salto",
             '"T-01\\n" no tiene el formato esperado: acaba en salto de línea',
@@ -560,7 +563,7 @@ def test_yaml_no_construye_objetos_de_python(tmp_path: Path) -> None:
 
 def test_un_fichero_con_bom_se_lee(tmp_path: Path) -> None:
     ruta = tmp_path / "bom.yaml"
-    ruta.write_bytes("﻿hito: 1\n".encode())
+    ruta.write_bytes("\ufeffhito: 1\n".encode())
     assert load_document(ruta) == {"hito": 1}
 
 

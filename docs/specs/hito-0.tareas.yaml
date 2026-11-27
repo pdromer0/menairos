@@ -83,13 +83,13 @@ tareas:
       - "La marca de una decisión se calcula (difícil o impacto alto) y difícil + alto + decidido_por agente es un error; los dos con test"
 
   - id: T-06
-    titulo: "menairos spec validar (E01–E13 y avisos)"
+    titulo: "menairos spec validar (E01–E12 y avisos)"
     rama: feat/h0-spec-validar
     depende_de: [T-05]
     area: contratos
     especificacion: ["hito-0.md#23-menairos-spec-validar"]
     criterios_aceptacion:
-      - "Detecta E01 a E13 y A01 a A03, cada uno con su test"
+      - "Detecta E01 a E12 y A01 a A04, cada uno con su test"
       - "Salida JSON con codigo, mensaje, fichero y ruta; códigos de salida 0, 1 y 2"
       - "Las anclas se calculan como GitHub, con acentos, signos, código y encabezados repetidos, con test"
       - "Los casos límite de 2.3 tienen test"
@@ -137,16 +137,19 @@ tareas:
   - id: T-10
     titulo: "Plantillas base y python-uv, manifiesto y composición"
     rama: feat/h0-plantillas-stack
-    depende_de: [T-09]
+    depende_de: [T-09, T-06]
     area: plantillas
     critica: true
     motivo_critica: "Fija el contrato común de las plantillas de stack, del que depende /implementar"
-    especificacion: ["hito-0.md#33-plantillas-de-stack-y-contrato-común"]
+    especificacion:
+      - "hito-0.md#33-plantillas-de-stack-y-contrato-común"
+      - "hito-0.md#23-menairos-spec-validar"
     criterios_aceptacion:
       - "base y python-uv tienen su plantilla.toml con herramientas, órdenes del contrato, ficheros fusionables y comprobaciones"
       - "La composición respeta requiere y stack.plantillas; dos plantillas con el mismo fichero no fusionable dan error, con test"
       - "Un proyecto generado con base + python-uv en una carpeta temporal pasa su propia N3 (test slow)"
       - "n1.sh, n2.sh y n3.sh salen con 0 o 1 y dicen qué ejecutaron"
+      - "spec validar detecta E13 contra las plantillas de stack del paquete, con test"
 
   - id: T-11
     titulo: "menairos entorno: capas local y repo"
@@ -215,7 +218,7 @@ tareas:
       - "spec nuevo crea la carpeta con git init, el esqueleto de documentos y los borradores de menairos.toml y .menairos/estado-spec.toml"
       - "/crear-spec recorre las ocho fases, cada una con su commit, y escribe donde dice la tabla de 4.2"
       - "Tras un /clear a mitad, spec estado indica la fase y la conversación sigue desde los ficheros"
-      - "Reabrir una fase marca «a revisar» las que dependen de ella (A04), con test"
+      - "Reabrir una fase marca «a revisar» las que dependen de ella (A05), con test"
 
   - id: T-16
     titulo: "Modo MVP, inventario-mvp y E14"
