@@ -109,12 +109,11 @@ Actions.
 ### 2.3 Plantillas
 
 ```
-plantillas/
-├── docs/        producto, diseno, hitos, hito-N, hito-N.tareas.yaml, abiertas, adr, anexo,
-│                decisiones-tarea.yaml, informe-hito, pull_request_template
+src/menairos/plantillas/      dentro del paquete, para que viajen con la CLI instalada
+├── docs/        las plantillas de documentos de hito-0.md 3.2, con las de issue y de PR
 ├── agentes/     AGENTS.md, CLAUDE.md, .claude/settings.json por modo
 ├── stacks/
-│   ├── base/        pre-commit, gitleaks, .gitignore, plantillas de issue, CI mínimo
+│   ├── base/        pre-commit, gitleaks, .gitignore, CI mínimo
 │   └── python-uv/   pyproject (ruff, pytest, pyright, timeout), scripts N1–N3
 └── extras/
     └── servicios/   compose.yaml, N3 de integración (módulo opcional)

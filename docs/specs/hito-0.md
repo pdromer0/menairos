@@ -106,10 +106,10 @@ menairos/
 ├── src/menairos/
 │   ├── __init__.py            __version__
 │   ├── cli.py                 punto de entrada `menairos` (argparse, sin dependencias)
-│   └── esquemas/              esquemas JSON (H0.1), dentro del paquete (2.2)
+│   ├── esquemas/              esquemas JSON (H0.1), dentro del paquete (2.2)
+│   └── plantillas/            plantillas de documentos y de stack (H0.2), dentro del paquete (3.2)
 ├── tests/
 ├── scripts/                   n1.sh y n3.sh (la N2, con su sello, llega con el hook Stop en T-20)
-├── plantillas/                (H0.2)
 ├── docs/
 │   ├── producto.md, diseno.md, hitos.md, abiertas.md
 │   ├── specs/hito-0.md, specs/hito-0.tareas.yaml
@@ -140,7 +140,8 @@ menairos/
   paquete, los tests, `scripts/`, la configuración del stack, el CI, las plantillas de issue y de
   PR, `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` y `menairos.toml`; `docs/` llega con T-03;
   `.claude-plugin/marketplace.json` y `plugin/`, con T-04; `src/menairos/esquemas/`, con T-05
-  (dentro del paquete; decisión de Pedro, 2026-11-27); `plantillas/`, con T-09 y T-10.
+  (dentro del paquete; decisión de Pedro, 2026-11-27); `src/menairos/plantillas/`, con T-09 y
+  T-10 (también dentro del paquete, para que viajen con la CLI; decisión de Pedro, 2026-11-27).
 - **Niveles de comprobación hasta T-10** (aceptado por Pedro el 2026-11-25): `scripts/n1.sh
   [rutas…]` (ruff, pyright y los tests de las rutas dadas) y `scripts/n3.sh` (formato comprobado,
   lint, tipos y todos los tests), los dos con salida 0 o 1 y diciendo qué ejecutaron; el CI llama
@@ -639,8 +640,10 @@ Los errores son los de `spec validar`, más `limite`, `marca-repetida` y `github
 
 ### 3.2 Plantillas de documentos
 
-En `plantillas/docs/`. Los encabezados son **fijos**: los usan las anclas de las tareas y las
-comprobaciones de `spec validar`, así que cambiar uno es un cambio de contrato.
+En `src/menairos/plantillas/docs/`, dentro del paquete para que viajen con la CLI instalada (se
+leen con `importlib.resources`, como los esquemas). Los encabezados son **fijos**: los usan las
+anclas de las tareas y las comprobaciones de `spec validar`, así que cambiar uno es un cambio de
+contrato; un test comprueba cada uno.
 
 | Plantilla | Secciones fijas |
 | --- | --- |
@@ -656,16 +659,28 @@ comprobaciones de `spec validar`, así que cambiar uno es un cambio de contrato.
 | `revision-hito-N.md` | Bloqueantes · Mejoras · Preguntas para Pedro · Predicción de paradas (4.3) |
 | `inventario-mvp.md` | Estructura · Stack detectado · Funcionalidades · Datos · Calidad · Riesgos (4.2) |
 | `pull_request_template.md` | Resumen · Closes #N · Decisiones · Comprobaciones · Revisión propia · Pendiente · Métricas |
-| Plantillas de issue | Tarea, bug e idea |
+| Plantillas de issue | Tarea, bug e idea, y `config.yml` (sin issues en blanco); la de Tarea lleva las secciones del cuerpo que genera `spec publicar` (2.4), sin la marca |
 
 **Sustitución de valores sin dependencias:** los huecos se escriben `{{clave}}`
-(`{{proyecto.nombre}}`, `{{hito.numero}}`) y los rellena la CLI con los valores de
-`menairos.toml`. No hay lógica dentro de las plantillas (nada de Jinja): si queda un hueco sin
-rellenar o se pide una clave que no existe, es un error.
+(`{{proyecto.nombre}}`, `{{hito.numero}}`) y los rellena la CLI (`menairos.templates`). No hay
+lógica dentro de las plantillas (nada de Jinja):
+
+- los valores salen de `menairos.toml`, validado y con sus valores por defecto, con claves de
+  tabla separadas por puntos, y de unas pocas claves que pasa quien llama: `hito.numero`,
+  `hito.titulo`, `fecha`, `tarea.id`, `tarea.titulo`, `adr.numero`, `adr.titulo` y `adr.tipo`;
+- un valor es un texto no vacío y sin saltos de línea o un entero; un booleano, una tabla o una
+  lista es un error;
+- un hueco mal escrito (`{{ clave }}`, sin cerrar), un hueco sin rellenar o una clave que no existe
+  es un error; salen todos a la vez, con su línea;
+- un `{{` literal se escribe `\{{`; el texto se recorre una sola vez, así que un valor con `{{…}}`
+  se queda tal cual;
+- en las plantillas YAML, la plantilla pone las comillas dobles alrededor de un texto y la CLI lo
+  escapa como dentro de ellas;
+- lo que escribe el autor va en comentarios HTML, nunca en un hueco.
 
 ### 3.3 Plantillas de stack y contrato común
 
-Cada plantilla de stack es una carpeta en `plantillas/stacks/` con un **manifiesto
+Cada plantilla de stack es una carpeta en `src/menairos/plantillas/stacks/` con un **manifiesto
 `plantilla.toml`**:
 
 ```toml
