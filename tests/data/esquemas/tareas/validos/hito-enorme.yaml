@@ -1,0 +1,12 @@
+# Válido: un número de hito enorme (sin máximo).
+# regla: hito
+hito: 1000000000000000000000000000000
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona

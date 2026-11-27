@@ -1,0 +1,13 @@
+# Inválido: un id con cuatro dígitos (T-1000).
+# regla: tareas[].id
+# error: tareas[0].id pattern
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-1000
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona

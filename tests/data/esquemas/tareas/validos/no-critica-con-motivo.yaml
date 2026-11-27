@@ -1,0 +1,14 @@
+# Válido: motivo_critica en una tarea no crítica (A01 es un aviso de T-06).
+# regla: tareas[].motivo_critica
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+    critica: false
+    motivo_critica: Por si acaso

@@ -1,0 +1,21 @@
+# Válido: una tarea que depende de otra.
+# regla: tareas[].depende_de
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+  - id: T-02
+    titulo: Segunda tarea
+    rama: feat/h1-segunda
+    especificacion:
+      - hito-1.md#segunda-tarea
+    criterios_aceptacion:
+      - La segunda tarea funciona
+    depende_de:
+      - T-01

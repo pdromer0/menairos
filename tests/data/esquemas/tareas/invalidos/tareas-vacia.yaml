@@ -1,0 +1,6 @@
+# Inválido: una lista de tareas vacía.
+# regla: tareas
+# error: tareas minItems
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas: []

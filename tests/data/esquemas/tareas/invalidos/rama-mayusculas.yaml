@@ -1,0 +1,13 @@
+# Inválido: mayúsculas en la rama.
+# regla: tareas[].rama
+# error: tareas[0].rama pattern
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/H1-Primera
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona

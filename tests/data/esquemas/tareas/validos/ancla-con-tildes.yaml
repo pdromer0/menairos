@@ -1,0 +1,13 @@
+# Válido: anclas con tildes y un fichero en otra carpeta.
+# regla: tareas[].especificacion
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#validación-funcional
+      - ../diseno.md#31-menairostoml-ejemplo
+    criterios_aceptacion:
+      - La primera tarea funciona

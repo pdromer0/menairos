@@ -1,0 +1,14 @@
+# Inválido: un valor de quien que no existe (opus es un modelo).
+# regla: tareas[].quien
+# error: tareas[0].quien enum
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+    quien: opus

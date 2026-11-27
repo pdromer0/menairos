@@ -1,0 +1,13 @@
+# Inválido: un ancla vacía (hito-1.md#).
+# regla: tareas[].especificacion
+# error: tareas[0].especificacion[0] pattern
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#
+    criterios_aceptacion:
+      - La primera tarea funciona

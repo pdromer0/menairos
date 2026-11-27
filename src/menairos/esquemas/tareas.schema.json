@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/pdromer0/menairos/main/src/menairos/esquemas/tareas.schema.json",
+  "title": "Tareas de un hito de Menairos",
+  "description": "Formato de docs/specs/hito-N.tareas.yaml (hito-0.md 2.2). Una clave desconocida es un error. La CLI comprueba además que un entero no se escriba como decimal (1.0) y que un campo con patrón no acabe en salto de línea.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["hito", "titulo", "tareas"],
+  "properties": {
+    "hito": {
+      "description": "Número del hito (0 en adelante).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "titulo": {
+      "description": "Título del hito.",
+      "$ref": "#/$defs/texto_no_vacio"
+    },
+    "tareas": {
+      "description": "Las tareas del hito: al menos una.",
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/tarea"}
+    }
+  },
+  "$defs": {
+    "texto_no_vacio": {
+      "description": "Texto con al menos un carácter que no sea un espacio.",
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "id_tarea": {
+      "description": "Id de una tarea: T- y 2 o 3 dígitos (T-01, T-104).",
+      "type": "string",
+      "pattern": "^T-[0-9]{2,3}$"
+    },
+    "tarea": {
+      "description": "Una tarea del hito. Si es crítica, motivo_critica es obligatorio.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "titulo", "rama", "especificacion", "criterios_aceptacion"],
+      "properties": {
+        "id": {
+          "description": "Id de la tarea, único en el hito.",
+          "$ref": "#/$defs/id_tarea"
+        },
+        "titulo": {
+          "description": "Título de la tarea.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "rama": {
+          "description": "Rama de la tarea: un prefijo (feat/, fix/, docs/, refactor/, test/, chore/ o ci/) y después minúsculas, dígitos, puntos, guiones bajos y guiones.",
+          "type": "string",
+          "pattern": "^(?:feat|fix|docs|refactor|test|chore|ci)/[a-z0-9._-]+$"
+        },
+        "depende_de": {
+          "description": "Ids de las tareas de las que depende, sin repetir.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id_tarea"},
+          "default": []
+        },
+        "area": {
+          "description": "Área de la tarea (etiqueta area:*): minúsculas, dígitos y guiones, sin guiones al principio, al final ni seguidos.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "default": "general"
+        },
+        "critica": {
+          "description": "Si la tarea es crítica (revisor del plan, política de fusión).",
+          "type": "boolean",
+          "default": false
+        },
+        "motivo_critica": {
+          "description": "Por qué es crítica. Obligatorio si critica es true; sin valor por defecto.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "donde": {
+          "description": "Dónde se puede hacer: en cualquier entorno o solo en local.",
+          "enum": ["cualquiera", "local"],
+          "default": "cualquiera"
+        },
+        "quien": {
+          "description": "Quién la implementa.",
+          "enum": ["claude", "codex"],
+          "default": "claude"
+        },
+        "modo": {
+          "description": "Modo de la tarea; null = el del hito.",
+          "enum": [null, "manual", "didactico", "automatico"],
+          "default": null
+        },
+        "especificacion": {
+          "description": "Enlaces a la especificación: fichero.md#ancla, o fichero.md para el fichero entero. Al menos uno.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[^\\s#]+\\.md(?:#[^\\s#]+)?$"
+          }
+        },
+        "criterios_aceptacion": {
+          "description": "Criterios de aceptación: al menos uno, ninguno vacío.",
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/texto_no_vacio"}
+        }
+      },
+      "if": {
+        "properties": {"critica": {"const": true}},
+        "required": ["critica"]
+      },
+      "then": {
+        "required": ["motivo_critica"]
+      }
+    }
+  }
+}

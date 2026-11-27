@@ -1,0 +1,15 @@
+# Válido: un criterio de varias líneas.
+# regla: tareas[].criterios_aceptacion
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - |
+        Dado un hito con una tarea,
+        cuando se valida,
+        entonces no hay errores.
