@@ -105,6 +105,7 @@ tareas:
       - "Todas las llamadas a GitHub de la CLI pasan por un único envoltorio de gh api, solo REST"
       - "El doble de GitHub registra las llamadas, simula paginación y fallos, y lanza un error claro al pasar su tope de llamadas"
       - "Ningún test llama a GitHub de verdad"
+      - "Rechaza todo DELETE salvo quitar una relación «blocked by», con test; cualquier otro, antes de llamar a gh"
 
   - id: T-08
     titulo: "menairos spec publicar"

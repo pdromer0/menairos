@@ -1,0 +1,221 @@
+# Registro de decisiones de T-07 (envoltorio de gh api y doble de GitHub). Formato: src/menairos/esquemas/decisiones.schema.json.
+# Lo que está en el plan aprobado, o lo decidió Pedro en el encargo, va con decidido_por: pedro (hito-0.md 5.4);
+# lo que el agente decidió durante la implementación sin estar en el plan, con decidido_por: agente.
+tarea: T-07
+decisiones:
+  - id: T-07-D1
+    decision: >-
+      El envoltorio rechaza todo DELETE salvo quitar una relación «blocked by» entre issues: una lista
+      explícita con un único patrón de ruta (fullmatch, sin consulta), comprobada antes de llamar a gh
+    motivo: Quitar una dependencia borra un enlace, no datos, y spec publicar la necesita (tabla de idempotencia de 2.4)
+    alternativas:
+      - Ningún DELETE, y que spec publicar solo avise de las dependencias quitadas
+      - Permitir DELETE en cualquier ruta de dependencias
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-07-D2
+    decision: .claude/settings.json no cambia; su deny de gh api con DELETE sigue valiendo para el shell del agente, y AGENTS.md tampoco cambia (P4)
+    motivo: La excepción es de la CLI, no del agente
+    alternativas:
+      - Matizar AGENTS.md con la excepción de la CLI
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D3
+    decision: El envoltorio va en src/menairos/github.py; el doble, en tests/doble_github.py, con la fixture doble_github en tests/conftest.py
+    motivo: Una fixture reutilizable para T-08, T-12, T-19, T-23 y T-24
+    alternativas:
+      - Un doble que sustituye a todo el cliente en vez de solo al transporte
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D4
+    decision: >-
+      Dos capas: un transporte (GhCli, que lanza gh api) y el cliente GitHub, que valida la ruta, aplica las
+      reglas de DELETE y GraphQL, pagina, reintenta y convierte los errores; el doble sustituye solo el transporte
+    motivo: Los tests de T-08 ejercitan así la paginación, los reintentos y los errores reales del envoltorio
+    alternativas:
+      - Un doble del cliente entero, que no probaría esa lógica
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D5
+    decision: >-
+      Paginación propia: una llamada a gh api --include por página, siguiendo la URL de rel="next" de la
+      cabecera Link tal cual, con per_page=100 si quien llama no lo da; un next ya visitado es un error
+    motivo: >-
+      --paginate sin --slurp (gh 2.48 o posterior) concatena los arrays; --include da el código HTTP y las
+      cabeceras también en los errores; cada página es una llamada que el tope del doble cuenta
+    alternativas:
+      - gh api --paginate --slurp, que exige una versión reciente de gh sin comprobar en la nube
+      - Contar páginas con page=N hasta una página corta
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D6
+    decision: >-
+      Solo se usan --method (siempre), --include, --input - (cuerpo JSON por stdin) y --header; versión mínima
+      de gh 1.0.0, comprobada en el código fuente de gh; verificadas WSL2 (2.103.3) y Actions (2.105.0); la
+      nube queda en abiertas.md hasta que Pedro lance gh --version allí (P2)
+    motivo: No depender de opciones de gh sin comprobar en los tres entornos
+    alternativas:
+      - Dejar la nube directamente para T-22
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D7
+    decision: Solo REST; una ruta cuyo primer tramo es graphql (sin distinguir mayúsculas) se rechaza antes de llamar a gh
+    motivo: ADR 0016; GraphQL da 403 en la nube
+    alternativas:
+      - Rechazar solo el texto exacto «graphql»
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D8
+    decision: >-
+      Errores como GitHubError con el código HTTP y un mensaje en español (404, 401, 403, 422 con el detalle
+      de GitHub y 5xx con el aviso de githubstatus.com); 403 con el límite agotado o 429, como RateLimited con
+      la hora de renovación o los segundos de espera; sin respuesta HTTP, status None
+    motivo: Un fallo de GitHub tiene que decir qué pasó y qué hacer, sin leer el texto de gh
+    alternativas:
+      - Sacar el código del mensaje de stderr de gh
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D9
+    decision: >-
+      Reintentos solo en un GET que da 5xx: como mucho 3 reintentos (4 llamadas), con esperas de 1, 2 y 4 s
+      inyectables; las escrituras, un tiempo agotado y los 4xx no se reintentan (P1). Tiempo máximo de 30 s
+      por llamada
+    motivo: Reintentar una escritura que no es idempotente puede duplicarla (lección de T-02)
+    alternativas:
+      - 3 llamadas en total, con esperas de 1 y 2 s
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D10
+    decision: >-
+      El doble guarda en memoria etiquetas, milestones, issues (y PRs) y relaciones «blocked by»; es fiel donde
+      T-08 puede tropezar (id distinto del número, state=open por defecto, 422 already_exists, Link con
+      repositories/{id}) y más estricto que GitHub ante la duda; una ruta que no modela lanza UnsupportedRoute
+    motivo: Lo bastante fiel para T-08 sin construir T-08, y que la falta de fidelidad se vea en vez de pasar por un 404
+    alternativas:
+      - Respuestas enlatadas por test, sin estado
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D11
+    decision: >-
+      RunawayLoop deriva de BaseException, se lanza en la llamada siguiente al tope (500 por defecto,
+      cambiable por test) con el número de llamadas y las 5 últimas, y se repite en cada llamada posterior
+    motivo: Un except Exception del código probado no puede tragárselo, como pasa con pytest.fail
+    alternativas:
+      - RunawayLoop como AssertionError
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D12
+    decision: >-
+      Barreras: una fixture autouse cambia subprocess.Popen por una subclase que rechaza gh, y un test
+      recorre con ast los módulos de src/menairos salvo github.py en busca de textos que lancen gh
+    motivo: Hacer cumplir que ningún test llama a GitHub y que todo pasa por el envoltorio
+    alternativas:
+      - Solo la sustitución del transporte por defecto
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D13
+    decision: Una comprobación real de solo lectura contra pdromer0/menairos-prueba, una vez, fuera de los tests (las etiquetas con per_page=2 y un GET que da 404)
+    motivo: Copiar al doble la forma real del Link y del 404, sin escribir nada en GitHub
+    alternativas:
+      - Un test marcado que llama a GitHub y se salta por defecto
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D14
+    decision: El 4.º criterio de T-07 en hito-0.tareas.yaml recoge la decisión del DELETE (P3)
+    motivo: El issue de T-07 que publica T-08 tiene que llevar la decisión
+    alternativas:
+      - No tocar los criterios
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-07-D15
+    decision: >-
+      Las rutas también rechazan lo que no es ASCII visible, los tramos vacíos, «.» y «..», y un GET o un
+      DELETE con cuerpo; y el argv pone «--» antes de la ruta
+    motivo: >-
+      Estricto ahora donde es barato (lección de T-05): «repos/o/../…» podría pasar el patrón del DELETE con
+      «..» como nombre de repo, y el texto libre se codifica con quote()
+    alternativas:
+      - Solo espacios, caracteres de control, llaves y «-» delante, como decía el plan
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Endurece reglas del plan sin cambiar su intención ni la interfaz; relajarlas después no rompe nada
+
+  - id: T-07-D16
+    decision: >-
+      Response lleva también text (el cuerpo tal cual): un 2xx que no es JSON es un error, y en uno no-2xx el
+      texto entra en el mensaje; parse_include, check_path, next_link y error_for son públicos
+    motivo: Distinguir un cuerpo vacío de uno que no es JSON, y probar cada pieza por separado
+    alternativas:
+      - Solo data, con el texto en un campo de error
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es un detalle de la interfaz que no cambia lo aprobado y T-08 aún no la usa
+
+  - id: T-07-D17
+    decision: >-
+      El doble lanza UnsupportedRoute también con un parámetro de consulta o un campo del cuerpo que no
+      modela, y no solo con una ruta
+    motivo: Un filtro o un campo ignorado en silencio daría tests verdes con un comportamiento que GitHub no tiene
+    alternativas:
+      - Ignorar los parámetros y campos desconocidos, como GitHub en algunos casos
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Aplica el «más estricto ante la duda» del plan; T-08 amplía el doble si necesita más
+
+  - id: T-07-D18
+    decision: >-
+      Tras la revisión, la barrera tiene dos capas: el Popen vigilado del proceso de pytest (con env, sh -c,
+      cada orden de una línea de shell y executable posicional) y un gh falso, primero en el PATH, que sale
+      con 97 en los procesos hijos y en os.system
+    motivo: La revisión mostró que un proceso hijo, os.system o «cd x && gh …» lanzaban el gh real
+    alternativas:
+      - Dejar la barrera dentro del proceso y prohibir los procesos hijos en los tests
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Refuerza una barrera aprobada en el plan sin cambiar su interfaz
+
+  - id: T-07-D19
+    decision: >-
+      Tras la revisión, la ruta también rechaza :owner, :repo y :branch (gh los sustituye, según su código);
+      los parámetros solo admiten texto, enteros y booleanos; solo se sigue un next de https://api.github.com/;
+      y Retry-After y X-RateLimit-Reset solo valen con cifras ASCII y una fecha posible
+    motivo: Cada caso daba una petición equivocada en silencio o rompía el mensaje de error
+    alternativas:
+      - Convertir las listas de los parámetros en texto separado por comas
+      - Quitar el prefijo /api/v3 de los next de GitHub Enterprise
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Estricto donde es barato (lección de T-05); Menairos solo habla con github.com

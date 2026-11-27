@@ -45,7 +45,17 @@ modo solo registro.
 ### ¿Cuál es la ruta REST para crear y quitar dependencias «blocked by»?
 
 **Justificación:** el método v2 solo leía las dependencias por REST; la escritura no está comprobada. Se
-cierra en **T-08**, en la documentación de GitHub y contra el repo de prueba.
+cierra en **T-08**, en la documentación de GitHub y contra el repo de prueba. El único `DELETE` que
+admite el envoltorio de T-07 y las rutas del doble parten de la ruta documentada
+(`…/issues/{n}/dependencies/blocked_by/{issue_id}`): si T-08 encuentra otra, los cambia a la vez.
+
+### ¿Qué versión de `gh` hay en las sesiones en la nube?
+
+**Justificación:** el envoltorio de T-07 solo usa opciones de `gh api` que existen desde gh 1.0.0
+(`--method`, `--include`, `--input` y `--header`, comprobado en el código fuente de `gh`), y en
+WSL2 (2.103.3) y Actions (2.105.0) está verificado; en la nube no se pudo mirar desde la sesión
+local. Se cierra cuando Pedro lance `gh --version` en una sesión en la nube, o en **T-22**, con la
+primera tarea hecha allí.
 
 ### ¿Qué opciones de `codex exec` dan solo lectura y salida a fichero?
 
