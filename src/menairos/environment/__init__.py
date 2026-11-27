@@ -1,4 +1,4 @@
-"""``menairos entorno``: the local layer for now (hito-0.md 3.4).
+"""``menairos entorno``: the local and repo layers (hito-0.md 3.4).
 
 Every step checks, acts if it has to and checks again; running the order again
 changes nothing once everything is in place. With ``check_only`` nothing is
@@ -8,6 +8,8 @@ one is green. The github and nube layers come later (T-12).
 
 * :mod:`menairos.environment.core`: steps, report and the machine.
 * :mod:`menairos.environment.local`: tools, versions, path and ``.wslconfig``.
+* :mod:`menairos.environment.repo`: templates, ``uv sync``, pre-commit and the
+  first commit.
 """
 
 from collections.abc import Callable, Sequence
@@ -19,13 +21,14 @@ from menairos import stacks
 from menairos.environment import core
 from menairos.environment.core import Layer, Report, Step, System, UsageError
 from menairos.environment.local import local_layer
+from menairos.environment.repo import repo_layer
 from menairos.schemas import load_document, validate
 
 __all__ = ["LAYERS", "Report", "Step", "UsageError", "read_config", "run_environment"]
 
 CONFIG_FILE = "menairos.toml"
-LAYERS = ("local",)
-LATER_LAYERS = ("repo", "github", "nube")
+LAYERS = ("local", "repo")
+LATER_LAYERS = ("github", "nube")
 """The layers of hito-0.md 3.4 that this version does not have yet."""
 
 
@@ -52,6 +55,12 @@ def run_environment(
     layers: list[Layer] = []
     if layer in (None, "local"):
         layers.append(local_layer(root, config, machine, roots))
+    if layer in (None, "repo"):
+        if layers and not layers[0].green:
+            detail = "no se ejecutó: antes tiene que quedar en verde la capa local"
+            layers.append(Layer("repo", [Step("repo", "repo", "manual", detail)]))
+        else:
+            layers.append(repo_layer(root, config, machine, check_only, roots, notify))
     later = LATER_LAYERS if layer is None else ()
     return Report(root, check_only, layers, later)
 
