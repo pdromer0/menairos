@@ -88,6 +88,13 @@ sesiones en la nube. Sería una vía sin script de entorno, pero con una sola ve
 proyectos y subida a mano. No hace falta mientras funcione el script de entorno; se revisa al
 cerrar el H0 (T-28).
 
+### ¿Respeta `uv tool install` el `uv.lock`?
+
+**Justificación:** las dependencias del paquete (jsonschema y PyYAML) solo tienen cota inferior en
+`pyproject.toml`. Si `uv tool install` no usa las versiones de `uv.lock`, una versión mayor nueva
+de cualquiera de ellas podría romper la CLI instalada; en ese caso, se ponen cotas superiores a
+jsonschema y PyYAML. Se verifica en **T-22**, cuando el plugin empiece a usar la CLI instalada.
+
 ## Producto
 
 ### ¿Cuál es el producto piloto?

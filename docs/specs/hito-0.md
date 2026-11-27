@@ -370,33 +370,58 @@ menairos spec validar [--hito N] [--json] [--raiz RUTA]
   elemento lleva `codigo`, `mensaje`, `fichero` y `ruta` (por ejemplo, `tareas[3].depende_de[0]`);
   sin `--json`, una lista legible por Pedro.
 - **Código de salida:** `0` sin errores (aunque haya avisos), `1` con errores, `2` error de uso
-  (fichero que no existe, argumentos mal).
+  (fichero que no existe, argumentos mal). Son de uso: `--raiz` que no es una carpeta, y que falte
+  `menairos.toml`, el YAML de tareas del hito, `hito-N.md`, `docs/abiertas.md` o la carpeta
+  `docs/decisiones/`; el mensaje va a la salida de error y la normal queda vacía, también con
+  `--json`. Lo que falta *dentro* (un fichero enlazado, un ancla, la sección, el ADR `stack`) y
+  un fichero que no se puede leer (sintaxis, clave repetida, alias en bucle, no UTF-8) son
+  errores de validación.
+- **Orden:** si E01 o E02 fallan, no se comprueban E03–E09, que dependen de datos válidos; E10,
+  E11 y E12 sí, porque no usan los datos. A01 y A02 miran el documento tal como se escribió, antes de aplicar los valores por
+  defecto.
 
 | Código | Comprobación |
 | --- | --- |
 | E01 | `menairos.toml` no cumple su esquema |
-| E02 | `hito-N.tareas.yaml` no cumple su esquema |
+| E02 | `hito-N.tareas.yaml` no cumple su esquema, o su `hito` no es la N del nombre del fichero |
 | E03 | Id de tarea repetido |
 | E04 | Rama repetida entre tareas |
 | E05 | Dependencia a un id que no existe |
 | E06 | Una tarea depende de sí misma |
-| E07 | Ciclo de dependencias (el mensaje da el ciclo: `T-02 → T-04 → T-02`) |
-| E08 | Enlace de `especificacion` a un fichero que no existe |
+| E07 | Ciclo de dependencias: un error por cada grupo de tareas que dependen unas de otras (componente fuertemente conexa), con un ciclo de ejemplo en el mensaje (`T-02 → T-04 → T-02`, donde `→` es «depende de») |
+| E08 | Enlace de `especificacion` a un fichero que no existe, que sale del repo o que difiere en mayúsculas del de disco; se resuelve desde la carpeta del YAML |
 | E09 | Enlace a un ancla que no existe en el fichero |
-| E10 | El hito no tiene sección «Validación funcional» con al menos una comprobación ✅ o 👁, o una ✅ no lleva su orden (6.2) |
+| E10 | El hito no tiene una sola sección «Validación funcional» con al menos una comprobación ✅ o 👁 (un elemento de lista que empieza por uno de ellos), o una ✅ no termina en ` — ` y su orden entre comillas invertidas (6.2) |
 | E11 | `abiertas.md` tiene puntos sin justificación |
 | E12 | No hay ningún ADR de tipo `stack` |
-| E13 | Una plantilla de `stack.plantillas` no existe en la versión de Menairos instalada |
+| E13 | Una plantilla de `stack.plantillas` no existe en la versión de Menairos instalada (llega en T-10, con las plantillas de stack) |
 | A01 | `motivo_critica` presente en una tarea no crítica |
 | A02 | Tarea sin `area` explícita (con paralelismo > 1 en `menairos.toml`) |
 | A03 | Las coherencias de `menairos.toml` de 2.2 |
+| A04 | `quien: codex` en una tarea cuyo modo efectivo no es manual (`tareas[].modo` o, si es `null`, `modo.defecto` de `menairos.toml`) |
 
-H0.3 añade E14 y E15 (4.5).
+H0.3 añade E14, E15 y A05 (4.5).
 
-**Anclas (E09).** Se calculan como GitHub: minúsculas; se quitan los signos de puntuación salvo
-guiones; los espacios pasan a guiones; las letras con acento se conservan (`## Modelo de datos` →
-`#modelo-de-datos`; `## Validación funcional` → `#validación-funcional`); los encabezados
-repetidos llevan sufijo `-1`, `-2`.
+**Anclas (E09).** Se calculan como GitHub, verificado en T-06 con su API (anexo):
+
+- del encabezado se toma el texto que se ve: el código sin las comillas invertidas, los enlaces
+  como su texto, las entidades y los escapes resueltos, y sin etiquetas HTML, marcas de énfasis
+  ni imágenes;
+- se pasa a minúsculas;
+- se quita todo lo que no sea una letra, una marca (los acentos combinados), una cifra decimal,
+  `_`, `-` o un espacio: signos, símbolos, emoji, tabuladores, el espacio de no separación y
+  cifras como `①` o `²`;
+- cada espacio pasa a `-`, sin juntar guiones (`## Hito 0 — Núcleo` → `#hito-0--núcleo`);
+- las letras con acento se conservan (`## Validación funcional` → `#validación-funcional`), y
+  también `_` (`` ## `idioma_docs` `` → `#idioma_docs`);
+- los repetidos llevan sufijo `-1`, `-2`; si el sufijo choca con otro encabezado, se añade otro
+  (`Repetido`, `Repetido`, `Repetido-1` → `repetido`, `repetido-1`, `repetido-1-1`); un
+  encabezado sin nada que quede (`## ✅`) no tiene ancla, pero cuenta para los repetidos.
+
+Solo cuentan los encabezados ATX (`#` a `######`, con hasta tres espacios delante) fuera de los
+bloques de código. GitHub también da ancla a los encabezados subrayados (`===`, `---`) y a los que
+están dentro de una lista o una cita, pero Menairos no los cuenta: enlazar uno da E09, y en los
+documentos del método no se usan. El ancla se compara tal cual (sin descodificar `%C3%B3`).
 
 **Formato de `abiertas.md` (E11).** Cada punto abierto es un encabezado `###` y debe llevar una
 línea `**Justificación:**` no vacía. Un fichero sin puntos es válido.
@@ -479,8 +504,8 @@ documentación de GitHub y contra el repo de prueba antes de implementarla.
 
 - Los tres esquemas están en `src/menairos/esquemas/`, con un ejemplo válido y uno inválido por
   regla en `tests/data/esquemas/`.
-- `menairos spec validar` detecta los 13 errores y los 3 avisos de 2.3, cada uno con su test, y los
-  casos límite tienen test.
+- `menairos spec validar` detecta los errores E01–E12 y los 4 avisos de 2.3, cada uno con su test, y
+  los casos límite tienen test. E13 llega en T-10, con las plantillas de stack.
 - `menairos spec publicar` es idempotente contra el doble de GitHub y tiene test cada caso de la
   tabla de idempotencia y cada caso límite.
 - Una publicación real contra `pdromer0/menairos-prueba` con un YAML de ejemplo, ejecutada dos
@@ -805,7 +830,7 @@ turno), escribe su parte de los documentos al cerrarse y hace un commit:
 | --- | --- |
 | E14 | Un elemento de `inventario-mvp.md` sin decisión (solo en modo MVP) |
 | E15 | `revision-hito-N.md` con bloqueantes en estado `abierto`: no se puede publicar |
-| A04 | Fases marcadas «a revisar» en `.menairos/estado-spec.toml` |
+| A05 | Fases marcadas «a revisar» en `.menairos/estado-spec.toml` |
 
 ### 4.6 Casos límite
 
@@ -833,7 +858,7 @@ turno), escribe su parte de los documentos al cerrarse y hace un commit:
 - El modo MVP funciona sobre un MVP de ejemplo pequeño (en los datos de test), con el inventario
   completo y E14 detectando un elemento sin decidir.
 - `--siguiente` funciona con un informe de cierre de ejemplo.
-- E14, E15 y A04 tienen test, y los casos límite de 4.6 tienen test donde son deterministas.
+- E14, E15 y A05 tienen test, y los casos límite de 4.6 tienen test donde son deterministas.
 
 ---
 
