@@ -5,6 +5,7 @@ lo que prueba. Los datos son sintéticos.
 """
 
 import copy
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ import pytest
 import yaml
 
 from menairos import spec_validation
+from menairos.cli import _translate, main  # pyright: ignore[reportPrivateUsage]
 from menairos.spec_validation import (
     DATA_CHECKS,
     Report,
@@ -945,3 +947,189 @@ def test_los_errores_se_ordenan_por_codigo_y_fichero(tmp_path: Path) -> None:
         ("E08", TAREAS, "tareas[1].especificacion[0]"),
         ("E12", "docs/decisiones/", ""),
     ]
+
+
+# ── La orden en la CLI ──────────────────────────────────────────────────────
+
+
+def _cli(capsys: pytest.CaptureFixture[str], *argumentos: str) -> tuple[int, str, str]:
+    codigo = main(["spec", "validar", *argumentos])
+    salida = capsys.readouterr()
+    return codigo, salida.out, salida.err
+
+
+def test_cli_sin_errores_sale_con_0(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    codigo, out, err = _cli(capsys, "--raiz", str(_proyecto(tmp_path)))
+    assert (codigo, err) == (0, "")
+    assert out == (
+        "Hito 1 · docs/specs/hito-1.tareas.yaml\n\n"
+        "Resultado: ningún error y ningún aviso.\n"
+    )
+
+
+def test_cli_con_errores_sale_con_1_y_los_lista(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    tareas = _con(lambda d: d["tareas"][1].update(depende_de=["T-99"]))
+    raiz = _proyecto(
+        tmp_path, tareas=tareas, toml=TOML + '\n[revisores]\npr = "codex"\n'
+    )
+    codigo, out, err = _cli(capsys, "--raiz", str(raiz))
+    assert (codigo, err) == (1, "")
+    assert out.splitlines() == [
+        "Hito 1 · docs/specs/hito-1.tareas.yaml",
+        "",
+        "Errores (1):",
+        "  E05  docs/specs/hito-1.tareas.yaml  tareas[1].depende_de[0]",
+        "       la dependencia «T-99» no es ninguna tarea del hito",
+        "",
+        "Avisos (1):",
+        "  A03  menairos.toml  revisores.pr",
+        "       Codex como revisor bloqueante de los PR está sin verificar: hasta "
+        "que el hito 0 confirme que puede ser un check bloqueante, el revisor es "
+        "Claude",
+        "",
+        "Resultado: 1 error y 1 aviso.",
+    ]
+
+
+def test_cli_solo_con_avisos_sale_con_0(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    raiz = _proyecto(tmp_path, toml=TOML + '\n[revisores]\npr = "codex"\n')
+    codigo, out, _ = _cli(capsys, "--raiz", str(raiz))
+    assert codigo == 0
+    assert out.endswith("Resultado: ningún error y 1 aviso.\n")
+
+
+def test_cli_dice_que_se_omitieron_e03_a_e09(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    raiz = _proyecto(tmp_path, toml="[menairos]\n", adrs={})
+    codigo, out, _ = _cli(capsys, "--raiz", str(raiz))
+    assert codigo == 1
+    assert (
+        "No se comprobaron E03–E09: necesitan que menairos.toml y el YAML de "
+        "tareas cumplan su esquema." in out
+    )
+    assert out.endswith("Resultado: 4 errores y ningún aviso.\n")
+
+
+def test_cli_json(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    tareas = _con(lambda d: d["tareas"][0].update(motivo_critica="Porque sí"))
+    raiz = _proyecto(tmp_path, tareas=tareas, abiertas="### ¿Qué?\n")
+    codigo, out, err = _cli(capsys, "--raiz", str(raiz), "--json")
+    assert (codigo, err) == (1, "")
+    assert json.loads(out) == {
+        "ok": False,
+        "errores": [
+            {
+                "codigo": "E11",
+                "mensaje": "el punto «¿Qué?» (línea 1) no tiene una línea "
+                "«**Justificación:**» con texto",
+                "fichero": "docs/abiertas.md",
+                "ruta": "#qué",
+            }
+        ],
+        "avisos": [
+            {
+                "codigo": "A01",
+                "mensaje": "«T-01» tiene motivo_critica pero no es crítica: "
+                "falta «critica: true» o sobra el motivo",
+                "fichero": "docs/specs/hito-1.tareas.yaml",
+                "ruta": "tareas[0].motivo_critica",
+            }
+        ],
+    }
+    assert "«¿Qué?»" in out  # sin escapar los caracteres que no son ASCII
+
+
+def test_cli_json_sin_errores(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    codigo, out, _ = _cli(capsys, "--json", "--raiz", str(_proyecto(tmp_path)))
+    assert codigo == 0
+    assert json.loads(out) == {"ok": True, "errores": [], "avisos": []}
+
+
+def test_cli_hito_explicito(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    raiz = _proyecto(tmp_path)
+    _proyecto(raiz, hito=2, tareas=_del_hito(2))
+    codigo, out, _ = _cli(capsys, "--raiz", str(raiz), "--hito", "1")
+    assert codigo == 0
+    assert out.startswith("Hito 1 · ")
+
+
+@pytest.mark.parametrize("formato", [[], ["--json"]], ids=["legible", "json"])
+@pytest.mark.parametrize(
+    ("argumentos", "mensaje"),
+    [
+        (["--raiz", "no-existe"], "la raíz «no-existe» no existe o no es una carpeta"),
+        (["--hito", "7"], "«docs/specs/hito-7.tareas.yaml», «docs/specs/hito-7.md»"),
+    ],
+    ids=["raiz", "hito"],
+)
+def test_cli_error_de_uso_sale_con_2_y_no_escribe_en_la_salida(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    argumentos: list[str],
+    mensaje: str,
+    formato: list[str],
+) -> None:
+    monkeypatch.chdir(_proyecto(tmp_path))
+    codigo, out, err = _cli(capsys, *argumentos, *formato)
+    assert (codigo, out) == (2, "")
+    assert err.startswith("menairos spec validar: error: ")
+    assert mensaje in err
+
+
+def test_cli_falta_un_fichero_sale_con_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    raiz = _proyecto(tmp_path)
+    (raiz / "docs" / "abiertas.md").unlink()
+    codigo, out, err = _cli(capsys, "--raiz", str(raiz))
+    assert (codigo, out) == (2, "")
+    assert "«docs/abiertas.md»" in err
+
+
+@pytest.mark.parametrize(
+    ("argv", "mensaje"),
+    [
+        (["spec", "validar", "--hito", "x"], "--hito: «x» no es un número de hito"),
+        (["spec", "validar", "--hito", "-1"], "--hito: «-1» no es un número de hito"),
+        (["spec", "validar", "--hito", "01"], "--hito: «01» no es un número de hito"),
+        (["spec", "validar", "--hito"], "a --hito le falta su valor"),
+        (["spec", "validar", "--otra"], "argumentos no reconocidos: --otra"),
+        (["spec", "validar", "--js"], "argumentos no reconocidos: --js"),
+        (["spec"], "falta un argumento obligatorio: ORDEN"),
+        (["spec", "nada"], "orden no válida: 'nada' (se admite: 'validar')"),
+        (["nada"], "orden no válida: 'nada' (se admite: 'spec')"),
+    ],
+)
+def test_cli_argumentos_mal_en_espanol(
+    capsys: pytest.CaptureFixture[str], argv: list[str], mensaje: str
+) -> None:
+    with pytest.raises(SystemExit) as salida:
+        main(argv)
+    assert salida.value.code == 2
+    err = capsys.readouterr().err
+    assert err.startswith("uso: menairos")
+    assert mensaje in err
+
+
+def test_cli_ayuda_en_espanol(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as salida:
+        main(["spec", "validar", "-h"])
+    assert salida.value.code == 0
+    out = capsys.readouterr().out
+    assert out.startswith("uso: menairos spec validar [-h] [--hito N] [--json]")
+    assert "\nopciones:\n" in out
+    assert "muestra esta ayuda y termina" in out
+
+
+def test_un_mensaje_de_argparse_desconocido_se_deja_igual() -> None:
+    assert _translate("otro mensaje") == "otro mensaje"
