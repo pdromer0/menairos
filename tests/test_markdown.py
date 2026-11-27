@@ -53,13 +53,13 @@ GITHUB: list[tuple[str, str | None]] = [
     ("Repetido-1", "repetido-1-1"),
     ("Repetido", "repetido-2"),
     ("REPETIDO", "repetido-3"),
-    ("é combinado", "é-combinado"),
+    ("e\u0301 combinado", "e\u0301-combinado"),
     ("Ελληνικά 漢字 ① ²", "ελληνικά-漢字--"),
-    ("İstanbul ẞ", "i̇stanbul-ß"),
+    ("İstanbul ẞ", "i\u0307stanbul-ß"),
     ("Barra#escapada *", "barraescapada-"),
     ("html dentro", "html-dentro"),
     ("Tab\tseparado", "tabseparado"),
-    ("No rompible", "norompible"),
+    ("No\u00a0rompible", "norompible"),
     ("Dos--guiones -final-", "dos--guiones--final-"),
     ("(paréntesis) [corchetes] {llaves}", "paréntesis-corchetes-llaves"),
     ("¿?", "-1"),
@@ -152,7 +152,7 @@ def test_texto_visible(contenido: str, texto: str) -> None:
 
 
 def test_bom_y_crlf() -> None:
-    documento = parse("﻿# Título\r\n\r\n## Otro\rtexto\r\n")
+    documento = parse("\ufeff# Título\r\n\r\n## Otro\rtexto\r\n")
     assert [h.anchor for h in documento.headings] == ["título", "otro"]
     assert [line.text for line in documento.lines] == [
         "# Título",
@@ -164,7 +164,7 @@ def test_bom_y_crlf() -> None:
 
 def test_bom_al_leer_un_fichero(tmp_path: Path) -> None:
     ruta = tmp_path / "x.md"
-    ruta.write_bytes("﻿# Título\r\n".encode())
+    ruta.write_bytes("\ufeff# Título\r\n".encode())
     assert [h.anchor for h in read(ruta).headings] == ["título"]
 
 
@@ -210,3 +210,13 @@ def test_la_ultima_seccion_llega_hasta_el_final() -> None:
         2,
         3,
     ]
+
+
+def test_un_sufijo_que_choca_con_un_encabezado_anterior_sigue_contando() -> None:
+    """Como github-slugger: si «a-1» ya existe, el segundo «a» es «a-2».
+
+    GitHub confirmó el caso contrario («Repetido-1» después de un «repetido-1»
+    generado da «repetido-1-1»); este orden sale del mismo algoritmo.
+    """
+    documento = parse("# a\n# a-1\n# a\n# a\n")
+    assert [h.anchor for h in documento.headings] == ["a", "a-1", "a-2", "a-3"]

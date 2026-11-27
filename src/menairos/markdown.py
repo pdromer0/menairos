@@ -88,7 +88,7 @@ def read(path: Path) -> Document:
 
 def parse(text: str) -> Document:
     """Parse Markdown text into lines and headings."""
-    text = text.removeprefix("﻿")
+    text = text.removeprefix("\ufeff")
     raw = _LINE_BREAK.split(text)
     if raw and raw[-1] == "":
         raw.pop()

@@ -161,7 +161,7 @@ def test_bom_y_crlf_en_todos_los_ficheros(tmp_path: Path) -> None:
     for ruta in raiz.rglob("*"):
         if ruta.is_file():
             texto = ruta.read_text(encoding="utf-8").replace("\n", "\r\n")
-            ruta.write_bytes(("﻿" + texto).encode())
+            ruta.write_bytes(("\ufeff" + texto).encode())
     assert _codigos(validate_spec(raiz)) == []
 
 

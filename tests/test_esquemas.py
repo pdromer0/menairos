@@ -563,7 +563,7 @@ def test_yaml_no_construye_objetos_de_python(tmp_path: Path) -> None:
 
 def test_un_fichero_con_bom_se_lee(tmp_path: Path) -> None:
     ruta = tmp_path / "bom.yaml"
-    ruta.write_bytes("﻿hito: 1\n".encode())
+    ruta.write_bytes("\ufeffhito: 1\n".encode())
     assert load_document(ruta) == {"hito": 1}
 
 
