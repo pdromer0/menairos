@@ -174,3 +174,36 @@ decisiones:
     decidido_por: agente
     por_que_no_escalo: Es reversible y de impacto bajo según la matriz del punto 9, así que basta con registrarla
     agente: Claude Code (Opus 5.5)
+
+  - id: T-05-D19
+    decision: >-
+      Tras la revisión propia, rama y proyecto.repo rechazan también lo que git y GitHub no admiten:
+      dos puntos seguidos, un punto al principio o al final o acabar en .lock en la rama; un repo . o
+      .., o un dueño con guiones al principio, al final o seguidos
+    motivo: Un fichero dado por válido fallaría después en git checkout o en gh api; aplica el principio de T-05-D8
+    alternativas:
+      - Dejar los patrones de hito-0.md 2.2 tal cual ([a-z0-9._-]+ en la rama)
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: >-
+      Es reversible (relajar después no rompe ficheros), de impacto bajo según la matriz del punto 9,
+      y sigue el principio que Pedro fijó en el plan; los ficheros del repo siguen siendo válidos
+    agente: Claude Code (Opus 5.5)
+
+  - id: T-05-D20
+    decision: >-
+      Las comprobaciones estrictas siguen en un recorrido aparte, después del esquema, y un test
+      limita los esquemas a las palabras clave que ese recorrido y apply_defaults siguen
+    motivo: >-
+      La revisión propia avisó de que una palabra clave nueva (anyOf, oneOf…) se saltaría las
+      comprobaciones sin avisar; el test lo convierte en un fallo
+    alternativas:
+      - Ampliar Draft202012Validator (comprobador de tipos y palabra clave pattern propios) y quitar el recorrido
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: >-
+      Mantiene lo aprobado en el plan («en código, después del esquema») y solo añade un test;
+      reversible y de impacto bajo según la matriz del punto 9
+    agente: Claude Code (Opus 5.5)

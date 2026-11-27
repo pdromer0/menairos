@@ -294,7 +294,7 @@ una regla después no rompe ningún fichero y endurecerla sí):
 | --- | --- | --- | --- | --- |
 | `menairos.version` | texto | Sí | — | Versión semántica, con prerelease y sin metadatos de build (`3.0.0`, `3.1.0-dev`; no `3.0.0+b1`) |
 | `proyecto.nombre` | texto | Sí | — | No vacío |
-| `proyecto.repo` | texto | Sí | — | `dueño/repo` |
+| `proyecto.repo` | texto | Sí | — | `dueño/repo`, con las reglas de GitHub: el dueño, letras, dígitos y guiones sueltos; el repo, distinto de `.` y `..` |
 | `proyecto.visibilidad` | `publico` \| `privado` | No | `publico` | |
 | `proyecto.idioma_docs`, `idioma_codigo` | texto | No | `es`, `en` | Código de idioma de 2 letras |
 | `stack.plantillas` | lista de textos | Sí | — | Al menos una, sin repetir; debe incluir `base` |
@@ -322,7 +322,7 @@ Coherencias que el esquema no puede expresar y comprueba la CLI:
 | `tareas` | lista | Sí | Al menos una |
 | `tareas[].id` | texto | Sí | `T-` y 2 o 3 dígitos (`T-01`, `T-104`) |
 | `tareas[].titulo` | texto | Sí | No vacío |
-| `tareas[].rama` | texto | Sí | Prefijo `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/` o `ci/` y después `[a-z0-9._-]+` |
+| `tareas[].rama` | texto | Sí | Prefijo `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/` o `ci/` y después `[a-z0-9._-]+`; sin lo que git rechaza (`..`, un punto al principio o al final, acabar en `.lock`) |
 | `tareas[].depende_de` | lista de ids | No (`[]`) | Sin repetir |
 | `tareas[].area` | texto | No (`general`) | Minúsculas, dígitos y guiones |
 | `tareas[].critica` | booleano | No (`false`) | |
