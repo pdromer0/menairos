@@ -1,8 +1,8 @@
 """Command-line entry point for Menairos.
 
 Every text the CLI shows is in Spanish, argparse's own included: the usage
-prefix, the group titles, ``-h`` and the error messages ``spec validar`` can
-produce are translated with argparse's public API and a small table.
+prefix, the group titles, ``-h`` and the error messages the ``spec`` commands
+can produce are translated with argparse's public API and a small table.
 """
 
 import argparse
@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, NoReturn, TextIO
 
 from menairos import __version__
+from menairos.spec_publication import Item, Publication, publish_spec
 from menairos.spec_validation import Finding, Report, UsageError, validate_spec
 
 _ARGPARSE_ERRORS: tuple[tuple[re.Pattern[str], str], ...] = (
@@ -118,16 +119,43 @@ def build_parser() -> argparse.ArgumentParser:
             "haya avisos), 1 con errores y 2 si no se puede ejecutar."
         ),
     )
-    options = validar.options
+    _spec_options(validar, "salida en JSON: ok, errores y avisos")
+    validar.set_defaults(run=_spec_validar)
+    publicar: _Parser = spec_commands.add_parser(
+        "publicar",
+        help="publica el hito en GitHub: etiquetas, milestone, issues y dependencias",
+        description=(
+            "Comprueba la especificación con spec validar y publica en el repo de "
+            "proyecto.repo de menairos.toml las etiquetas, el milestone, un issue por "
+            "tarea y sus dependencias «blocked by». Repetirla no duplica nada, y nunca "
+            "cierra ni borra un issue. Sale con 0 si todo se publicó (aunque haya "
+            "avisos), 1 con errores y 2 si no se puede ejecutar."
+        ),
+    )
+    publicar.options.add_argument(
+        "--seco",
+        action="store_true",
+        help="muestra lo que haría sin escribir nada en GitHub",
+    )
+    _spec_options(
+        publicar,
+        "salida en JSON: creados, actualizados, quitados, sin cambios, avisos y "
+        "errores",
+    )
+    publicar.set_defaults(run=_spec_publicar)
+    return parser
+
+
+def _spec_options(parser: _Parser, json_help: str) -> None:
+    """``--hito``, ``--json`` and ``--raiz``, common to the ``spec`` commands."""
+    options = parser.options
     options.add_argument(
         "--hito",
         type=_milestone,
         metavar="N",
         help="número del hito (por defecto, el mayor con hito-N.tareas.yaml)",
     )
-    options.add_argument(
-        "--json", action="store_true", help="salida en JSON: ok, errores y avisos"
-    )
+    options.add_argument("--json", action="store_true", help=json_help)
     options.add_argument(
         "--raiz",
         type=Path,
@@ -135,8 +163,6 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="RUTA",
         help="raíz del proyecto (por defecto, la carpeta actual)",
     )
-    validar.set_defaults(run=_spec_validar)
-    return parser
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -207,3 +233,126 @@ def _count(n: int, one: str, many: str, none: str) -> str:
     if n == 0:
         return none
     return f"1 {one}" if n == 1 else f"{n} {many}"
+
+
+# ── spec publicar ───────────────────────────────────────────────────────────
+
+
+def _spec_publicar(args: argparse.Namespace) -> int:
+    try:
+        publication = publish_spec(args.raiz, args.hito, dry_run=args.seco)
+    except UsageError as error:
+        print(f"menairos spec publicar: error: {error}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(_publication_json(publication), ensure_ascii=False, indent=2))
+    else:
+        _print_publication(publication, sys.stdout)
+    return 0 if publication.ok else 1
+
+
+def _publication_json(publication: Publication) -> dict[str, object]:
+    return {
+        "ok": publication.ok,
+        "seco": publication.dry_run,
+        "repo": publication.repo,
+        "hito": publication.milestone,
+        "creados": publication.created,
+        "actualizados": publication.updated,
+        "quitados": publication.removed,
+        "sin_cambios": publication.unchanged,
+        "avisos": publication.warnings,
+        "errores": publication.errors,
+    }
+
+
+_SECTIONS = (
+    ("created", "Creados", "Se crearían"),
+    ("updated", "Actualizados", "Se actualizarían"),
+    ("removed", "Quitados", "Se quitarían"),
+)
+_KINDS = (
+    ("etiqueta", "etiqueta", "etiquetas"),
+    ("milestone", "milestone", "milestones"),
+    ("issue", "issue", "issues"),
+    ("dependencia", "dependencia", "dependencias"),
+)
+
+
+def _print_publication(publication: Publication, out: TextIO) -> None:
+    repo = publication.repo or "?"
+    print(f"spec publicar · hito {publication.milestone} · {repo}", file=out)
+    if publication.dry_run:
+        print("En seco: no se escribe nada en GitHub; esto es lo que haría.", file=out)
+    for name, title, dry_title in _SECTIONS:
+        items: list[Item] = getattr(publication, name)
+        if not items:
+            continue
+        shown = dry_title if publication.dry_run else title
+        print(f"\n{shown} ({len(items)}):", file=out)
+        for item in items:
+            print(f"  {_describe(item, removed=name == 'removed')}", file=out)
+    counts = [
+        _count(
+            sum(1 for i in publication.unchanged if i["tipo"] == kind), one, many, ""
+        )
+        for kind, one, many in _KINDS
+    ]
+    counts = [c for c in counts if c]
+    if counts:
+        listed = (
+            counts[0]
+            if len(counts) == 1
+            else f"{', '.join(counts[:-1])} y {counts[-1]}"
+        )
+        print(f"\nSin cambios: {listed}.", file=out)
+    for title, notices in (
+        ("Avisos", publication.warnings),
+        ("Errores", publication.errors),
+    ):
+        if not notices:
+            continue
+        print(f"\n{title} ({len(notices)}):", file=out)
+        for item in notices:
+            where = "  ".join(
+                str(part)
+                for part in (
+                    item.get("tarea"),
+                    f"#{item['numero']}" if item.get("numero") else None,
+                    item.get("fichero"),
+                    item.get("ruta"),
+                )
+                if part
+            )
+            print(f"  {item['codigo']}  {where}".rstrip(), file=out)
+            print(f"       {item['mensaje']}", file=out)
+    writes = _count(publication.writes, "escritura", "escrituras", "ninguna escritura")
+    if not publication.ok:
+        result = f"con errores, tras {writes}"
+    elif publication.dry_run:
+        result = f"haría {writes}"
+    else:
+        result = writes
+    print(f"\nResultado: {result}.", file=out)
+
+
+def _number(value: object) -> str:
+    return f"#{value}" if value else "(nuevo)"
+
+
+def _describe(item: Item, *, removed: bool = False) -> str:
+    kind = item["tipo"]
+    if kind == "etiqueta":
+        return f"etiqueta     {item['nombre']}"
+    if kind == "milestone":
+        return f"milestone    {_number(item['numero'])} {item['titulo']}"
+    if kind == "issue":
+        line = f"issue        {_number(item['numero'])} {item['titulo']}"
+        if item.get("cambios"):
+            line += f"  ({', '.join(item['cambios'])})"
+        return line
+    verb = "ya no depende de" if removed else "depende de"
+    return (
+        f"dependencia  {_number(item['numero'])} {item['tarea']} {verb} "
+        f"{_number(item['bloqueado_por'])} {item['depende_de']}"
+    )

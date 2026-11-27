@@ -1009,3 +1009,136 @@ def test_avisos_de_spec_validar_se_incluyen(raiz: Path, doble: FakeGitHub) -> No
     resultado = publicar(raiz)
     assert resultado.ok
     assert codigos(resultado.warnings) == ["A01"]
+
+
+# ── La orden de la CLI ──────────────────────────────────────────────────────
+
+
+def _cli(raiz: Path, *opciones: str) -> int:
+    from menairos.cli import main
+
+    return main(["spec", "publicar", "--raiz", str(raiz), *opciones])
+
+
+def test_cli_json_y_segunda_ejecucion(
+    raiz: Path, doble: FakeGitHub, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import json
+
+    assert _cli(raiz, "--json") == 0
+    salida = json.loads(capsys.readouterr().out)
+    assert list(salida) == [
+        "ok",
+        "seco",
+        "repo",
+        "hito",
+        "creados",
+        "actualizados",
+        "quitados",
+        "sin_cambios",
+        "avisos",
+        "errores",
+    ]
+    assert (salida["ok"], salida["seco"], salida["repo"], salida["hito"]) == (
+        True,
+        False,
+        REPO,
+        0,
+    )
+    assert len(salida["creados"]) == 21
+    assert _cli(raiz, "--json") == 0
+    segunda = json.loads(capsys.readouterr().out)
+    assert (segunda["creados"], segunda["actualizados"], segunda["quitados"]) == (
+        [],
+        [],
+        [],
+    )
+    assert len(segunda["sin_cambios"]) == 21
+
+
+def test_cli_json_conserva_los_acentos(
+    raiz: Path, doble: FakeGitHub, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _cli(raiz, "--json", "--seco") == 0
+    salida = capsys.readouterr().out
+    assert "Revisión con Codex" in salida and "\\u" not in salida
+
+
+def test_cli_seco_legible(
+    raiz: Path, doble: FakeGitHub, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _cli(raiz, "--seco") == 0
+    salida = capsys.readouterr().out
+    assert escrituras(doble) == []
+    lineas = salida.splitlines()
+    assert lineas[:2] == [
+        "spec publicar · hito 0 · pdromer0/menairos-prueba",
+        "En seco: no se escribe nada en GitHub; esto es lo que haría.",
+    ]
+    assert "Se crearían (21):" in lineas
+    assert "  etiqueta     tipo:tarea" in lineas
+    assert "  milestone    (nuevo) Hito 0 — Ejemplo de spec publicar (T-08)" in lineas
+    assert "  issue        (nuevo) T-02 · Lectura de los datos" in lineas
+    assert "  dependencia  (nuevo) T-02 depende de (nuevo) T-01" in lineas
+    assert lineas[-1] == "Resultado: haría 21 escrituras."
+
+
+def test_cli_legible_con_cambios_y_avisos(
+    raiz: Path, doble: FakeGitHub, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _cli(raiz) == 0
+    assert capsys.readouterr().out.splitlines()[-1] == "Resultado: 21 escrituras."
+    doble.issues[numero(doble, "T-03")]["state"] = "closed"
+
+    def cambiar(d: dict[str, Any]) -> None:
+        tarea(d, "T-03")["criterios_aceptacion"].append("Otro")
+        tarea(d, "T-04").update(depende_de=["T-02"], titulo="Revisión final")
+
+    editar(raiz, cambiar)
+    assert _cli(raiz) == 0
+    lineas = capsys.readouterr().out.splitlines()
+    assert "Actualizados (1):" in lineas
+    assert "  issue        #4 T-04 · Revisión final  (titulo, cuerpo)" in lineas
+    assert "Quitados (1):" in lineas
+    assert "  dependencia  #4 T-04 ya no depende de #3 T-03" in lineas
+    assert (
+        # Las dependencias del issue cerrado (T-03) no se leen ni se cuentan.
+        "Sin cambios: 12 etiquetas, 1 milestone, 2 issues y 2 dependencias." in lineas
+    )
+    assert "  issue-cerrado  T-03  #3" in lineas
+    assert lineas[-1] == "Resultado: 2 escrituras."
+
+
+def test_cli_errores_de_la_spec_salen_con_1(
+    raiz: Path, doble: FakeGitHub, capsys: pytest.CaptureFixture[str]
+) -> None:
+    editar(raiz, lambda d: tarea(d, "T-04")["depende_de"].append("T-99"))
+    assert _cli(raiz) == 1
+    lineas = capsys.readouterr().out.splitlines()
+    assert "Errores (1):" in lineas
+    assert "  E05  docs/specs/hito-0.tareas.yaml  tareas[3].depende_de[2]" in lineas
+    assert lineas[-1] == "Resultado: con errores, tras ninguna escritura."
+    assert doble.calls == []
+
+
+def test_cli_fallo_de_github_sale_con_1(
+    raiz: Path, doble: FakeGitHub, capsys: pytest.CaptureFixture[str]
+) -> None:
+    doble.fail(502, call=5)
+    assert _cli(raiz, "--json") == 1
+    import json
+
+    salida = json.loads(capsys.readouterr().out)
+    assert salida["ok"] is False
+    assert [e["codigo"] for e in salida["errores"]] == ["github"]
+    assert len(salida["creados"]) == 1  # la etiqueta de la llamada 4
+
+
+def test_cli_error_de_uso_sale_con_2(
+    tmp_path: Path, doble: FakeGitHub, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _cli(tmp_path / "no-existe") == 2
+    salida = capsys.readouterr()
+    assert salida.out == ""
+    assert salida.err.startswith("menairos spec publicar: error: la raíz")
+    assert doble.calls == []
