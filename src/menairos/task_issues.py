@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
 
-from menairos import labels
+from menairos import labels, markdown
 
 PART_LENGTH = 16
 TITLE_MAX = 256
@@ -42,6 +42,7 @@ _FINGERPRINT = re.compile(
     r" huella=([0-9a-f]{16})\.([0-9a-f]{16})\.([0-9a-f]{16})",
 )
 _LINE_BREAK = re.compile(r"[ \t]*\n[ \t]*")
+_ANY_LINE_BREAK = re.compile(r"\r\n|\r|\n")  # as menairos.markdown splits lines
 _MODE_NAMES = {"manual": "manual", "didactico": "didáctico", "automatico": "automático"}
 _WHO = {"claude": "Claude", "codex": "Codex"}
 
@@ -228,9 +229,16 @@ def normalize_body(body: str | None) -> str:
 
 
 def find_markers(body: str) -> list[Marker]:
-    """Every marker of a normalised body, at the start of a line."""
+    """Every marker of a normalised body: a whole line, outside fenced code.
+
+    A marker inside a code block is a quotation (a bug that copies an issue's
+    body), not the issue's own marker.
+    """
+    code = {line.number for line in markdown.parse(body).lines if line.in_code}
     found: list[Marker] = []
     for match in _MARKER.finditer(body):
+        if len(_ANY_LINE_BREAK.findall(body, 0, match.start())) + 1 in code:
+            continue
         parts = _FINGERPRINT.fullmatch(match["rest"])
         fingerprint = Fingerprint(*parts.groups()) if parts else None
         found.append(

@@ -582,6 +582,43 @@ def test_choque_de_modo_avisa_y_converge(raiz: Path, doble: FakeGitHub) -> None:
     assert otra.warnings == []
 
 
+def test_critica_y_areas_de_mas_se_quitan_aunque_la_huella_las_deduzca(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """tipo:tarea, critica y area:* son siempre de publicar (3.4; revisión de T-08)."""
+    publicar(raiz)
+    n = numero(doble, "T-01")
+    poner_etiquetas(
+        doble, n, ["area:datos", "area:vieja", "critica", "en-curso", "tipo:tarea"]
+    )
+    editar(raiz, lambda d: tarea(d, "T-01").update(area="nueva"))
+    publicar(raiz)
+    assert etiquetas(doble, "T-01") == ["area:nueva", "en-curso", "tipo:tarea"]
+
+
+def test_issue_cerrado_durante_la_publicacion_no_toca_sus_dependencias(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    publicar(raiz)
+    n = numero(doble, "T-04")
+
+    def cambiar(d: dict[str, Any]) -> None:
+        tarea(d, "T-04").update(depende_de=["T-02", "T-01"])
+
+    editar(raiz, cambiar)
+
+    def pedro_cierra() -> None:
+        doble.issues[n]["state"] = "closed"
+
+    antes = len(doble.calls)
+    cliente = GitHub(Entremedias(doble, pedro_cierra), sleep=doble.sleeps.append)
+    resultado = publish_spec(raiz, client=cliente)
+    assert resultado.ok
+    assert escrituras(doble, antes) == []
+    assert codigos(resultado.warnings) == ["issue-cambiado"]
+    assert doble.blocked_by[n] == [numero(doble, "T-02"), numero(doble, "T-03")]
+
+
 # ── Casos límite de 2.4 ─────────────────────────────────────────────────────
 
 
@@ -811,6 +848,20 @@ def test_marca_ilegible(raiz: Path, doble: FakeGitHub, estado_issue: str) -> Non
     assert escrituras(doble, antes) == []
 
 
+def test_marca_ilegible_con_el_titulo_a_mano_avisa(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    publicar(raiz)
+    n = numero(doble, "T-04")
+    doble.issues[n]["body"] = re.sub(
+        r"huella=\S+", "huella=rota", doble.issues[n]["body"]
+    )
+    doble.issues[n]["title"] = "El título de Pedro"
+    resultado = publicar(raiz)
+    assert codigos(resultado.warnings) == ["marca-ilegible", "titulo-reescrito"]
+    assert doble.issues[n]["title"] == "T-04 · Revisión con Codex"
+
+
 def test_cuerpo_none_en_un_issue_ajeno(raiz: Path, doble: FakeGitHub) -> None:
     doble.add_issue("Sin cuerpo")
     assert doble.issues[1]["body"] is None
@@ -946,6 +997,41 @@ def test_limite_de_uso_a_mitad_y_la_siguiente_completa(
     assert "Límite de uso" in primera.errors[0]["mensaje"]
     assert publicar(raiz).ok
     assert len(doble.issues) == 4 and len(doble.labels) == 12
+
+
+def test_un_4xx_en_una_escritura_dice_que_no_se_guardo(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    doble.fail(422, call=4)  # la primera etiqueta
+    resultado = publicar(raiz)
+    [error] = resultado.errors
+    assert "No se guardó: crear la etiqueta «tipo:tarea»" in error["mensaje"]
+    assert "resultado desconocido" not in error["mensaje"]
+    assert publicar(raiz).ok
+
+
+def test_una_peticion_que_rechaza_el_cliente_es_un_error_y_no_una_traza(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    fuera = '<https://otro.example/repos/x/y/issues?page=2>; rel="next"'
+    doble.fail(200, call=3, headers={"Link": fuera}, body=[])
+    resultado = publicar(raiz)
+    assert codigos(resultado.errors) == ["github"]
+    assert "rechazó una petición antes de enviarla" in resultado.errors[0]["mensaje"]
+    assert "No se ha escrito nada" in resultado.errors[0]["mensaje"]
+    assert escrituras(doble) == []
+
+
+def test_un_bug_que_cita_el_cuerpo_de_un_issue_no_se_lleva_su_marca(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    publicar(raiz)
+    citado = issue(doble, "T-01")["body"]
+    doble.add_issue("Un bug", f"Al publicar sale esto:\n\n```\n{citado}\n```\n")
+    antes = len(doble.calls)
+    resultado = publicar(raiz)
+    assert resultado.ok
+    assert escrituras(doble, antes) == []
 
 
 def test_seco_no_escribe(raiz: Path, doble: FakeGitHub) -> None:

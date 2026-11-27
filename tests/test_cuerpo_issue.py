@@ -280,3 +280,14 @@ def test_sin_coincidencia_no_se_deduce_nada() -> None:
 
 def test_labels_digest_sin_mayusculas_ni_orden_ni_repetidas() -> None:
     assert labels_digest(["B", "a", "b"]) == _h("a\nb")
+
+
+@pytest.mark.parametrize("cerca", ["```", "~~~~", "```markdown"])
+def test_una_marca_dentro_de_un_bloque_de_codigo_no_cuenta(cerca: str) -> None:
+    """Un bug que cita el cuerpo de un issue no se lleva su marca (revisión de T-08)."""
+    citado = _render("T-02").body
+    fin = cerca[:3] if cerca[0] == "`" else cerca
+    cuerpo = f"Se rompe al leer:\n\n{cerca}\n{citado}\n{fin}\n\nFin."
+    assert find_markers(cuerpo) == []
+    con_crlf = normalize_body(f"{cuerpo}\n{citado}".replace("\n", "\r\n"))
+    assert [m.task for m in find_markers(con_crlf)] == ["T-02"]

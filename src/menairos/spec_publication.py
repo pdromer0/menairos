@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from menairos import labels as catalog
-from menairos.github import GitHub, GitHubError
+from menairos.github import ForbiddenRequest, GitHub, GitHubError
 from menairos.schemas import apply_defaults, load_document
 from menairos.spec_validation import CONFIG_FILE, Finding, validate_spec
 from menairos.task_issues import (
@@ -221,6 +221,7 @@ class _Publisher:
         self.refs: dict[str, _Ref] = {}
         self.milestone_number: int | None = None
         self.pending_write = ""
+        self.skipped: set[str] = set()
 
     # ── Run ─────────────────────────────────────────────────────────────
 
@@ -228,26 +229,34 @@ class _Publisher:
         try:
             self._check_limits()
             self._read()
-            plan = self._plan()
-            if not self.dry_run:
-                self._apply(*plan)
+            self._apply(*self._plan())
         except _Stop:
             return
-        except GitHubError as error:
-            message = error.message
-            if self.pending_write:
-                message += (
-                    f" Escritura con resultado desconocido: {self.pending_write}; "
-                    "puede que GitHub la guardara. La siguiente ejecución lo comprueba "
-                    "y completa lo que falta, sin duplicar nada."
-                )
-            elif self.dry_run or self.out.writes == 0:
-                message += " No se ha escrito nada en GitHub."
-            self.out.errors.append(notice("github", message))
+        except (GitHubError, ForbiddenRequest) as error:
+            self.out.errors.append(notice("github", self._failure(error)))
 
-    def _stop(self, item: Item) -> None:
-        self.out.errors.append(item)
-        raise _Stop
+    def _failure(self, error: GitHubError | ForbiddenRequest) -> str:
+        """The message of a failed call, saying what happened to the write."""
+        if isinstance(error, ForbiddenRequest):
+            message = f"La CLI rechazó una petición antes de enviarla: {error}"
+            unknown = False
+        else:
+            message = error.message
+            unknown = error.status is None or error.status >= 500
+        if not self.pending_write:
+            if self.out.writes == 0 or self.dry_run:
+                message += " No se ha escrito nada en GitHub."
+            return message
+        if unknown:
+            return message + (
+                f" Escritura con resultado desconocido: {self.pending_write}; "
+                "puede que GitHub la guardara. La siguiente ejecución lo comprueba "
+                "y completa lo que falta, sin duplicar nada."
+            )
+        return message + (
+            f" No se guardó: {self.pending_write}. Lo escrito antes sigue en GitHub, "
+            "y la siguiente ejecución completa lo que falta."
+        )
 
     # ── Limits ──────────────────────────────────────────────────────────
 
@@ -446,10 +455,6 @@ class _Publisher:
             )
         create_milestone = bool(to_create) and self.milestone_number is None
         dependencies = [self._dependencies(task) for task in self.tasks]
-        if self.dry_run:
-            self._report_dry_run(new_labels, create_milestone, to_create, to_update)
-            for planned in dependencies:
-                self._report_dependencies(planned)
         return (
             new_labels,
             create_milestone,
@@ -480,7 +485,7 @@ class _Publisher:
                 add.append(dep)
         return _Dependencies(tid, remove, add)
 
-    # ── Writing ─────────────────────────────────────────────────────────
+    # ── Writing (or, with dry_run, only reporting) ──────────────────────
 
     def _apply(
         self,
@@ -491,8 +496,9 @@ class _Publisher:
         dependencies: list[_Dependencies],
     ) -> None:
         for label in new_labels:
-            self._write(f"crear la etiqueta «{label.name}»")
-            self.client.post(
+            self._send(
+                f"crear la etiqueta «{label.name}»",
+                "POST",
                 f"{self.base}/labels",
                 {
                     "name": label.name,
@@ -501,20 +507,21 @@ class _Publisher:
                 },
             )
             self.label_names[label.name.lower()] = label.name
-            self._written({"tipo": "etiqueta", "nombre": label.name}, self.out.created)
+            self.out.created.append({"tipo": "etiqueta", "nombre": label.name})
         if create_milestone:
-            self._write(f"crear el milestone «{self.milestone_title}»")
-            created = self.client.post(
-                f"{self.base}/milestones", {"title": self.milestone_title}
+            created = self._send(
+                f"crear el milestone «{self.milestone_title}»",
+                "POST",
+                f"{self.base}/milestones",
+                {"title": self.milestone_title},
             )
-            self.milestone_number = created["number"]
-            self._written(
+            self.milestone_number = created["number"] if created else None
+            self.out.created.append(
                 {
                     "tipo": "milestone",
                     "titulo": self.milestone_title,
-                    "numero": created["number"],
-                },
-                self.out.created,
+                    "numero": self.milestone_number,
+                }
             )
         updates = set(to_update)
         creates = set(to_create)
@@ -525,19 +532,26 @@ class _Publisher:
             elif tid in updates:
                 self._update_issue(tid)
         for planned in dependencies:
-            self._write_dependencies(planned)
+            if planned.task not in self.skipped:
+                self._write_dependencies(planned)
 
-    def _write(self, what: str) -> None:
+    def _send(self, what: str, method: str, path: str, body: Any = None) -> Any:
+        """One write: its JSON answer, or ``None`` without a call with ``dry_run``.
+
+        ``what`` names the write in the error message if the call fails.
+        """
+        if self.dry_run:
+            return None
         self.pending_write = what
-
-    def _written(self, item: Item, where: list[Item]) -> None:
+        data = self.client.request(method, path, body=body).data
         self.pending_write = ""
-        where.append(item)
+        return data
 
     def _create_issue(self, tid: str) -> None:
         issue = self.rendered[tid]
-        self._write(f"crear el issue de {tid}")
-        created = self.client.post(
+        created = self._send(
+            f"crear el issue de {tid}",
+            "POST",
             f"{self.base}/issues",
             {
                 "title": issue.title,
@@ -546,61 +560,75 @@ class _Publisher:
                 "milestone": self.milestone_number,
             },
         )
-        self.refs[tid] = _Ref(tid, created["id"], created["number"])
-        self._written(self._issue_item(tid, created["number"]), self.out.created)
+        if created:
+            self.refs[tid] = _Ref(tid, created["id"], created["number"])
+        self.out.created.append(self._issue_item(tid, self.refs[tid].number))
 
     def _update_issue(self, tid: str) -> None:
+        """Read the issue again and patch what changed.
+
+        With ``dry_run`` it uses the issue as read at the start, and sends nothing.
+        """
         number = self.existing[tid].number
-        fresh = self.client.get(f"{self.base}/issues/{number}")
-        body = normalize_body(fresh.get("body"))
-        markers = [
-            m
-            for m in find_markers(body)
-            if m.milestone == self.milestone and m.task == tid
-        ]
-        if fresh["state"] != "open" or len(markers) != 1:
-            self.out.warnings.append(
-                notice(
-                    "issue-cambiado",
-                    f"el issue #{number} cambió durante la publicación (se cerró o "
-                    "perdió su marca): no se toca",
-                    tid,
-                    number,
+        if self.dry_run:
+            found = self.existing[tid]
+        else:
+            fresh = self.client.get(f"{self.base}/issues/{number}")
+            body = normalize_body(fresh.get("body"))
+            markers = [
+                m
+                for m in find_markers(body)
+                if m.milestone == self.milestone and m.task == tid
+            ]
+            if fresh["state"] != "open" or len(markers) != 1:
+                self.skipped.add(tid)
+                self.out.warnings.append(
+                    notice(
+                        "issue-cambiado",
+                        f"el issue #{number} cambió durante la publicación (se cerró o "
+                        "perdió su marca): no se tocan ni él ni sus dependencias",
+                        tid,
+                        number,
+                    )
                 )
-            )
-            return
-        found = _Existing(fresh, markers[0], body)
-        if found.marker.fingerprint == self.rendered[tid].fingerprint:
-            self.out.unchanged.append(self._issue_item(tid, number))
-            return
+                return
+            found = _Existing(fresh, markers[0], body)
+            if found.marker.fingerprint == self.rendered[tid].fingerprint:
+                self.out.unchanged.append(self._issue_item(tid, number))
+                return
         patch, changes = self._patch(tid, found)
-        self._write(f"actualizar el issue #{number} de {tid}")
-        self.client.patch(f"{self.base}/issues/{number}", patch)
-        item = {**self._issue_item(tid, number), "cambios": changes}
-        self._written(item, self.out.updated)
+        self._send(
+            f"actualizar el issue #{number} de {tid}",
+            "PATCH",
+            f"{self.base}/issues/{number}",
+            patch,
+        )
+        self.out.updated.append({**self._issue_item(tid, number), "cambios": changes})
 
     def _write_dependencies(self, planned: _Dependencies) -> None:
         ref = self.refs[planned.task]
         for blocking in planned.remove:
-            self._write(
-                f"quitar la dependencia de #{ref.number} con #{blocking['number']}"
+            self._send(
+                f"quitar la dependencia de #{ref.number} con #{blocking['number']}",
+                "DELETE",
+                f"{self.base}/issues/{ref.number}/dependencies/blocked_by/{blocking['id']}",
             )
-            self.client.delete(
-                f"{self.base}/issues/{ref.number}/dependencies/blocked_by/{blocking['id']}"
+            self.out.removed.append(
+                self._dependency_item(
+                    planned.task, self.owned_ids.get(blocking["id"]), blocking["number"]
+                )
             )
-            item = self._dependency_item(
-                planned.task, self.owned_ids.get(blocking["id"]), blocking["number"]
-            )
-            self._written(item, self.out.removed)
         for dep in planned.add:
             blocking = self.refs[dep]
-            self._write(f"añadir la dependencia de {planned.task} con {dep}")
-            self.client.post(
+            self._send(
+                f"añadir la dependencia de {planned.task} con {dep}",
+                "POST",
                 f"{self.base}/issues/{ref.number}/dependencies/blocked_by",
                 {"issue_id": blocking.id},
             )
-            item = self._dependency_item(planned.task, dep, blocking.number)
-            self._written(item, self.out.created)
+            self.out.created.append(
+                self._dependency_item(planned.task, dep, blocking.number)
+            )
 
     # ── The patch of an issue that changed ──────────────────────────────
 
@@ -625,7 +653,7 @@ class _Publisher:
         if (old is None or old.title != new.fingerprint.title) and title != new.title:
             patch["title"] = new.title
             changes.append("titulo")
-            if old is not None and digest(title) != old.title:
+            if old is None or digest(title) != old.title:
                 self.out.warnings.append(
                     notice(
                         "titulo-reescrito",
@@ -679,12 +707,14 @@ class _Publisher:
             if old is not None
             else None
         )
-        if before is not None:
-            remove = {name for name in present if name in before and name not in wanted}
-        else:
-            remove = {
-                name for name in present if _always_ours(name) and name not in wanted
-            }
+        # tipo:tarea, critica and area:* are always ours; a modo:* only if the
+        # fingerprint says publicar put it.
+        remove = {
+            name
+            for name in present
+            if name not in wanted
+            and (_always_ours(name) or (before is not None and name in before))
+        }
         add = [name for name in new.labels if name not in present]
         hand_modes = sorted(
             name
@@ -728,38 +758,6 @@ class _Publisher:
             "depende_de": dep,
             "bloqueado_por": blocking,
         }
-
-    def _report_dry_run(
-        self,
-        new_labels: Iterable[catalog.Label],
-        create_milestone: bool,
-        to_create: Iterable[str],
-        to_update: Iterable[str],
-    ) -> None:
-        self.out.created += [{"tipo": "etiqueta", "nombre": n.name} for n in new_labels]
-        if create_milestone:
-            self.out.created.append(
-                {"tipo": "milestone", "titulo": self.milestone_title, "numero": None}
-            )
-        self.out.created += [self._issue_item(tid, None) for tid in to_create]
-        for tid in to_update:
-            found = self.existing[tid]
-            _, changes = self._patch(tid, found)
-            self.out.updated.append(
-                {**self._issue_item(tid, found.number), "cambios": changes}
-            )
-
-    def _report_dependencies(self, planned: _Dependencies) -> None:
-        for blocking in planned.remove:
-            self.out.removed.append(
-                self._dependency_item(
-                    planned.task, self.owned_ids.get(blocking["id"]), blocking["number"]
-                )
-            )
-        for dep in planned.add:
-            self.out.created.append(
-                self._dependency_item(planned.task, dep, self.refs[dep].number)
-            )
 
 
 def _always_ours(name: str) -> bool:
