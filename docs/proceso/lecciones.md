@@ -27,6 +27,9 @@ tareas a las que afecta.
   *Origen:* T-02. *Afecta a:* T-07, T-08 y T-25.
 - **Ante errores raros de GitHub (502, errores internos), se mira su página de estado antes de
   depurar**, y lo que salga durante una incidencia no cuenta como comprobación. *Origen:* T-02.
+- **`POST /markdown` no pone `id` a los encabezados**: para ver las anclas que GitHub calcula, se
+  lee un fichero ya subido con la API de contenidos y `Accept: application/vnd.github.html+json`
+  (vale con una rama, `?ref=`). *Origen:* T-06. *Afecta a:* T-09 y T-24.
 
 ## Comprobaciones
 
@@ -52,6 +55,10 @@ tareas a las que afecta.
 - **`yaml.safe_load` se queda con el último valor de una clave repetida, sin avisar**: los YAML de
   Menairos se leen con `load_document` de `menairos.schemas`, que lo convierte en un error.
   *Origen:* T-05. *Afecta a:* todo lo que lea YAML.
+- **Las anclas de GitHub conservan el `\p{Word}` de Ruby** (letras, marcas, cifras decimales y
+  `_`), además de `-` y los espacios: el `\w` de Python no sirve, porque quita las marcas
+  combinantes y conserva `①` y `²`. Las anclas se calculan con `menairos.markdown`. *Origen:*
+  T-06. *Afecta a:* T-09 y T-24.
 - **Lo que la CLI necesita en tiempo de ejecución va dentro de `src/menairos/`**: `uv tool install`
   solo instala el paquete. Se comprueba mirando el wheel. *Origen:* T-05. *Afecta a:* T-09 y T-10
   (plantillas).
@@ -66,6 +73,11 @@ tareas a las que afecta.
 - **Las versiones de las herramientas se fijan con herramientas** (`uv add`,
   `pre-commit autoupdate`, `gh api` o `git ls-remote` para los SHA), nunca de memoria. *Origen:*
   T-02.
+
+- **Un escape como `"\ufeff"` puede acabar escrito como el carácter invisible**: antes de
+  commitear código o tests con BOM, espacios especiales o marcas combinantes, se buscan los
+  caracteres de las categorías `Cf`, `Mn` y `Zs` (salvo el espacio) y se dejan como escapes.
+  *Origen:* T-06.
 
 ## Forma de trabajar
 

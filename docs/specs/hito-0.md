@@ -377,7 +377,8 @@ menairos spec validar [--hito N] [--json] [--raiz RUTA]
   un fichero que no se puede leer (sintaxis, clave repetida, alias en bucle, no UTF-8) son
   errores de validación.
 - **Orden:** si E01 o E02 fallan, no se comprueban E03–E09, que dependen de datos válidos; E10,
-  E11 y E12 sí, porque no usan los datos. A01 y A02 miran el documento tal como se escribió, antes de aplicar los valores por
+  E11 y E12 sí, porque no usan los datos. El E02 de un `hito` que no coincide con la N del nombre
+  no corta nada: los datos son válidos. A01 y A02 miran el documento tal como se escribió, antes de aplicar los valores por
   defecto.
 
 | Código | Comprobación |
@@ -1629,4 +1630,197 @@ un solo sitio (commit `refactor:`) y entonces sí falló.
   que no existen (E13).
 - Con `v3.0.0` (T-28) se puede fijar el `$id` de los esquemas a la etiqueta.
 - El grep de los nombres de los proyectos anteriores lo lanza Pedro o el chat: esta sesión no
+  los conoce y no escribió ninguno.
+
+### T-06 — `menairos spec validar`
+
+*Hecha el 2026-11-27, en local (WSL2), con Claude Code (Opus 5.5, modo plan y después auto) a partir
+de un encargo del chat. Sin issue. El plan llevaba las dudas P1–P7. Pedro lo aprobó sin
+responderlas una a una, así que se aplicaron las recomendaciones. A mitad de la tarea, el chat
+corrigió el encargo: E10 se comprueba siempre.*
+
+**Qué se hizo**
+
+- `menairos spec validar [--hito N] [--json] [--raiz RUTA]` (`src/menairos/cli.py`):
+  - subórdenes de argparse;
+  - salida legible o JSON `{"ok", "errores", "avisos"}`;
+  - sale con 0, 1 o 2;
+  - argparse en español: `uso:`, `opciones`, `-h` y los mensajes de error que da la orden.
+- `src/menairos/spec_validation.py`:
+  - E01–E12 y A01–A04, con `load_document`, `validate`, `apply_defaults` y `format_path` de
+    `menairos.schemas`;
+  - E07 con Tarjan iterativo: un error por componente fuertemente conexa, con el ciclo más corto
+    como ejemplo;
+  - si fallan E01 o E02, no se comprueban E03–E09, y E10–E12 siempre;
+  - lo que falta es un error de uso; lo que no se puede leer, un error de su comprobación.
+- `src/menairos/markdown.py`: los encabezados ATX fuera de los bloques cercados, su ancla como
+  GitHub y sus secciones. T-09 y T-24 lo pueden reutilizar.
+- `scripts/n3.sh` (y con él el CI) valida la especificación del propio repo, que pasa sin errores
+  ni avisos.
+- Tests:
+  - `tests/test_markdown.py` (31): las anclas de `tests/data/spec_validar/anclas.md`, comparadas
+    con las que dio GitHub;
+  - `tests/test_spec_validar.py` (137): cada código, cada caso límite de 2.3, el JSON, los
+    códigos de salida y el propio repo.
+- Patrón del id de tarea: con tres dígitos no empieza por cero (P5). Hay casos nuevos en
+  `tests/data/esquemas/`.
+- Cambios de especificación:
+  - §2.2, §2.3, §2.5, §4.5 y §4.7 de este documento (A04 de las fases pasa a A05);
+  - T-06, T-10 y T-15 en `hito-0.tareas.yaml` (E13 pasa a T-10, que depende de T-06);
+  - un punto nuevo en `abiertas.md` (`uv tool install` y el `uv.lock`, para T-22);
+  - `lecciones.md`.
+
+**Decisiones del diff**
+
+Las 22 de `decisiones/T-06.yaml`.
+
+De Pedro, en el encargo y en el plan:
+- E13 pasa a T-10 y N3 valida el repo;
+- verificar las anclas con la API de contenidos (P1);
+- A04 y A05 (P2);
+- el título de T-06 (P3);
+- el lector propio de Markdown (P4);
+- el patrón del id (P5);
+- el hito del nombre frente al del YAML (P6);
+- argparse en español (P7);
+- y las interpretaciones del plan: errores de uso, orden de las comprobaciones (con la
+  corrección de E10), E07 por componente, enlaces y anclas, rutas en Markdown, avisos y regla de
+  anclas según GitHub.
+
+Del agente (`decidido_por: agente`):
+- dos casos de anclas que GitHub no confirmó (T-06-D17);
+- `--hito` sin ceros delante y sin abreviaturas (T-06-D18);
+- E09 para un destino ilegible y E08 para una carpeta (T-06-D19);
+- escapes para los caracteres invisibles, también en un test de T-05 (T-06-D20);
+- los commits 5 a 7 del plan, en uno (T-06-D21);
+- tras la revisión, las listas numeradas y anidadas también valen en E10 (T-06-D22).
+
+**Medidas**
+
+- **`POST /markdown`** (`gh api markdown -f mode=gfm`), lanzado una vez con los casos difíciles:
+  da los `<h2>`, pero sin `id`.
+- **API de contenidos** con `Accept: application/vnd.github.html+json`:
+  - sí da los `id`. Sobre `hito-0.md` de `main` (9b1f887), la regla coincidió en los 64
+    encabezados;
+  - sobre `tests/data/spec_validar/anclas.md`, subido a la rama antes del PR y leído una vez,
+    dio los 50 valores que son ahora los esperados de `test_markdown.py`. Por ejemplo:
+    - `idioma_docs-y-stackplantillas`;
+    - `snake_case-y-a_b_c`;
+    - `init-y-doble-y-doble`;
+    - `hecho--y--revisado-`;
+    - `c--c--10--23`;
+    - `entidades---`;
+    - `imagen--fin`;
+    - `repetido`, `repetido-1`, `repetido-1-1`, `repetido-2`, `repetido-3`;
+    - `é-combinado` (con la marca combinante);
+    - `ελληνικά-漢字--` (sin `①` ni `²`);
+    - `i̇stanbul-ß`;
+    - `tabseparado`;
+    - `norompible`;
+    - `-1` para `¿?` (detrás de `## ✅`, que no tiene `id`).
+
+    También dio `id` a los encabezados setext y a los de una lista o una cita (que Menairos no
+    cuenta), y ninguno a `##` vacío.
+- **El propio repo:** `uv run menairos spec validar` sale con 0, sin errores ni avisos; los 43
+  enlaces de `hito-0.tareas.yaml` resuelven.
+- **Tests:** 401 en el repo, todos en 2,6 s. Los 168 de T-06 tardan unos 2 s, y el ciclo de 1000
+  tareas, menos de un segundo.
+- **Tiempo:**
+  - plan desde las 11:49 (hora local);
+  - primer commit a las 11:53;
+  - implementación y versiones incorrectas hasta las 12:11;
+  - revisión propia y correcciones hasta las 12:14.
+
+  La apertura del PR y la N3 constan en su cuerpo.
+
+**Diferencias con la documentación y hallazgos**
+
+- **`POST /markdown`:** no da `id` a los encabezados, así que no sirve para comprobar anclas. La
+  API de contenidos con HTML sí los da.
+- **La regla de 2.3** («se quitan los signos de puntuación salvo guiones») era incompleta:
+  - GitHub conserva `_` y las marcas combinantes;
+  - quita los símbolos, los emoji, los tabuladores, el espacio de no separación y cifras como `①`;
+  - descodifica las entidades;
+  - ignora las imágenes;
+  - un sufijo que choca añade otro (`repetido-1-1`).
+
+  2.3 está corregida. El `\w` de Python no sirve: quita las marcas y conserva `①`. Hace falta
+  `\p{L}\p{M}\p{Nd}\p{Pc}`, el `\p{Word}` de Ruby.
+- **A04** ya estaba usado en §4.5 para las fases «a revisar», que pasa a A05.
+- **T-001 y T-01** cumplían los dos el patrón del id y eran ids distintos.
+- **argparse:**
+  - calcula el `prog` de las subórdenes con `prefix=""`, así que un `prefix or "uso: "` repetía
+    «uso:» tres veces;
+  - con `allow_abbrev`, `--js` valía por `--json`.
+- **Caracteres invisibles:** escribir `"﻿"` en el código acabó, en este entorno, como un BOM
+  literal invisible en el fichero. Lo detectó una versión incorrecta cuyo texto no aparecía.
+
+**Versiones incorrectas**
+
+38: las 25 del plan, algunas desglosadas, y las que salieron al implementar. Cada una se aplicó sin commit, se lanzaron los tests de T-06 y se
+deshizo con `git checkout`; el árbol quedó limpio.
+
+| Versión incorrecta | Tests que fallaron |
+| --- | --- |
+| Slug que quita `_` / con el `\w` de Python | 1 / 1: las anclas de GitHub |
+| Slug que junta guiones | 7, entre ellos `63-menairos-cierre-n---aprobar` |
+| Slug que quita acentos (NFKD) | 21 |
+| Repetidos desde `-2` | 4, entre ellos `repetido-1` |
+| Repetidos sin comprobar el choque (`if` en vez de `while`) | 0 al principio; con el test nuevo `a`, `a-1`, `a`, 1 |
+| Encabezados de un cercado que cuentan | 9 |
+| Cercado cerrado por el otro carácter | 3 |
+| Markdown sin quitar el BOM | 1: BOM y CRLF |
+| Entidades sin descodificar / imágenes con su texto | 1 / 1: las anclas de GitHub |
+| Tarjan recursivo | 1: el ciclo de 1000 tareas |
+| Un error por ciclo elemental | 2 |
+| Componentes en el orden de un `set` | 1: varios ciclos a la vez |
+| Autodependencia en el grafo | 0: equivalente, el filtro de tamaño ya la quita |
+| Autodependencia como componente de E07 | 1: E06 sin E07 |
+| E03–E09 con E01/E02 | 15 |
+| E10 omitido con E01/E02 | 2 |
+| E11 y E12 omitidos con E01 | 2 |
+| A02 sobre los valores por defecto | 2 |
+| A04 solo con `tareas[].modo` / con `== "automatico"` | 2 / 2 |
+| Enlaces desde `--raiz` | 84 |
+| Enlace sin ancla como E09 | 70 |
+| Ancla en minúsculas antes de comparar | 1 |
+| ✅ sin orden aceptada / con varios fragmentos | 6 / 1 |
+| Justificación buscada en todo el fichero | 1 |
+| E12 con «stack» en cualquier sitio / que cuenta README.md | 2 / 2 |
+| Hito elegido por orden de texto | 1 |
+| Hito del YAML sin comparar con el nombre | 1 |
+| Salida 1 en un error de uso / con avisos | 5 / 1 |
+| Error de uso en stdout | 5 |
+| JSON con `ensure_ascii` | 1 |
+| Prefijo de uso con `or` | 7 |
+| El patrón de id de antes (`[0-9]{2,3}`) | 5, entre ellos `id-tres-digitos-con-cero` |
+
+**Revisión**
+
+- `/code-review` alto sobre la rama, antes de la N3: 8 hallazgos, clasificados antes de tocar
+  nada.
+- **Corregidos**, cada uno con un test que fallaba antes de la corrección:
+  - una `--raiz` con `..` (`docs/..`) daba E08 en los 43 enlaces del repo (reproducido): la raíz
+    se normaliza al empezar;
+  - una ✅ con otra raya antes de la orden (« — `a` falla — `uv run x`») daba un falso E10;
+  - las listas numeradas (`1. ✅ …`) y los subelementos sangrados se juntaban con el elemento
+    anterior y daban un falso E10;
+  - una carpeta que no se puede leer salía como una traza: ahora es E08, E12 o un error de uso;
+  - `--json=x` daba el detalle de argparse en inglés.
+- **Corregido en la especificación:** el E02 de un `hito` que no coincide con el nombre no corta
+  E03–E09 (P6), pero el «Orden» de 2.3 no lo decía.
+- **Sin corregir:**
+  - un ADR que es un symlink a un fichero de fuera del repo cuenta para E12: es hipotético, y E12
+    solo comprueba que exista uno;
+  - el rendimiento (listar las carpetas en cada enlace): con 43 enlaces son milisegundos y no hay
+    ninguna medida que lo justifique.
+
+**Pendiente**
+
+- **Para T-10:** E13, contra las plantillas de stack del paquete.
+- **Para T-22:** si `uv tool install` respeta el `uv.lock` (`abiertas.md`).
+- **Para T-15:** A05 (antes A04).
+- **Sin verificar con GitHub:** si `##` vacío cuenta para los repetidos, y el orden «`a`, `a-1`,
+  `a`» (T-06-D17).
+- **El grep de los nombres de los proyectos anteriores:** lo lanza Pedro o el chat. Esta sesión no
   los conoce y no escribió ninguno.

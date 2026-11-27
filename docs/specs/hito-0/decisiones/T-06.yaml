@@ -1,0 +1,246 @@
+# Registro de decisiones de T-06 (menairos spec validar). Formato: src/menairos/esquemas/decisiones.schema.json.
+# Lo que está en el plan aprobado, o lo decidió Pedro en el encargo, va con decidido_por: pedro (hito-0.md 5.4);
+# lo que el agente decidió durante la implementación sin estar en el plan, con decidido_por: agente.
+tarea: T-06
+decisiones:
+  - id: T-06-D1
+    decision: E13 pasa a T-10, que crea las plantillas de stack; T-06 hace E01–E12 y los avisos
+    motivo: Sin plantillas en el paquete no hay contra qué comprobar que una plantilla existe
+    alternativas:
+      - Un E13 provisional en T-06 con una lista fija de plantillas
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D2
+    decision: scripts/n3.sh (y con él el CI) ejecuta menairos spec validar sobre el propio repo
+    motivo: La especificación de Menairos se valida en cada PR; el repo tiene que pasar
+    alternativas:
+      - Solo el test que valida el repo, dentro de pytest
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D3
+    decision: >-
+      Las anclas se verificaron con la API de contenidos de GitHub (Accept: application/vnd.github.html+json)
+      sobre un fichero de casos subido a la rama antes del PR, con una sola lectura; los id que dio son
+      los valores esperados de los tests
+    motivo: POST /markdown no pone id a los encabezados; la API de contenidos sí
+    alternativas:
+      - Verificar solo al final, tras el push del PR
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D4
+    decision: El aviso de quien codex fuera del modo manual es A04; el de las fases «a revisar» de 4.5 pasa a A05
+    motivo: A04 ya estaba en 4.5, que aún no está construido (T-15); así los códigos siguen el orden en que llegan
+    alternativas:
+      - El aviso nuevo como A05, sin tocar 4.5
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D5
+    decision: El título de T-06 pasa a «menairos spec validar (E01–E12 y avisos)»
+    motivo: Se publica como título del issue en T-08 y E13 ya no es de T-06
+    alternativas:
+      - Dejar el título con E01–E13
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D6
+    decision: >-
+      Un lector de Markdown propio (src/menairos/markdown.py), sin dependencias: solo cuentan los
+      encabezados ATX fuera de los bloques de código cercados; los setext y los de listas o citas no
+    motivo: Basta para los documentos del método, y enlazar un encabezado que no cuenta da un E09 visible, nunca un fallo silencioso
+    alternativas:
+      - markdown-it-py como dependencia nueva (CommonMark completo)
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D7
+    decision: Un id de tarea de tres dígitos no empieza por cero (no T-001), en tareas y en decisiones
+    motivo: T-001 y T-01 eran ids distintos y un depende_de a uno no encontraba al otro; endurecer ahora es barato
+    alternativas:
+      - E03 cuando dos ids tengan el mismo número, sin tocar el esquema
+      - No hacer nada
+    reversibilidad: dificil
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D8
+    decision: El hito del YAML distinto de la N del nombre del fichero es un E02, que no corta E03–E09
+    motivo: Ningún código lo cubría; los datos siguen siendo válidos, así que el resto se puede comprobar
+    alternativas:
+      - No comprobarlo
+      - Un aviso
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D9
+    decision: >-
+      argparse en español: prefijo «uso:», grupo «opciones», -h propio y una tabla para los mensajes de
+      error que puede dar spec validar
+    motivo: AGENTS.md pide español en todo lo que la CLI muestra
+    alternativas:
+      - Dejar en inglés los textos internos de argparse
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D10
+    decision: >-
+      Todo lo que 2.3 dice que lee, si falta, es un error de uso (2), con el mensaje en stderr y nada en
+      stdout, también con --json; un fichero que existe pero no se puede leer es un error de su comprobación
+    motivo: Sin esas entradas la orden no tiene qué validar; un YAML roto sí es algo que corregir en la especificación
+    alternativas:
+      - Que la carpeta docs/decisiones/ que falta sea E12 y abiertas.md que falta, E11
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D11
+    decision: Si E01 o E02 fallan, no se comprueban E03–E09; E10, E11 y E12 se comprueban siempre
+    motivo: E03–E09 necesitan datos válidos; E10–E12 no usan los datos (corrección del chat sobre E10 durante la tarea)
+    alternativas:
+      - Omitir también E10, como decía el encargo
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D12
+    decision: >-
+      E07 da un error por componente fuertemente conexa con más de una tarea (Tarjan iterativo), con el
+      ciclo más corto desde su primera tarea como ejemplo, en el orden del YAML
+    motivo: Cada ciclo se informa una vez y en orden estable, y un ciclo de 1000 tareas no agota la recursión
+    alternativas:
+      - Un error por cada ciclo elemental
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D13
+    decision: >-
+      Los enlaces se resuelven desde la carpeta del YAML; es E08 si salen del repo, no son un fichero o
+      difieren en mayúsculas; el ancla se compara tal cual y E09 propone la más parecida
+    motivo: GitHub resuelve los enlaces desde el fichero y distingue mayúsculas, aunque el disco no las distinga
+    alternativas:
+      - Resolver desde la raíz y descodificar el ancla
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D14
+    decision: >-
+      En los Markdown, la ruta de un error es el ancla de su sección y el mensaje lleva la línea; los
+      resultados se ordenan por código, fichero y orden en el documento
+    motivo: El ancla identifica la sección y se puede abrir en GitHub; la línea sirve en el editor
+    alternativas:
+      - La ruta como «línea N»
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D15
+    decision: >-
+      A01 y A02 miran el documento tal como se escribió; A03 y A04, los valores efectivos; cada aviso solo
+      se da si sus datos son válidos
+    motivo: Con los valores por defecto aplicados, A02 no saltaría nunca; sobre datos inválidos un aviso confunde
+    alternativas:
+      - Todos los avisos sobre los valores efectivos
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D16
+    decision: >-
+      La regla de anclas sigue lo que dio GitHub: se conservan letras, marcas, cifras decimales, «_», «-» y
+      espacios (el \p{Word} de Ruby), se descodifican las entidades, las imágenes no aportan texto y los
+      sufijos siguen el algoritmo de github-slugger
+    motivo: El plan decía que GitHub manda; el \w de Python quitaba las marcas combinantes y conservaba ① y ²
+    alternativas:
+      - La regla candidata del plan, con el \w de Python
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-06-D17
+    decision: >-
+      Dos detalles de lectura que GitHub no confirmó: un encabezado sin texto («##») no cuenta para los
+      repetidos, y un sufijo que choca con un encabezado anterior sigue contando (a, a-1, a → a-2), como
+      github-slugger
+    motivo: La única lectura de GitHub no los cubría; se toma lo coherente con lo que sí confirmó, con test
+    alternativas:
+      - Volver a leer de GitHub, saltándose la regla de una sola lectura
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Son casos que los documentos del método no usan; reversible y de impacto bajo según la matriz del punto 9
+    agente: Claude Code (Opus 5.5)
+
+  - id: T-06-D18
+    decision: >-
+      --hito solo admite 0 o un entero sin ceros delante (01 y -1 son errores de uso), y argparse no
+      admite abreviaturas de opciones (--js no es --json)
+    motivo: Igual que los nombres canónicos hito-N.tareas.yaml; estricto donde es barato
+    alternativas:
+      - int() de argparse y abreviaturas permitidas
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Sigue el principio de estricto ahora que fijó Pedro; reversible y de impacto bajo
+    agente: Claude Code (Opus 5.5)
+
+  - id: T-06-D19
+    decision: >-
+      Un enlace a un fichero que no se puede leer (no UTF-8) da E09, y un enlace a una carpeta da E08
+    motivo: El plan no lo decía; E09 es la comprobación que necesitaba leer el fichero
+    alternativas:
+      - E08 en los dos casos
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es un caso límite sin efecto en los ficheros del repo; reversible y de impacto bajo
+    agente: Claude Code (Opus 5.5)
+
+  - id: T-06-D20
+    decision: >-
+      Los caracteres invisibles (BOM, espacio de no separación, marcas combinantes) van como escapes \uXXXX
+      en el código y en los tests, también en el test del BOM de T-05
+    motivo: Al escribirlos, quedaron como caracteres literales que no se ven al revisar
+    alternativas:
+      - Dejarlos literales
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: No cambia ningún comportamiento; reversible y de impacto bajo
+    agente: Claude Code (Opus 5.5)
+
+  - id: T-06-D21
+    decision: Los commits 5 a 7 del plan (E01–E07, E08–E12 y avisos) van en uno solo
+    motivo: El módulo se escribió entero de una vez; partirlo después habría sido artificial
+    alternativas:
+      - Tres commits, como en el plan
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Solo afecta al historial de la rama, que se fusiona por squash
+    agente: Claude Code (Opus 5.5)
+
+  - id: T-06-D22
+    decision: >-
+      Tras la revisión propia, en E10 una comprobación puede ser un elemento de una lista numerada o
+      anidada, y una ✅ vale si cualquier « — » va seguida de un solo fragmento de código al final
+    motivo: 2.3 habla de «un elemento de lista», y la revisión encontró falsos E10 con listas numeradas y con dos rayas
+    alternativas:
+      - Solo listas con -, * o + sin sangría, y la primera raya
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Relaja un falso error sin cambiar lo que pasaba; reversible y de impacto bajo
+    agente: Claude Code (Opus 5.5)
