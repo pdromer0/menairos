@@ -1,6 +1,6 @@
 # Tareas del hito 0 de Menairos — núcleo en modo manual
 # Estado: v1 (2026-11-25), división aceptada por Pedro.
-# Formato: esquemas/tareas.schema.json (H0.1). Los enlaces apuntan a secciones de hito-0.md.
+# Formato: src/menairos/esquemas/tareas.schema.json (T-05). Los enlaces apuntan a secciones de hito-0.md.
 
 hito: 0
 titulo: "Hito 0 — Núcleo en modo manual"
@@ -78,7 +78,7 @@ tareas:
     motivo_critica: "Define el contrato versionado de Menairos: cambiarlo después es una versión mayor"
     especificacion: ["hito-0.md#22-esquemas"]
     criterios_aceptacion:
-      - "menairos.schema.json, tareas.schema.json y decisiones.schema.json están en esquemas/ con additionalProperties false en todos los objetos y sus valores por defecto"
+      - "menairos.schema.json, tareas.schema.json y decisiones.schema.json están en src/menairos/esquemas/ (dentro del paquete, leídos con importlib.resources) con additionalProperties false en todos los objetos y sus valores por defecto"
       - "tests/data/ tiene un ejemplo válido y uno inválido por cada regla de las tablas de 2.2"
       - "La marca de una decisión se calcula (difícil o impacto alto) y difícil + alto + decidido_por agente es un error; los dos con test"
 

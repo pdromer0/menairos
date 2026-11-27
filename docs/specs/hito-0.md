@@ -105,10 +105,10 @@ menairos/
 │       └── hola/              skill mínima para la verificación temprana (1.6); se retira en H0.5
 ├── src/menairos/
 │   ├── __init__.py            __version__
-│   └── cli.py                 punto de entrada `menairos` (argparse, sin dependencias)
+│   ├── cli.py                 punto de entrada `menairos` (argparse, sin dependencias)
+│   └── esquemas/              esquemas JSON (H0.1), dentro del paquete (2.2)
 ├── tests/
 ├── scripts/                   n1.sh y n3.sh (la N2, con su sello, llega con el hook Stop en T-20)
-├── esquemas/                  (H0.1)
 ├── plantillas/                (H0.2)
 ├── docs/
 │   ├── producto.md, diseno.md, hitos.md, abiertas.md
@@ -139,8 +139,8 @@ menairos/
 - **Reparto por tareas** (al preparar T-02, aceptado por Pedro el 2026-11-25): T-02 crea el
   paquete, los tests, `scripts/`, la configuración del stack, el CI, las plantillas de issue y de
   PR, `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` y `menairos.toml`; `docs/` llega con T-03;
-  `.claude-plugin/marketplace.json` y `plugin/`, con T-04; `esquemas/`, con T-05; `plantillas/`, con
-  T-09 y T-10.
+  `.claude-plugin/marketplace.json` y `plugin/`, con T-04; `src/menairos/esquemas/`, con T-05
+  (dentro del paquete; decisión de Pedro, 2026-11-27); `plantillas/`, con T-09 y T-10.
 - **Niveles de comprobación hasta T-10** (aceptado por Pedro el 2026-11-25): `scripts/n1.sh
   [rutas…]` (ruff, pyright y los tests de las rutas dadas) y `scripts/n3.sh` (formato comprobado,
   lint, tipos y todos los tests), los dos con salida 0 o 1 y diciendo qué ejecutaron; el CI llama
@@ -269,26 +269,42 @@ Los tres esquemas JSON que definen el contrato de Menairos y las dos primeras ó
 
 ### 2.2 Esquemas
 
-JSON Schema (versión 2020-12) en `esquemas/`, con `"additionalProperties": false` en todos los
-objetos: **una clave desconocida es un error**, para atrapar las erratas (`modelo` por `modelos`).
-Los valores por defecto se declaran en el esquema (`default`) y los aplica la CLI.
+JSON Schema (versión 2020-12) en `src/menairos/esquemas/`, dentro del paquete, porque la CLI se
+instala con `uv tool install` y solo se empaqueta `src/menairos/`; se leen con `importlib.resources`
+(decisión de Pedro, 2026-11-27). Llevan `"additionalProperties": false` en todos los objetos:
+**una clave desconocida es un error**, para atrapar las erratas (`modelo` por `modelos`). Los
+valores por defecto se declaran en el esquema (`default`) y los aplica la CLI; no tienen valor por
+defecto `motivo_critica`, `por_que_no_escalo`, `agente` ni `revisor`, porque no tienen un valor
+natural (decisión de Pedro, 2026-11-27).
+
+**Reglas comunes** (decisión de Pedro, 2026-11-27: estricto ahora donde es barato, porque relajar
+una regla después no rompe ningún fichero y endurecerla sí):
+
+- «No vacío» excluye también los textos de solo espacios.
+- Un entero no se escribe como decimal (`1.0`): JSON Schema 2020-12 lo admite, así que lo comprueba
+  la CLI después del esquema.
+- Un campo con patrón (ids, ramas, versión, repo, idiomas, área, enlaces y ventana horaria) no
+  acaba en salto de línea; también lo comprueba la CLI, porque el `$` de Python lo dejaría pasar.
+- En YAML, una clave repetida es un error de lectura (`yaml.safe_load` se queda con el último
+  valor sin avisar); en TOML ya lo es.
 
 #### `menairos.schema.json` (para `menairos.toml`)
 
 | Clave | Tipo | Obligatoria | Por defecto | Regla |
 | --- | --- | --- | --- | --- |
-| `menairos.version` | texto | Sí | — | Versión semántica (`3.0.0`, `3.1.0-dev`) |
+| `menairos.version` | texto | Sí | — | Versión semántica, con prerelease y sin metadatos de build (`3.0.0`, `3.1.0-dev`; no `3.0.0+b1`) |
 | `proyecto.nombre` | texto | Sí | — | No vacío |
 | `proyecto.repo` | texto | Sí | — | `dueño/repo` |
 | `proyecto.visibilidad` | `publico` \| `privado` | No | `publico` | |
 | `proyecto.idioma_docs`, `idioma_codigo` | texto | No | `es`, `en` | Código de idioma de 2 letras |
-| `stack.plantillas` | lista de textos | Sí | — | Al menos una; debe incluir `base` |
+| `stack.plantillas` | lista de textos | Sí | — | Al menos una, sin repetir; debe incluir `base` |
 | `modo.defecto` | `manual` \| `didactico` \| `automatico` | No | `manual` | |
 | `modo.resumen_aprendizaje` | booleano | No | `true` | |
 | `entornos.*` | ver `diseno.md` 3.1 | No | `nube`, `nube`, `actions` | |
-| `modelos.*`, `revisores.*` | ver `diseno.md` 3.1 | No | Los del punto 17 | `opus` \| `sonnet` \| `haiku` \| `codex` según el papel |
-| `autonomia.*`, `escalado.*`, `guardarrailes.*` | ver `diseno.md` 3.1 | No | Los de `diseno.md` 3.1 | Enteros ≥ 1; porcentajes 1–100 |
-| `modulos.*` | `inactivo` \| `piloto` \| `activo` \| `retirado` | No | `inactivo` | |
+| `modelos.*` | ver `diseno.md` 3.1 | No | Los del punto 17 | `opus` \| `sonnet` \| `haiku`; `plan` e `implementacion` son `{normal, critica}` |
+| `revisores.*` | ver `diseno.md` 3.1 | No | Los del punto 17 | `codex` \| `claude` |
+| `autonomia.*`, `escalado.*`, `guardarrailes.*` | ver `diseno.md` 3.1 | No | Los de `diseno.md` 3.1 | Enteros ≥ 1; porcentajes 1–100; `rutas_protegidas` sin repetir; `ventana_horaria` vacía o `HH:MM-HH:MM` |
+| `modulos.*` | `inactivo` \| `piloto` \| `activo` \| `retirado` | No | `inactivo`, salvo `revisor_plan`: `activo` (5.7) | |
 
 Coherencias que el esquema no puede expresar y comprueba la CLI:
 
@@ -307,14 +323,14 @@ Coherencias que el esquema no puede expresar y comprueba la CLI:
 | `tareas[].id` | texto | Sí | `T-` y 2 o 3 dígitos (`T-01`, `T-104`) |
 | `tareas[].titulo` | texto | Sí | No vacío |
 | `tareas[].rama` | texto | Sí | Prefijo `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/` o `ci/` y después `[a-z0-9._-]+` |
-| `tareas[].depende_de` | lista de ids | No (`[]`) | |
-| `tareas[].area` | texto | No (`general`) | Minúsculas y guiones |
+| `tareas[].depende_de` | lista de ids | No (`[]`) | Sin repetir |
+| `tareas[].area` | texto | No (`general`) | Minúsculas, dígitos y guiones |
 | `tareas[].critica` | booleano | No (`false`) | |
 | `tareas[].motivo_critica` | texto | Si `critica` es `true` | |
 | `tareas[].donde` | `cualquiera` \| `local` | No (`cualquiera`) | |
 | `tareas[].quien` | `claude` \| `codex` | No (`claude`) | |
 | `tareas[].modo` | `null` \| modo | No (`null`) | `null` = el del hito |
-| `tareas[].especificacion` | lista de textos | Sí | Al menos una; `fichero.md#ancla` |
+| `tareas[].especificacion` | lista de textos | Sí | Al menos una; `fichero.md#ancla` o `fichero.md` (el fichero entero, 2.3) |
 | `tareas[].criterios_aceptacion` | lista de textos | Sí | Al menos uno, no vacíos |
 
 #### `decisiones.schema.json` (para `decisiones/T-xx.yaml`)
@@ -339,6 +355,7 @@ Coherencias de la CLI sobre las decisiones:
   `alto`. Así el agente no puede «olvidarse» de marcarla.
 - **`dificil` + `alto` + `decidido_por: agente` es un error**: según la matriz del punto 9, el
   agente tenía que haber parado.
+- **Un id repetido en el mismo fichero es un error** (decisión de Pedro, 2026-11-27).
 
 ### 2.3 `menairos spec validar`
 
@@ -460,8 +477,8 @@ documentación de GitHub y contra el repo de prueba antes de implementarla.
 
 ### 2.5 Hecho cuando
 
-- Los tres esquemas están en `esquemas/`, con un ejemplo válido y uno inválido por regla en
-  `tests/data/`.
+- Los tres esquemas están en `src/menairos/esquemas/`, con un ejemplo válido y uno inválido por
+  regla en `tests/data/esquemas/`.
 - `menairos spec validar` detecta los 13 errores y los 3 avisos de 2.3, cada uno con su test, y los
   casos límite tienen test.
 - `menairos spec publicar` es idempotente contra el doble de GitHub y tiene test cada caso de la
