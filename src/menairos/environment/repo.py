@@ -89,6 +89,8 @@ def git_step(repo: Repo) -> Step:
         return make("error", "git no está instalado (lo dice la capa local)")
     top = repo.git("rev-parse", "--show-toplevel")
     state = "ok"
+    if top.code != 0 and "not a git repository" not in top.err:
+        return make("error", f"git no reconoce la carpeta: {top.tail()}")
     if top.code != 0:
         if repo.check_only:
             return make("manual", "la carpeta no es un repo de git", RERUN)
@@ -136,7 +138,10 @@ def templates_step(
     modes: list[str] = []
     conflicts: list[str] = []
     for path, wanted in repo.composed.items():
-        problem = placement_problem(repo.root, path, wanted)
+        try:
+            problem = placement_problem(repo.root, path, wanted)
+        except OSError as error:
+            problem = f"no se puede leer: {error.strerror}"
         if problem == "falta":
             missing.append(path)
         elif problem == "bit":
@@ -151,9 +156,12 @@ def templates_step(
                 conflicts.append(f"{path}: {problem}")
             else:
                 written.append(path)
-        for path in modes:
-            target = repo.root / path
-            target.chmod(target.stat().st_mode | 0o111)
+        for path in list(modes):
+            try:
+                add_exec_bit(repo.root / path)
+            except OSError as error:
+                modes.remove(path)
+                conflicts.append(f"{path}: no se puede poner el bit: {error.strerror}")
         repo.written += written + modes
     new_key, new = ("faltan", missing) if repo.check_only else ("escritos", written)
     lists = {
@@ -222,13 +230,17 @@ def write_new(root: Path, path: str, wanted: stacks.StackFile) -> str | None:
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("xb") as handle:
             handle.write(wanted.text.encode("utf-8"))
+        if wanted.executable:
+            add_exec_bit(target)
     except FileExistsError:
         return "apareció mientras se escribía"
     except OSError as error:
         return f"no se pudo escribir: {error.strerror}"
-    if wanted.executable:
-        target.chmod(target.stat().st_mode | 0o111)
     return None
+
+
+def add_exec_bit(path: Path) -> None:
+    path.chmod(path.stat().st_mode | 0o111)
 
 
 def uv_sync_step(repo: Repo) -> Step:
@@ -262,10 +274,19 @@ def pre_commit_step(repo: Repo) -> Step:
     """git's pre-commit hook, installed by pre-commit."""
     make = maker(LAYER, "pre-commit")
     install = " ".join(PRE_COMMIT_INSTALL)
-    hooks_path = repo.git("config", "--get", "core.hooksPath").out.strip()
+    scope, _, hooks_path = (
+        repo.git("config", "--show-scope", "--get", "core.hooksPath")
+        .out.strip()
+        .partition("\t")
+    )
     if hooks_path:
-        detail = f"core.hooksPath vale «{hooks_path}», y pre-commit no instala así"
-        return make("manual", detail, "git config --unset-all core.hooksPath")
+        detail = (
+            f"core.hooksPath vale «{hooks_path}» (configuración {scope}), y pre-commit "
+            "no instala así"
+        )
+        return make(
+            "manual", detail, f"git config --{scope} --unset-all core.hooksPath"
+        )
     where = repo.git("rev-parse", "--git-path", "hooks")
     if where.code != 0:
         return make("error", f"git no da su carpeta de hooks: {where.tail()}")
@@ -344,7 +365,10 @@ def first_commit_step(repo: Repo) -> Step:
     )
     done = repo.git("commit", "-q", "-m", FIRST_COMMIT, timeout=1800)
     if done.code != 0:
-        detail = f"el commit falló; la siguiente ejecución lo reintenta:\n{done.tail()}"
+        detail = (
+            "el commit falló; si un hook cambió ficheros, revísalos con git status "
+            f"antes de repetir la orden:\n{done.tail()}"
+        )
         return make("error", detail)
     left = repo.git("status", "--porcelain").out.strip()
     if not repo.has_head() or left:

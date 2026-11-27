@@ -15,7 +15,7 @@ from doble_sistema import FakeSystem, preparado
 
 from menairos import github, stacks
 from menairos.environment import Report, run_environment
-from menairos.environment.local import satisfies, version_of
+from menairos.environment.local import PROFILE_ARGV, satisfies, version_of
 
 
 def _local(
@@ -143,11 +143,12 @@ def test_python_lo_busca_uv(tmp_path: Path) -> None:
     assert (python.state, python.order) == ("manual", "uv python install 3.14")
 
 
-def test_sin_uv_python_es_un_error(tmp_path: Path) -> None:
+def test_sin_uv_python_pide_instalar_uv(tmp_path: Path) -> None:
     sistema = preparado(tmp_path)
     sistema.remove("uv")
-    informe = _local(sistema, proyecto(sistema))
-    assert estados(informe)[("local", "python")] == "error"
+    python = paso(_local(sistema, proyecto(sistema)), "local", "python")
+    assert python.state == "manual"
+    assert python.order == "curl -LsSf https://astral.sh/uv/install.sh | sh"
 
 
 def test_codex_se_mira_si_algun_revisor_es_codex(tmp_path: Path) -> None:
@@ -173,6 +174,18 @@ def test_codex_sin_version_minima_vale_con_que_este(tmp_path: Path) -> None:
     sistema.install("codex", "codex, sin número")
     codex = paso(_local(sistema, proyecto(sistema)), "local", "codex")
     assert (codex.state, codex.detail) == ("ok", "codex, sin número")
+
+
+def test_una_herramienta_sin_version_que_no_arranca_es_un_error(
+    tmp_path: Path,
+) -> None:
+    sistema = preparado(tmp_path)
+    sistema.answer(
+        ["codex", "--version"], code=127, err="env: node: No such file or directory\n"
+    )
+    codex = paso(_local(sistema, proyecto(sistema)), "local", "codex")
+    assert codex.state == "error"
+    assert "node" in codex.detail
 
 
 def test_docker_solo_si_una_plantilla_lo_pide(tmp_path: Path) -> None:
@@ -275,7 +288,7 @@ def _wsl(tmp_path: Path, texto: str | None) -> FakeSystem:
         (perfil / ".wslconfig").write_text(texto, encoding="utf-8")
     sistema.install("cmd.exe")
     sistema.install("wslpath")
-    sistema.answer(["cmd.exe", "/c", "echo %USERPROFILE%"], out="C:\\Users\\Prueba\r\n")
+    sistema.answer(PROFILE_ARGV, out="C:\\Users\\Prueba\r\n")
     sistema.answer(["wslpath", "-u", "C:\\Users\\Prueba"], out=f"{perfil}\n")
     return sistema
 
@@ -304,7 +317,7 @@ def test_wslconfig_incompleto_es_solo_un_aviso(
 
 def test_sin_perfil_de_windows_es_un_aviso(tmp_path: Path) -> None:
     sistema = _wsl(tmp_path, None)
-    sistema.answer(["cmd.exe", "/c", "echo %USERPROFILE%"], code=1)
+    sistema.answer(PROFILE_ARGV, code=1)
     wsl = paso(_local(sistema, proyecto(sistema)), "local", ".wslconfig")
     assert wsl.warnings == ["no se pudo comprobar .wslconfig"]
 

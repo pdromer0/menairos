@@ -9,14 +9,38 @@ or ``error``. Everything the layers ask the machine goes through a
 import os
 import shutil
 import subprocess
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from menairos import github
+
 STATES = ("ok", "hecho", "manual", "error")
 GREEN = frozenset({"ok", "hecho"})
 _TAIL = 20
+GIT_LOCATION = frozenset(
+    {
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CONFIG",
+        "GIT_CONFIG_PARAMETERS",
+        "GIT_CONFIG_COUNT",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_IMPLICIT_WORK_TREE",
+        "GIT_GRAFT_FILE",
+        "GIT_INDEX_FILE",
+        "GIT_NO_REPLACE_OBJECTS",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_PREFIX",
+        "GIT_SHALLOW_FILE",
+        "GIT_COMMON_DIR",
+    }
+)
+"""``git rev-parse --local-env-vars`` (git 2.43): what points git to another repo.
+
+Run from a git hook, they would make every ``git`` act on the outer repo."""
 
 
 class UsageError(Exception):
@@ -128,8 +152,7 @@ class RealSystem:
     def run(
         self, argv: Sequence[str], cwd: Path | None = None, timeout: float = 120
     ) -> Result:
-        env = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
-        env |= {"GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1"}
+        env = environment_for_children(os.environ)
         try:
             done = subprocess.run(
                 list(argv),
@@ -161,6 +184,16 @@ class RealSystem:
         except OSError:
             return False
         return "microsoft" in release.lower()
+
+
+def environment_for_children(parent: Mapping[str, str]) -> dict[str, str]:
+    """The environment of the programs: no outer venv nor outer repo, and gh quiet."""
+    env = {
+        key: value
+        for key, value in parent.items()
+        if key != "VIRTUAL_ENV" and key not in GIT_LOCATION
+    }
+    return env | dict(github.GH_ENV)
 
 
 def default_system() -> System:

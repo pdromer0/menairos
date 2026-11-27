@@ -456,7 +456,7 @@ def _environment_json(report: environment.Report) -> dict[str, object]:
 
 
 def _print_environment(report: environment.Report, out: TextIO) -> None:
-    print(f"menairos entorno · {report.root.resolve()}", file=out)
+    print(f"menairos entorno · {report.root}", file=out)
     if report.check_only:
         print("Solo se comprueba: no se escribe nada.", file=out)
     for layer in report.layers:

@@ -261,6 +261,39 @@ def test_la_raiz_dentro_de_otro_repo_es_un_error(tmp_path: Path) -> None:
     assert sorted(p.name for p in raiz.iterdir()) == ["menairos.toml"]
 
 
+def test_un_repo_que_git_no_reconoce_no_se_reinicia(tmp_path: Path) -> None:
+    sistema = preparado(tmp_path)
+    raiz = proyecto(sistema)
+    _git(sistema, raiz, "init", "-q", "-b", "main")
+    sistema.answer(
+        ["git", "rev-parse", "--show-toplevel"],
+        code=128,
+        err=f"fatal: detected dubious ownership in repository at '{raiz}'\n",
+    )
+    git = paso(_repo(sistema, raiz), "repo", "git")
+    assert git.state == "error"
+    assert "dubious ownership" in git.detail
+    inits = [argv for argv in sistema.acting_calls() if argv[:2] == ("git", "init")]
+    assert len(inits) == 1  # el del propio test
+
+
+def test_un_fichero_que_no_se_puede_leer_es_un_conflicto(tmp_path: Path) -> None:
+    sistema = preparado(tmp_path)
+    raiz = proyecto(sistema)
+    agentes = raiz / "AGENTS.md"
+    agentes.write_text("mío\n", encoding="utf-8")
+    agentes.chmod(0)
+    try:
+        if os.access(agentes, os.R_OK):
+            pytest.skip("con root, los permisos no impiden leer")
+        conflictos = paso(_repo(sistema, raiz), "repo", "plantillas").lists[
+            "conflictos"
+        ]
+    finally:
+        agentes.chmod(0o644)
+    assert "AGENTS.md: no se puede leer: Permission denied" in conflictos
+
+
 def test_un_repo_sin_commits_en_master_pasa_a_main(tmp_path: Path) -> None:
     sistema = preparado(tmp_path)
     raiz = proyecto(sistema)
@@ -339,7 +372,18 @@ def test_core_hooks_path_es_manual(tmp_path: Path) -> None:
     _git(sistema, raiz, "init", "-q", "-b", "main")
     _git(sistema, raiz, "config", "core.hooksPath", "otros-hooks")
     pre = paso(_repo(sistema, raiz), "repo", "pre-commit")
-    assert (pre.state, pre.order) == ("manual", "git config --unset-all core.hooksPath")
+    orden = "git config --local --unset-all core.hooksPath"
+    assert (pre.state, pre.order) == ("manual", orden)
+
+
+def test_core_hooks_path_global_pide_quitarlo_de_la_global(tmp_path: Path) -> None:
+    sistema = preparado(tmp_path)
+    with sistema.git_config.open("a", encoding="utf-8") as config:
+        config.write("[core]\n\thooksPath = /otros/hooks\n")
+    pre = paso(_repo(sistema, proyecto(sistema)), "repo", "pre-commit")
+    orden = "git config --global --unset-all core.hooksPath"
+    assert (pre.state, pre.order) == ("manual", orden)
+    assert "configuración global" in pre.detail
 
 
 def test_un_hook_ajeno_es_manual_y_no_se_toca(tmp_path: Path) -> None:

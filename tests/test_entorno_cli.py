@@ -144,6 +144,33 @@ def test_sin_doble_la_orden_no_llega_al_sistema_real(tmp_path: Path) -> None:
         core.default_system()
 
 
+def test_el_entorno_de_los_programas_no_lleva_otro_repo_ni_otro_venv() -> None:
+    padre = {
+        "PATH": "/usr/bin",
+        "GIT_DIR": "/otro/.git",
+        "GIT_INDEX_FILE": "/otro/.git/index",
+        "GIT_WORK_TREE": "/otro",
+        "GIT_AUTHOR_NAME": "Prueba",
+        "VIRTUAL_ENV": "/otro/.venv",
+    }
+    assert core.environment_for_children(padre) == {
+        "PATH": "/usr/bin",
+        "GIT_AUTHOR_NAME": "Prueba",
+        **github.GH_ENV,
+    }
+
+
+def test_la_raiz_del_json_es_la_ruta_real(
+    doble_sistema: FakeSystem,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raiz = proyecto(doble_sistema)
+    monkeypatch.chdir(raiz)
+    _, salida, _ = _main(capsys, "local", "--json")
+    assert json.loads(salida)["raiz"] == str(raiz.resolve())
+
+
 def test_el_sistema_real_no_lanza_lo_que_no_existe(tmp_path: Path) -> None:
     sistema = core.RealSystem()
     resultado = sistema.run(["programa-que-no-existe-en-ninguna-parte"], tmp_path)

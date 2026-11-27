@@ -62,7 +62,7 @@ def run_environment(
         else:
             layers.append(repo_layer(root, config, machine, check_only, roots, notify))
     later = LATER_LAYERS if layer is None else ()
-    return Report(root, check_only, layers, later)
+    return Report(machine.resolve(root), check_only, layers, later)
 
 
 def read_config(root: Path) -> dict[str, Any]:

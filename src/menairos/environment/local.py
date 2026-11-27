@@ -20,6 +20,7 @@ from menairos.schemas import apply_defaults
 LAYER = "local"
 _WINDOWS_DRIVE = re.compile(r"/mnt/[A-Za-z](?:/.*)?")
 _VERSION = re.compile(r"[0-9]+(?:\.[0-9]+){0,2}")
+PROFILE_ARGV = ("cmd.exe", "/c", "chcp 65001 >nul && echo %USERPROFILE%")
 
 
 @dataclass(frozen=True)
@@ -145,7 +146,9 @@ def tool_step(
     result = system.run([name, "--version"], root)
     lines = (result.out.strip() or result.err.strip()).splitlines()
     first = lines[0] if lines else ""
-    version = version_of(first) if result.code == 0 else None
+    version = version_of(first)
+    if result.code != 0:
+        return make("error", f"«{name} --version» falló: {result.tail()}")
     if version is None:
         if not requirements:
             return make("ok", first or "instalada")
@@ -165,7 +168,7 @@ def python_step(requirements: Sequence[str], root: Path, system: System) -> Step
     """Python is uv's: ``uv python find`` must find each requested version."""
     make = maker(LAYER, "python")
     if system.which("uv") is None:
-        return make("error", "se busca con uv, que no está instalado")
+        return make("manual", "se busca con uv: antes, instala uv", TOOLS["uv"].install)
     for requirement in requirements:
         argv = ["uv", "python", "find", "--no-project", requirement]
         if system.run(argv, root).code != 0:
@@ -220,7 +223,8 @@ def wslconfig_step(system: System) -> Step:
 
 def windows_profile(system: System) -> Path | None:
     """The Windows user folder as a WSL path (``%USERPROFILE%`` and ``wslpath``)."""
-    found = system.run(["cmd.exe", "/c", "echo %USERPROFILE%"], Path("/mnt/c"), 30)
+    # chcp 65001: in UTF-8, not in the OEM code page, for a name with accents.
+    found = system.run(PROFILE_ARGV, Path("/mnt/c"), 30)
     value = found.out.strip()
     if found.code != 0 or not value or "%" in value:
         return None

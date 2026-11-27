@@ -61,6 +61,8 @@ PROGRAM = "gh"
 entorno`` checks its version and its session with these constants."""
 AUTH_STATUS: tuple[str, ...] = (PROGRAM, "auth", "status")
 AUTH_LOGIN = f"{PROGRAM} auth login"
+GH_ENV: Mapping[str, str] = {"GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1"}
+"""What every run of the GitHub CLI gets: never a prompt, never an update notice."""
 
 
 class GitHubError(Exception):
@@ -177,7 +179,7 @@ class GhCli:
         body = None
         if request.body is not None:
             body = json.dumps(request.body, ensure_ascii=False).encode("utf-8")
-        env = {**os.environ, "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1"}
+        env = {**os.environ, **GH_ENV}
 
         def fail(message: str) -> GitHubError:
             return GitHubError(
