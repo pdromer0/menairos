@@ -320,7 +320,7 @@ Coherencias que el esquema no puede expresar y comprueba la CLI:
 | `hito` | entero | Sí | ≥ 0 |
 | `titulo` | texto | Sí | No vacío |
 | `tareas` | lista | Sí | Al menos una |
-| `tareas[].id` | texto | Sí | `T-` y 2 o 3 dígitos (`T-01`, `T-104`) |
+| `tareas[].id` | texto | Sí | `T-` y 2 dígitos, o 3 sin cero delante (`T-01`, `T-104`; no `T-001`, que se confundiría con `T-01`) |
 | `tareas[].titulo` | texto | Sí | No vacío |
 | `tareas[].rama` | texto | Sí | Prefijo `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/` o `ci/` y después `[a-z0-9._-]+`; sin lo que git rechaza (`..`, un punto al principio o al final, acabar en `.lock`) |
 | `tareas[].depende_de` | lista de ids | No (`[]`) | Sin repetir |
@@ -339,7 +339,7 @@ Coherencias que el esquema no puede expresar y comprueba la CLI:
 | --- | --- | --- | --- |
 | `tarea` | texto | Sí | El id de la tarea |
 | `decisiones` | lista | Sí | Puede estar vacía |
-| `decisiones[].id` | texto | Sí | `T-xx-Dn` de la misma tarea |
+| `decisiones[].id` | texto | Sí | `T-xx-Dn` de la misma tarea, con el id de tarea de `tareas[].id` |
 | `decisiones[].decision`, `motivo` | texto | Sí | No vacíos |
 | `decisiones[].alternativas` | lista de textos | Sí | Al menos una |
 | `decisiones[].reversibilidad` | `reversible` \| `dificil` | Sí | |

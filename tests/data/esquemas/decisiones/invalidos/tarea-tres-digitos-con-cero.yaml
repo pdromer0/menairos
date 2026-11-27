@@ -1,0 +1,14 @@
+# Inválido: la tarea del fichero con tres dígitos que empiezan por cero (T-007).
+# regla: tarea
+# error: tarea pattern
+# error: decisiones[0].id pattern
+tarea: T-007
+decisiones:
+  - id: T-007-D1
+    decision: Guardar la caché en .cache/menairos/
+    motivo: Ya está en el .gitignore de la plantilla base
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro

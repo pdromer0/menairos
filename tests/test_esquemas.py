@@ -507,7 +507,10 @@ def test_un_documento_vacio_da_un_error_en_la_raiz() -> None:
         ("hito-decimal", "debe ser un entero, no un decimal (valor: 1.0)"),
         ("donde-nube", 'valor "nube" no admitido; se admite: "cualquiera", "local"'),
         ("titulo-solo-espacios", "está vacío o solo tiene espacios"),
-        ("id-un-digito", '"T-1" no tiene el formato esperado (^T-[0-9]{2,3}$)'),
+        (
+            "id-un-digito",
+            '"T-1" no tiene el formato esperado (^T-(?:[0-9]{2}|[1-9][0-9]{2})$)',
+        ),
         (
             "id-con-salto",
             '"T-01\\n" no tiene el formato esperado: acaba en salto de línea',

@@ -19,9 +19,9 @@
   },
   "$defs": {
     "id_tarea": {
-      "description": "Id de una tarea: T- y 2 o 3 dígitos (T-01, T-104).",
+      "description": "Id de una tarea: T- y 2 dígitos, o 3 sin cero delante (T-01, T-104; no T-001).",
       "type": "string",
-      "pattern": "^T-[0-9]{2,3}$"
+      "pattern": "^T-(?:[0-9]{2}|[1-9][0-9]{2})$"
     },
     "texto_no_vacio": {
       "description": "Texto con al menos un carácter que no sea un espacio.",
@@ -45,7 +45,7 @@
         "id": {
           "description": "Id de la decisión: el de la tarea, -D y un número desde 1 (T-05-D1).",
           "type": "string",
-          "pattern": "^T-[0-9]{2,3}-D[1-9][0-9]*$"
+          "pattern": "^T-(?:[0-9]{2}|[1-9][0-9]{2})-D[1-9][0-9]*$"
         },
         "decision": {
           "description": "Qué se decidió.",
