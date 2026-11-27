@@ -117,10 +117,10 @@ tareas a las que afecta.
   `pre-commit autoupdate`, `gh api` o `git ls-remote` para los SHA), nunca de memoria. *Origen:*
   T-02.
 
-- **Un escape como `"\ufeff"` puede acabar escrito como el carácter invisible**: antes de
-  commitear código o tests con BOM, espacios especiales o marcas combinantes, se buscan los
-  caracteres de las categorías `Cf`, `Mn` y `Zs` (salvo el espacio) y se dejan como escapes.
-  *Origen:* T-06.
+- **Un escape como `"\ufeff"` puede acabar escrito como el carácter invisible**, también en un
+  heredoc o en la documentación: antes de commitear, se buscan los caracteres de las categorías
+  `Cf`, `Mn`, `Zl`, `Zp` y `Zs` (salvo el espacio) y se dejan como escapes; en el código nuevo,
+  mejor `chr(0x…)`. *Origen:* T-06; en T-09 pasó con U+2028, que es `Zl`.
 
 ## Forma de trabajar
 

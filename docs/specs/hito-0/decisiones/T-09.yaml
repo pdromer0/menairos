@@ -1,0 +1,109 @@
+# Registro de decisiones de T-09 (plantillas de documentos y sustitución {{…}}). Formato:
+# src/menairos/esquemas/decisiones.schema.json. Lo que está en el plan aprobado, o lo decidió Pedro en
+# el encargo, va con decidido_por: pedro (hito-0.md 5.4); lo que el agente decidió durante la
+# implementación sin estar en el plan, con decidido_por: agente.
+tarea: T-09
+decisiones:
+  - id: T-09-D1
+    decision: >-
+      Las plantillas de documentos viven en src/menairos/plantillas/docs/, dentro del paquete, y se leen
+      con importlib.resources; un test comprueba que viajan en el wheel. También las de stack
+      (src/menairos/plantillas/stacks/, P3)
+    motivo: uv tool install solo instala el paquete; una carpeta plantillas/ en la raíz no llegaría a la CLI
+    alternativas:
+      - Una carpeta plantillas/ en la raíz, copiada al paquete al construir el wheel
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-09-D2
+    decision: >-
+      Manda el cuerpo que genera spec publicar, que no cambia: la plantilla de issue «Tarea» pasa a tener
+      sus secciones (Especificación, Criterios de aceptación y Datos, con las mismas etiquetas), sin la
+      marca; un test compara las dos
+    motivo: >-
+      Cambiar el texto fijo del cuerpo cambiaría la huella de todas las tareas, y la publicación siguiente
+      reescribiría los cuerpos abiertos y perdería sus casillas marcadas
+    alternativas:
+      - Cambiar el cuerpo generado para que se pareciera a la plantilla antigua
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-09-D3
+    decision: >-
+      Los valores salen de menairos.toml (validado, con apply_defaults, aplanado a claves con puntos) y de
+      una lista cerrada de claves de quien llama (CALLER_KEYS); un valor es un texto no vacío sin saltos de
+      línea o un entero, nunca un booleano, una tabla ni una lista
+    motivo: >-
+      Con la lista cerrada, una errata en una plantilla es una «clave que no existe» y no un hueco sin
+      rellenar; el esquema no tiene números decimales, y bool es un int en Python
+    alternativas:
+      - Aceptar cualquier clave de quien llama
+      - Convertir cualquier valor con str()
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-09-D4
+    decision: Un {{ literal se escribe \{{; la barra no tiene escape propio
+    motivo: Es la convención de Handlebars, un solo carácter y sin lógica; nunca hace falta una barra antes de un hueco
+    alternativas:
+      - "{{{{ para un {{ literal, ambiguo con {{{{clave}}"
+      - Una clave reservada que valga {{
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-09-D5
+    decision: >-
+      En las plantillas YAML la plantilla pone las comillas dobles alrededor de un texto y la sustitución lo
+      escapa como dentro de ellas (su JSON sin las comillas) (P1)
+    motivo: Un título con «:», «"» o «\» insertado tal cual rompe el YAML o cambia su valor
+    alternativas:
+      - Insertar el texto tal cual
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-09-D6
+    decision: >-
+      Encabezados sin número en las plantillas (P2); config.yml de las plantillas de issue también se copia
+      (P5); diseno.md 2.3 remite a 3.2 para la lista de docs/ y quita las plantillas de issue de base (P4)
+    motivo: >-
+      El ancla de un encabezado sin número no depende de su posición; sin config.yml se admiten issues en
+      blanco; la especificación aceptada manda sobre el diseño
+    alternativas:
+      - Numerar los encabezados como en los documentos del repo
+      - Solo tarea, bug e idea, como decía la tabla de 3.2
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-09-D7
+    decision: >-
+      check-yaml de pre-commit no mira src/menairos/plantillas/docs/hito-N.tareas.yaml: solo es YAML una vez
+      rellena (hito: {{hito.numero}}); los tests comprueban el YAML rellenado
+    motivo: El hook rechazaba la plantilla hito-N.tareas.yaml en el primer commit
+    alternativas:
+      - Escribir la plantilla de forma que también fuera YAML válido sin rellenar (hito con comillas)
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es una exclusión de un hook, reversible y sin efecto en el contrato
+
+  - id: T-09-D8
+    decision: >-
+      Tras /code-review: un texto con caracteres de control (categorías Cc y Cs, y U+FFFE y U+FFFF) es un
+      error, y en una plantilla YAML un texto solo va en un hueco escrito entre comillas dobles; fuera de
+      ellas, solo un entero
+    motivo: >-
+      YAML rechaza esos caracteres aunque JSON los deje sin escapar, y un texto sin comillas («1 # x»)
+      cambiaba el valor del YAML en silencio
+    alternativas:
+      - Escapar también esos caracteres como \xNN o \uNNNN
+      - Fiarse de que la plantilla ponga siempre las comillas
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es más estricto que el plan, sin cambiar ningún formato ya publicado, y se relaja sin romper nada
