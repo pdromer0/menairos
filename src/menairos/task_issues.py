@@ -4,20 +4,27 @@
 recognises it later by the hidden marker at the end of its body (hito-0.md
 2.4)::
 
-    <!-- menairos:tarea=T-08 hito=0 huella=<title>.<body>.<labels> -->
+    <!-- menairos:tarea=T-08 hito=0 modo=didactico huella=<title>.<body>.<labels> -->
 
 The fingerprint has three parts, each the first 16 hex digits of a SHA-256:
 of the title, of the generated body without the marker, and of the sorted
-labels ``spec publicar`` puts. Compared whole, it says whether the task changed;
-compared part by part, it says what changed, whether the current body is still
-the generated one, and which ``modo:*`` label ``spec publicar`` put.
+labels of the YAML (its ``modo:*`` included, even when the issue keeps another
+one put by hand). Compared whole, it says whether the task changed; compared
+part by part, it says what changed and whether the current body is still the
+generated one.
 
-Everything here depends only on the tasks file and the repository name, never
-on GitHub's state, so the same YAML always gives the same issue.
+``modo=`` names the ``modo:*`` label that is ``spec publicar``'s: the task's
+mode, if the issue has it once published. It is missing when the task sets no
+mode or the issue lacks it (another mode put by hand, or removed by hand). It
+is worked out only when the marker is written: on a new issue, or when the
+fingerprint changed.
+
+The title, the body and the fingerprint depend only on the task, its milestone
+and the repository name, never on GitHub's state; only ``modo=`` looks at the
+issue.
 """
 
 import hashlib
-import itertools
 import posixpath
 import re
 from collections.abc import Iterable, Mapping, Sequence
@@ -38,9 +45,13 @@ _MARKER = re.compile(
     r"(?P<rest>(?: [^\n]*?)?) -->$",
     re.MULTILINE,
 )
-_FINGERPRINT = re.compile(
-    r" huella=([0-9a-f]{16})\.([0-9a-f]{16})\.([0-9a-f]{16})",
+_STATE = re.compile(
+    rf"(?: modo=(?P<mode>{'|'.join(map(re.escape, labels.MODES))}))?"
+    r" huella=(?P<title>[0-9a-f]{16})\.(?P<body>[0-9a-f]{16})"
+    r"\.(?P<labels>[0-9a-f]{16})"
 )
+"""What follows ``hito=N`` in a readable marker: the mode, if any, and the
+fingerprint."""
 _LINE_BREAK = re.compile(r"[ \t]*\n[ \t]*")
 _ANY_LINE_BREAK = re.compile(r"\r\n|\r|\n")  # as menairos.markdown splits lines
 _MODE_NAMES = {"manual": "manual", "didactico": "didáctico", "automatico": "automático"}
@@ -73,14 +84,16 @@ class Fingerprint:
 class Marker:
     """A marker found in an issue body.
 
-    ``fingerprint`` is ``None`` when the part after ``hito=N`` is not a valid
-    fingerprint (an unreadable marker). ``start`` and ``end`` locate it in the
-    normalised body.
+    ``fingerprint`` and ``mode`` are both ``None`` when the part after
+    ``hito=N`` cannot be read (an unreadable marker): a mode is never read
+    without its fingerprint. ``start`` and ``end`` locate it in the normalised
+    body.
     """
 
     task: str
     milestone: int
     fingerprint: Fingerprint | None
+    mode: str | None
     start: int
     end: int
 
@@ -95,18 +108,30 @@ class RenderedIssue:
     """The body without the marker."""
     labels: tuple[str, ...]
     """Sorted and lower-cased."""
+    mode: str | None
+    """The task's mode."""
     fingerprint: Fingerprint
     marker: str
+    """The marker of a new issue, which gets every label of the YAML."""
 
     @property
     def body(self) -> str:
-        """The whole body: the content, a blank line and the marker."""
-        return f"{self.content}\n\n{self.marker}"
+        """The whole body of a new issue."""
+        return self.body_with(self.marker)
+
+    def body_with(self, marker: str) -> str:
+        """The content, a blank line and ``marker``."""
+        return f"{self.content}\n\n{marker}"
 
 
-def marker_text(task: str, milestone: int, fingerprint: Fingerprint) -> str:
-    """The marker line of a task."""
-    return f"<!-- menairos:tarea={task} hito={milestone} huella={fingerprint} -->"
+def marker_text(
+    task: str, milestone: int, mode: str | None, fingerprint: Fingerprint
+) -> str:
+    """The marker line of a task; ``mode`` is the ``modo:*`` that is publicar's."""
+    shown = f" modo={mode}" if mode is not None else ""
+    return (
+        f"<!-- menairos:tarea={task} hito={milestone}{shown} huella={fingerprint} -->"
+    )
 
 
 def one_line(text: str) -> str:
@@ -131,7 +156,6 @@ def issue_labels(task: Mapping[str, Any]) -> tuple[str, ...]:
 
 def render(
     task: Mapping[str, Any],
-    tasks: Mapping[str, Mapping[str, Any]],
     *,
     milestone: int,
     repo: str,
@@ -139,12 +163,12 @@ def render(
 ) -> RenderedIssue:
     """The issue of ``task`` (with the defaults of its schema applied).
 
-    ``tasks`` maps every task id of the milestone to its task, for the titles
-    of the dependencies; ``tasks_file`` is the YAML's path from the root, with
-    ``/``, from which the links of ``especificacion`` are resolved.
+    ``tasks_file`` is the YAML's path from the root, with ``/``, from which the
+    links of ``especificacion`` are resolved. Nothing of another task goes in:
+    renaming a task must not rewrite the bodies of the tasks that depend on it.
     """
     title = issue_title(task)
-    content = _content(task, tasks, milestone, repo, tasks_file)
+    content = _content(task, milestone, repo, tasks_file)
     names = issue_labels(task)
     fingerprint = Fingerprint(digest(title), digest(content), labels_digest(names))
     return RenderedIssue(
@@ -152,14 +176,14 @@ def render(
         title,
         content,
         names,
+        task["modo"],
         fingerprint,
-        marker_text(task["id"], milestone, fingerprint),
+        marker_text(task["id"], milestone, task["modo"], fingerprint),
     )
 
 
 def _content(
     task: Mapping[str, Any],
-    tasks: Mapping[str, Mapping[str, Any]],
     milestone: int,
     repo: str,
     tasks_file: str,
@@ -186,7 +210,7 @@ def _content(
         "## Datos",
         "",
         f"- **Rama:** `{task['rama']}`",
-        f"- **Depende de:** {_dependencies(task['depende_de'], tasks)}",
+        f"- **Depende de:** {_dependencies(task['depende_de'])}",
         "- **Necesita el portátil:** "
         + ("sí (donde: local)" if task["donde"] == "local" else "no"),
         f"- **La hace:** {_WHO.get(task['quien'], task['quien'])}",
@@ -204,14 +228,9 @@ def _list_item(text: str) -> str:
     return "\n".join([first, *(f"  {line}" if line.strip() else "" for line in rest)])
 
 
-def _dependencies(ids: Sequence[str], tasks: Mapping[str, Mapping[str, Any]]) -> str:
-    if not ids:
-        return "ninguna"
-    shown = [
-        f"{tid} · {one_line(tasks[tid]['titulo'])}" if tid in tasks else tid
-        for tid in ids
-    ]
-    return "; ".join(shown)
+def _dependencies(ids: Sequence[str]) -> str:
+    """Only the ids: the native «blocked by» relation already shows the titles."""
+    return ", ".join(ids) if ids else "ninguna"
 
 
 def _mode(mode: str | None) -> str:
@@ -239,13 +258,15 @@ def find_markers(body: str) -> list[Marker]:
     for match in _MARKER.finditer(body):
         if len(_ANY_LINE_BREAK.findall(body, 0, match.start())) + 1 in code:
             continue
-        parts = _FINGERPRINT.fullmatch(match["rest"])
-        fingerprint = Fingerprint(*parts.groups()) if parts else None
+        state = _STATE.fullmatch(match["rest"])
         found.append(
             Marker(
                 match["task"],
                 int(match["milestone"]),
-                fingerprint,
+                Fingerprint(state["title"], state["body"], state["labels"])
+                if state
+                else None,
+                state["mode"] if state else None,
                 match.start(),
                 match.end(),
             )
@@ -261,26 +282,3 @@ def content_without(body: str, marker: Marker) -> str:
 def with_marker(body: str, marker: Marker, new_marker: str) -> str:
     """A normalised body with ``marker`` replaced by ``new_marker``."""
     return body[: marker.start] + new_marker + body[marker.end :]
-
-
-def previous_labels(
-    fingerprint: Fingerprint, areas: Iterable[str]
-) -> frozenset[str] | None:
-    """The labels ``spec publicar`` put last time, recovered from its fingerprint.
-
-    The candidates come from a closed set of values, not from the issue's
-    current labels (Pedro may have changed them): ``tipo:tarea``, with or
-    without ``critica``, one ``area:*`` of ``areas`` and no mode or one of the
-    three. ``None`` if no candidate gives the fingerprint's third part.
-    """
-    for area, critical, mode in itertools.product(
-        sorted(set(areas)), (False, True), (None, *labels.MODES)
-    ):
-        names = {labels.TASK, labels.area_label(area).name}
-        if critical:
-            names.add(labels.CRITICAL)
-        if mode is not None:
-            names.add(labels.mode_label(mode))
-        if labels_digest(names) == fingerprint.labels:
-            return frozenset(names)
-    return None

@@ -39,8 +39,8 @@ from menairos.task_issues import (
     content_without,
     digest,
     find_markers,
+    marker_text,
     normalize_body,
-    previous_labels,
     render,
     with_marker,
 )
@@ -198,10 +198,9 @@ class _Publisher:
         self.milestone = milestone
         self.milestone_title = spec["titulo"].strip()
         self.tasks: list[Mapping[str, Any]] = spec["tareas"]
-        by_id = {task["id"]: task for task in self.tasks}
         self.rendered: dict[str, RenderedIssue] = {
             task["id"]: render(
-                task, by_id, milestone=milestone, repo=repo, tasks_file=tasks_file
+                task, milestone=milestone, repo=repo, tasks_file=tasks_file
             )
             for task in self.tasks
         }
@@ -633,7 +632,12 @@ class _Publisher:
     # ── The patch of an issue that changed ──────────────────────────────
 
     def _patch(self, tid: str, found: _Existing) -> tuple[dict[str, Any], list[str]]:
-        """The fields to send to bring ``found`` up to date, and what changes."""
+        """The fields to send to bring ``found`` up to date, and what changes.
+
+        The labels are worked out first, because the new marker says which
+        ``modo:*`` the issue ends with; changes and warnings keep the order
+        title, body, labels.
+        """
         new = self.rendered[tid]
         old = found.marker.fingerprint
         number = found.number
@@ -643,12 +647,28 @@ class _Publisher:
             self.out.warnings.append(
                 notice(
                     "marca-ilegible",
-                    f"la huella de la marca del issue #{number} no se puede leer: se "
-                    "reescribe como si hubiera cambiado todo",
+                    f"la marca del issue #{number} no se puede leer: se reescribe "
+                    "como si hubiera cambiado todo",
                     tid,
                     number,
                 )
             )
+        names: list[str] | None = None
+        mode_warning: Item | None = None
+        if old is None or old.labels != new.fingerprint.labels:
+            names, mode_warning = self._labels(tid, found)
+        final = (
+            names
+            if names is not None
+            else [label["name"] for label in found.issue["labels"]]
+        )
+        mode = (
+            new.mode
+            if new.mode is not None
+            and catalog.mode_label(new.mode) in {name.lower() for name in final}
+            else None
+        )
+        marker = marker_text(tid, self.milestone, mode, new.fingerprint)
         title = found.issue["title"]
         if (old is None or old.title != new.fingerprint.title) and title != new.title:
             patch["title"] = new.title
@@ -665,7 +685,7 @@ class _Publisher:
                 )
         content = content_without(found.body, found.marker)
         if old is None or old.body != new.fingerprint.body:
-            patch["body"] = new.body
+            patch["body"] = new.body_with(marker)
             if content != new.content:
                 changes.append("cuerpo")
                 edited = old is None or digest(content) != old.body
@@ -680,40 +700,38 @@ class _Publisher:
                         )
                     )
         else:
-            patch["body"] = with_marker(found.body, found.marker, new.marker)
-        if old is None or old.labels != new.fingerprint.labels:
-            names = self._labels(tid, found)
-            if names is not None:
-                patch["labels"] = names
-                changes.append("etiquetas")
+            patch["body"] = with_marker(found.body, found.marker, marker)
+        if names is not None:
+            patch["labels"] = names
+            changes.append("etiquetas")
+        if mode_warning is not None:
+            self.out.warnings.append(mode_warning)
         if not changes:
             changes.append("marca")
         return patch, changes
 
-    def _labels(self, tid: str, found: _Existing) -> list[str] | None:
-        """The issue's new label list, or ``None`` if it does not change."""
+    def _labels(
+        self, tid: str, found: _Existing
+    ) -> tuple[list[str] | None, Item | None]:
+        """The issue's new label list (``None`` if it does not change) and the
+        ``modo-a-mano`` warning, if any.
+
+        ``tipo:tarea``, ``critica`` and ``area:*`` are always publicar's; a
+        ``modo:*`` only if the marker says so (``modo=``).
+        """
         new = self.rendered[tid]
-        old = found.marker.fingerprint
+        ours = found.marker.mode
         current = [label["name"] for label in found.issue["labels"]]
         present = {name.lower() for name in current}
         wanted = set(new.labels)
-        issue_areas = [
-            name.removeprefix(catalog.AREA_PREFIX)
-            for name in present
-            if name.startswith(catalog.AREA_PREFIX)
-        ]
-        before = (
-            previous_labels(old, [*self.areas, *issue_areas])
-            if old is not None
-            else None
-        )
-        # tipo:tarea, critica and area:* are always ours; a modo:* only if the
-        # fingerprint says publicar put it.
         remove = {
             name
             for name in present
             if name not in wanted
-            and (_always_ours(name) or (before is not None and name in before))
+            and (
+                _always_ours(name)
+                or (ours is not None and name == catalog.mode_label(ours))
+            )
         }
         add = [name for name in new.labels if name not in present]
         hand_modes = sorted(
@@ -724,21 +742,20 @@ class _Publisher:
             and name not in wanted
         )
         mode = next((n for n in add if n.startswith(catalog.MODE_PREFIX)), None)
+        warning: Item | None = None
         if mode is not None and hand_modes:
             add.remove(mode)
-            self.out.warnings.append(
-                notice(
-                    "modo-a-mano",
-                    f"el issue #{found.number} tiene {', '.join(hand_modes)} puesto a "
-                    f"mano y la tarea fija {mode}: se deja el de Pedro",
-                    tid,
-                    found.number,
-                )
+            warning = notice(
+                "modo-a-mano",
+                f"el issue #{found.number} tiene {', '.join(hand_modes)} puesto a "
+                f"mano y la tarea fija {mode}: se deja el de Pedro",
+                tid,
+                found.number,
             )
         if not remove and not add:
-            return None
+            return None, warning
         kept = _unique(name for name in current if name.lower() not in remove)
-        return [*kept, *(self.label_names.get(name, name) for name in add)]
+        return [*kept, *(self.label_names.get(name, name) for name in add)], warning
 
     # ── Report ──────────────────────────────────────────────────────────
 

@@ -18,7 +18,7 @@ from doble_github import Call, FakeGitHub
 from menairos.github import GitHub, Request, Response
 from menairos.schemas import apply_defaults, load_document
 from menairos.spec_publication import Publication, publish_spec
-from menairos.task_issues import render
+from menairos.task_issues import RenderedIssue, digest, marker_text, render
 
 EJEMPLO = Path(__file__).resolve().parent / "data" / "spec_publicar" / "ejemplo"
 REPO = "pdromer0/menairos-prueba"
@@ -124,10 +124,29 @@ def de_tipo(lista: list[dict[str, Any]], tipo: str) -> list[dict[str, Any]]:
     return [item for item in lista if item["tipo"] == tipo]
 
 
-def cuerpo_generado(tid: str, raiz: Path = EJEMPLO) -> str:
+def generado(tid: str, raiz: Path = EJEMPLO) -> RenderedIssue:
+    """Lo que publicar escribe para una tarea del YAML de ``raiz``."""
     documento = apply_defaults("tareas", load_document(raiz / YAML))
     tareas = {t["id"]: t for t in documento["tareas"]}
-    return render(tareas[tid], tareas, milestone=0, repo=REPO, tasks_file=YAML).body
+    return render(tareas[tid], milestone=0, repo=REPO, tasks_file=YAML)
+
+
+def cuerpo_generado(tid: str, raiz: Path = EJEMPLO) -> str:
+    return generado(tid, raiz).body
+
+
+def marca(doble: FakeGitHub, tid: str) -> str:
+    """La línea de la marca del issue de una tarea."""
+    return next(
+        linea
+        for linea in issue(doble, tid)["body"].splitlines()
+        if linea.startswith("<!-- menairos:")
+    )
+
+
+def marca_de(raiz: Path, tid: str, modo: str | None) -> str:
+    """La marca que debe llevar el issue de una tarea, con ``modo=`` o sin él."""
+    return marker_text(tid, 0, modo, generado(tid, raiz).fingerprint)
 
 
 def patch_de(doble: FakeGitHub, desde: int, n: int) -> dict[str, Any]:
@@ -249,6 +268,26 @@ def test_tarea_cambiada_issue_abierto_actualiza_solo_lo_cambiado(
     antes = len(doble.calls)
     assert publicar(raiz).ok
     assert escrituras(doble, antes) == []
+
+
+def test_renombrar_una_tarea_no_toca_los_issues_que_dependen_de_ella(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """Auditoría de T-08: el cuerpo nombra las dependencias solo por id."""
+    publicar(raiz)
+    n, dos = numero(doble, "T-01"), numero(doble, "T-02")
+    marcado = doble.issues[dos]["body"].replace("- [ ] Lee", "- [x] Lee")
+    doble.issues[dos]["body"] = marcado
+    editar(raiz, lambda d: tarea(d, "T-01").update(titulo="Datos, renombrados"))
+    antes = len(doble.calls)
+    resultado = publicar(raiz)
+    assert resultado.ok, resultado.errors
+    assert [(c.method, c.path) for c in escrituras(doble, antes)] == [
+        ("PATCH", f"{BASE}/issues/{n}")
+    ]
+    assert [i["tarea"] for i in resultado.updated] == ["T-01"]
+    assert doble.issues[dos]["body"] == marcado
+    assert resultado.warnings == []
 
 
 def test_cuerpo_a_mano_se_conserva_si_solo_cambia_el_titulo(
@@ -545,10 +584,10 @@ def test_modo_puesto_a_mano_no_se_toca(raiz: Path, doble: FakeGitHub) -> None:
     assert resultado.warnings == []
 
 
-def test_sin_deducir_las_etiquetas_de_antes_un_modo_es_de_pedro(
+def test_un_modo_que_la_marca_no_dice_es_de_pedro_aunque_cambie_el_area(
     raiz: Path, doble: FakeGitHub
 ) -> None:
-    """El área vieja ya no está en el YAML ni en el issue: la huella no basta."""
+    """El área vieja ya no está en el YAML ni en el issue."""
     publicar(raiz)
     n = numero(doble, "T-04")
     poner_etiquetas(doble, n, ["en-curso", "modo:automatico", "tipo:tarea"])
@@ -576,13 +615,117 @@ def test_choque_de_modo_avisa_y_converge(raiz: Path, doble: FakeGitHub) -> None:
     resultado = publicar(raiz)
     assert codigos(resultado.warnings) == ["modo-a-mano"]
     assert etiquetas(doble, "T-01") == ["area:datos", "modo:manual", "tipo:tarea"]
+    assert marca(doble, "T-01") == marca_de(raiz, "T-01", None)  # sin modo=
     antes = len(doble.calls)
     otra = publicar(raiz)
     assert escrituras(doble, antes) == []
     assert otra.warnings == []
 
 
-def test_critica_y_areas_de_mas_se_quitan_aunque_la_huella_las_deduzca(
+def test_tras_un_choque_el_modo_de_pedro_no_se_quita_aunque_coincida(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """El «sin corregir» de T-08: la marca del choque no reclama ningún modo."""
+    publicar(raiz)
+    n = numero(doble, "T-01")
+    poner_etiquetas(doble, n, ["area:datos", "modo:manual", "tipo:tarea"])
+    editar(raiz, lambda d: tarea(d, "T-01").update(modo="didactico"))
+    publicar(raiz)
+    poner_etiquetas(doble, n, ["area:datos", "modo:didactico", "tipo:tarea"])
+    editar(raiz, lambda d: tarea(d, "T-01").update(modo=None))
+    resultado = publicar(raiz)
+    assert etiquetas(doble, "T-01") == ["area:datos", "modo:didactico", "tipo:tarea"]
+    assert resultado.warnings == []
+
+
+def test_el_modo_de_publicar_se_quita_aunque_el_area_vieja_no_este(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """Auditoría de T-08: con candidatos, este modo pasaba a ser de Pedro."""
+    publicar(raiz)
+    n = numero(doble, "T-03")
+    poner_etiquetas(doble, n, ["modo:didactico", "tipo:tarea"])  # sin area:entorno
+
+    def cambiar(d: dict[str, Any]) -> None:
+        tarea(d, "T-03").update(area="nueva", modo=None)
+        tarea(d, "T-04").update(area="otra")
+
+    editar(raiz, cambiar)
+    publicar(raiz)
+    assert etiquetas(doble, "T-03") == ["area:nueva", "tipo:tarea"]
+
+
+def test_la_marca_conserva_el_modo_aunque_no_haya_etiquetas_que_escribir(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """La parte de etiquetas cambia, pero Pedro ya había puesto critica."""
+    publicar(raiz)
+    n = numero(doble, "T-03")
+    poner_etiquetas(
+        doble, n, ["area:entorno", "critica", "modo:didactico", "tipo:tarea"]
+    )
+    editar(
+        raiz,
+        lambda d: tarea(d, "T-03").update(critica=True, motivo_critica="Crítica"),
+    )
+    antes = len(doble.calls)
+    publicar(raiz)
+    assert set(patch_de(doble, antes, n)) == {"body"}
+    assert marca(doble, "T-03") == marca_de(raiz, "T-03", "didactico")
+    editar(raiz, lambda d: tarea(d, "T-03").update(modo=None))
+    publicar(raiz)
+    assert etiquetas(doble, "T-03") == ["area:entorno", "critica", "tipo:tarea"]
+
+
+def test_el_modo_quitado_a_mano_vuelve_si_cambian_las_etiquetas(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    publicar(raiz)
+    n = numero(doble, "T-03")
+    poner_etiquetas(doble, n, ["area:entorno", "tipo:tarea"])
+    editar(raiz, lambda d: tarea(d, "T-03").update(titulo="Entorno, otra vez"))
+    publicar(raiz)
+    assert etiquetas(doble, "T-03") == ["area:entorno", "tipo:tarea"]
+    assert marca(doble, "T-03") == marca_de(raiz, "T-03", None)
+    editar(raiz, lambda d: tarea(d, "T-03").update(area="otra"))
+    publicar(raiz)
+    assert etiquetas(doble, "T-03") == ["area:otra", "modo:didactico", "tipo:tarea"]
+    assert marca(doble, "T-03") == marca_de(raiz, "T-03", "didactico")
+
+
+def test_un_modo_de_pedro_igual_al_de_la_tarea_pasa_a_ser_de_publicar(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """P2 de la auditoría: manda el issue."""
+    publicar(raiz)
+    n = numero(doble, "T-04")
+    poner_etiquetas(doble, n, ["area:entorno", "modo:manual", "tipo:tarea"])
+    editar(raiz, lambda d: tarea(d, "T-04").update(modo="manual"))
+    antes = len(doble.calls)
+    resultado = publicar(raiz)
+    assert set(patch_de(doble, antes, n)) == {"body"}
+    assert marca(doble, "T-04") == marca_de(raiz, "T-04", "manual")
+    assert resultado.warnings == []
+    editar(raiz, lambda d: tarea(d, "T-04").update(modo=None))
+    publicar(raiz)
+    assert etiquetas(doble, "T-04") == ["area:entorno", "tipo:tarea"]
+
+
+def test_critica_quitada_a_mano_no_vuelve_si_solo_cambia_el_cuerpo(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """La parte de etiquetas de la huella: las suyas, solo si cambiaron (P1)."""
+    publicar(raiz)
+    n = numero(doble, "T-02")
+    poner_etiquetas(doble, n, ["area:datos", "tipo:tarea"])
+    editar(raiz, lambda d: tarea(d, "T-02")["criterios_aceptacion"].append("Otro"))
+    antes = len(doble.calls)
+    publicar(raiz)
+    assert set(patch_de(doble, antes, n)) == {"body"}
+    assert etiquetas(doble, "T-02") == ["area:datos", "tipo:tarea"]
+
+
+def test_critica_y_areas_de_mas_se_quitan_siempre(
     raiz: Path, doble: FakeGitHub
 ) -> None:
     """tipo:tarea, critica y area:* son siempre de publicar (3.4; revisión de T-08)."""
@@ -843,6 +986,78 @@ def test_marca_ilegible(raiz: Path, doble: FakeGitHub, estado_issue: str) -> Non
     assert codigos(resultado.warnings) == ["marca-ilegible"]
     assert doble.issues[n]["body"] == cuerpo_generado("T-04")
     assert "modo:manual" in etiquetas(doble, "T-04")  # se trata como puesto a mano
+    antes = len(doble.calls)
+    publicar(raiz)
+    assert escrituras(doble, antes) == []
+
+
+def test_marca_ilegible_con_un_modo_valido_no_reclama_el_modo(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """Con la huella rota, el modo= tampoco se lee: el modo:* es de Pedro."""
+    publicar(raiz)
+    n = numero(doble, "T-03")
+    rota = re.sub(r"huella=\S+", "huella=rota", doble.issues[n]["body"])
+    assert "modo=didactico huella=rota" in rota
+    doble.issues[n]["body"] = rota
+    editar(raiz, lambda d: tarea(d, "T-03").update(modo=None))
+    resultado = publicar(raiz)
+    # Con la marca ilegible no se sabe si el cuerpo era el generado.
+    assert codigos(resultado.warnings) == ["marca-ilegible", "cuerpo-reescrito"]
+    assert etiquetas(doble, "T-03") == ["area:entorno", "modo:didactico", "tipo:tarea"]
+    assert marca(doble, "T-03") == marca_de(raiz, "T-03", None)
+
+
+# Las huellas de los cuatro issues de menairos-prueba antes de la auditoría.
+HUELLAS_DE_T08 = {
+    "T-01": "0735601b7fc1792a.4abaaa0a736e2b35.108ff8eedf4a38e9",
+    "T-02": "a26eef9c69ca6a2a.76d905ea2fab0109.445cc2ee50b21811",
+    "T-03": "89c4e21358f17749.f327d4d3d9988cdb.1e5cc19043220ead",
+    "T-04": "7cbb55ac53cd2ebf.865cbbf9cb23f4d4.9204a1791163504b",
+}
+DEPENDENCIAS_DE_T08 = {
+    "T-02": "T-01 · Datos de ejemplo",
+    "T-03": "T-01 · Datos de ejemplo",
+    "T-04": "T-02 · Lectura de los datos; T-03 · Entorno local",
+}
+
+
+def test_los_issues_publicados_con_la_marca_de_t08_pasan_a_la_nueva(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """El estado real de menairos-prueba: 3 PATCH solo del cuerpo y 0 avisos."""
+    publicar(raiz)
+    for tid, dependencias in DEPENDENCIAS_DE_T08.items():
+        n = numero(doble, tid)
+        nueva = marca(doble, tid)
+        [contenido] = [
+            c.body["body"].removesuffix(f"\n\n{nueva}")
+            for c in escrituras(doble)
+            if c.method == "POST" and c.body.get("title", "").startswith(tid)
+        ]
+        vieja_contenido = re.sub(
+            r"(?m)^- \*\*Depende de:\*\* .*$",
+            f"- **Depende de:** {dependencias}",
+            contenido,
+        )
+        assert vieja_contenido != contenido
+        huella = HUELLAS_DE_T08[tid]
+        assert digest(vieja_contenido) == huella.split(".")[1]
+        doble.issues[n]["body"] = (
+            f"{vieja_contenido}\n\n<!-- menairos:tarea={tid} hito=0 huella={huella} -->"
+        )
+    assert f"huella={HUELLAS_DE_T08['T-01']} -->" in marca(doble, "T-01")
+    antes = len(doble.calls)
+    resultado = publicar(raiz)
+    assert resultado.ok and resultado.warnings == []
+    parches = escrituras(doble, antes)
+    assert [c.path for c in parches] == [
+        f"{BASE}/issues/{numero(doble, tid)}" for tid in ("T-02", "T-03", "T-04")
+    ]
+    assert all(set(c.body) == {"body"} for c in parches)
+    for tid in HUELLAS_DE_T08:
+        assert issue(doble, tid)["body"] == cuerpo_generado(tid, raiz)
+    assert "modo=didactico huella=" in marca(doble, "T-03")
     antes = len(doble.calls)
     publicar(raiz)
     assert escrituras(doble, antes) == []
