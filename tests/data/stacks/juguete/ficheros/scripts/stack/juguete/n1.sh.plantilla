@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Parte N1 de la plantilla de juguete juguete (solo vive en los tests): anota sus argumentos, uno
+# por línea, en .cache/partes/juguete.n1 y sale con $SALIDA_JUGUETE (0 por defecto).
+cd "$(dirname "${BASH_SOURCE[0]}")/../../.." || exit 1
+mkdir -p .cache/partes
+printf '%s\n' "$@" >.cache/partes/juguete.n1
+echo "juguete n1: $#"
+exit "${SALIDA_JUGUETE:-0}"

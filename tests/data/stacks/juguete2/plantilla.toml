@@ -1,0 +1,17 @@
+# Segunda plantilla de lenguaje de juguete, sin fusionables: solo sus partes.
+[plantilla]
+nombre = "juguete2"
+version = "1.0.0"
+tipo = "lenguaje"
+requiere = ["base"]
+
+[propiedad]
+extensiones = [".jug2"]
+carpetas = ["juguete2/"]
+
+[ordenes]
+formato = "true"
+formato_fichero = "juguete2-formato {fichero}"
+lint = "true"
+tipos = "true"
+tests_area = "scripts/stack/juguete2/n1.sh {rutas}"
