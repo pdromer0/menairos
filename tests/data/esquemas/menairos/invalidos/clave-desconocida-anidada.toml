@@ -1,0 +1,15 @@
+# Inválido: una errata en una subtabla (planes por plan).
+# regla: claves-desconocidas
+# error: guardarrailes.max_turnos.planes additionalProperties
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes.max_turnos]
+planes = 25

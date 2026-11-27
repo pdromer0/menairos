@@ -1,0 +1,15 @@
+# Inválido: nube como entorno del modo automático.
+# regla: entornos.*
+# error: entornos.automatico enum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[entornos]
+automatico = "nube"

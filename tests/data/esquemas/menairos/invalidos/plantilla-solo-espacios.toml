@@ -1,0 +1,12 @@
+# Inválido: una plantilla de solo espacios.
+# regla: stack.plantillas
+# error: stack.plantillas[1] pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base", " "]

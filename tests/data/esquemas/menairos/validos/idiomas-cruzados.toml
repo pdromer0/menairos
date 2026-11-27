@@ -1,0 +1,13 @@
+# Válido: documentación en inglés y código en español.
+# regla: proyecto.idiomas
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+idioma_docs = "en"
+idioma_codigo = "es"
+
+[stack]
+plantillas = ["base"]

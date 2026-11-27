@@ -1,0 +1,14 @@
+# Válido: una ventana horaria que cruza la medianoche.
+# regla: guardarrailes.ventana_horaria
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes]
+ventana_horaria = "22:00-07:00"

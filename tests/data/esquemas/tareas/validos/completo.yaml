@@ -1,0 +1,28 @@
+# Válido: todas las claves de una tarea.
+# regla: claves-desconocidas
+# regla: tareas[].critica
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+  - id: T-02
+    titulo: Segunda tarea
+    rama: feat/h1-segunda
+    especificacion:
+      - hito-1.md#segunda-tarea
+    criterios_aceptacion:
+      - La segunda tarea funciona
+    depende_de:
+      - T-01
+    area: nucleo
+    critica: true
+    motivo_critica: Decide el esquema de datos público
+    donde: local
+    quien: codex
+    modo: manual

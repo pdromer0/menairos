@@ -1,0 +1,11 @@
+# Válido: un dueño con guiones y un repo que empieza por punto.
+# regla: proyecto.repo
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "mi-org/.github"
+
+[stack]
+plantillas = ["base"]

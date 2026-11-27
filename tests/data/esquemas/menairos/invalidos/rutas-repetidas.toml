@@ -1,0 +1,15 @@
+# Inválido: una ruta protegida repetida.
+# regla: autonomia.rutas_protegidas
+# error: autonomia.rutas_protegidas uniqueItems
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+rutas_protegidas = [".claude/", ".claude/"]

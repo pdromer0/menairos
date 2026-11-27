@@ -260,7 +260,8 @@ tareas:
 ### 3.3 Fichero de decisiones de una tarea
 
 El del punto 9 (`docs/specs/hito-N/decisiones/T-xx.yaml`): id, decisión, alternativas, motivo,
-reversibilidad, impacto, por qué no escaló, agente, revisor, marcada y estado de la revisión.
+reversibilidad, impacto, por qué no escaló, agente, revisor y estado de la revisión. La marca no se
+escribe: se calcula (difícil de revertir o de impacto alto; `hito-0.md` 2.2).
 
 ### 3.4 Etiquetas de GitHub
 

@@ -1,0 +1,15 @@
+# Inválido: opus como revisor (es un modelo, no un revisor).
+# regla: revisores.*
+# error: revisores.pr enum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[revisores]
+pr = "opus"

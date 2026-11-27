@@ -36,6 +36,26 @@ tareas a las que afecta.
 - **Un hook en verde no dice qué revisó**: los scripts de comprobación dicen siempre qué
   ejecutan. *Origen:* lección de un proyecto anterior; aplicada en T-02.
 
+## Contratos
+
+- **Estricto ahora donde es barato**: relajar una regla de un esquema después no rompe ningún
+  fichero; endurecerla sí, y es una versión mayor. Por eso un texto de solo espacios cuenta como
+  vacío y `1.0` no vale como entero. *Origen:* T-05 (decisión de Pedro). *Afecta a:* T-06, T-21 y
+  cualquier cambio de esquema.
+- **JSON Schema 2020-12 acepta `1.0` como entero**: la comprobación estricta va en código, después
+  del esquema. *Origen:* T-05.
+- **El `if` de un `if/then` necesita el `required` de la clave que mira**: sin él, si la clave
+  falta, la condición se cumple y el `then` se aplica igual. *Origen:* T-05.
+- **Los patrones de JSON Schema se evalúan con `re` de Python, que no es ECMA-262**: `$` acepta un
+  salto de línea final y `\d` admite cifras que no son ASCII. En los patrones, `[0-9]`; el salto
+  final lo rechaza el código. *Origen:* T-05. *Afecta a:* T-06.
+- **`yaml.safe_load` se queda con el último valor de una clave repetida, sin avisar**: los YAML de
+  Menairos se leen con `load_document` de `menairos.schemas`, que lo convierte en un error.
+  *Origen:* T-05. *Afecta a:* todo lo que lea YAML.
+- **Lo que la CLI necesita en tiempo de ejecución va dentro de `src/menairos/`**: `uv tool install`
+  solo instala el paquete. Se comprueba mirando el wheel. *Origen:* T-05. *Afecta a:* T-09 y T-10
+  (plantillas).
+
 ## Herramientas
 
 - **Con pre-commit instalado, un commit en una rama sin `.pre-commit-config.yaml` falla.** Para

@@ -1,0 +1,12 @@
+# Inválido: la versión escrita como en pyproject.toml (3.0.0.dev0).
+# regla: menairos.version
+# error: menairos.version pattern
+[menairos]
+version = "3.0.0.dev0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]

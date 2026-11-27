@@ -1,0 +1,14 @@
+# Inválido: un revisor de solo espacios.
+# regla: decisiones[].revisor
+# error: decisiones[0].revisor pattern
+tarea: T-07
+decisiones:
+  - id: T-07-D1
+    decision: Guardar la caché en .cache/menairos/
+    motivo: Ya está en el .gitignore de la plantilla base
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+    revisor: ' '

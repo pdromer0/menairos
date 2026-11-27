@@ -1,0 +1,209 @@
+# Registro de decisiones de T-05 (esquemas JSON). Formato: src/menairos/esquemas/decisiones.schema.json.
+# Lo que está en el plan aprobado va con decidido_por: pedro (hito-0.md 5.4); lo que el agente decidió
+# durante la implementación sin estar en el plan, con decidido_por: agente.
+tarea: T-05
+decisiones:
+  - id: T-05-D1
+    decision: Los esquemas viven en src/menairos/esquemas/ y se leen con importlib.resources
+    motivo: La CLI se instala con uv tool install y solo se empaqueta src/menairos/; comprobado con el wheel
+    alternativas:
+      - Una carpeta esquemas/ en la raíz del repo (hito-0.md 1.3 hasta T-05)
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-05-D2
+    decision: jsonschema y PyYAML son dependencias del paquete, con una carga segura de YAML
+    motivo: La CLI instalada valida en todos los entornos; YAML solo con constructores seguros
+    alternativas:
+      - Dependencias solo de desarrollo
+      - Un validador propio sin dependencias
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-05-D3
+    decision: El registro de decisiones empieza con T-05
+    motivo: Probar el formato con una tarea real antes de T-21 y de /implementar
+    alternativas:
+      - Empezar con /implementar (T-22)
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D4
+    decision: El módulo se llama schemas.py y la carpeta de los esquemas, esquemas/
+    motivo: Un módulo y una carpeta con el mismo nombre en el paquete chocan, y el código va en inglés
+    alternativas:
+      - esquemas.py junto a la carpeta esquemas/ (funciona solo mientras la carpeta no tenga __init__.py)
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D5
+    decision: motivo_critica, por_que_no_escalo, agente y revisor no tienen valor por defecto
+    motivo: No tienen un valor natural, y un default de motivo_critica haría saltar A01 en todas las tareas
+    alternativas:
+      - default null, con el tipo texto o null
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D6
+    decision: modulos.revisor_plan es activo por defecto; la tabla de hito-0.md 2.2 se corrige
+    motivo: Es el valor de diseno.md 3.1 y de hito-0.md 5.7
+    alternativas:
+      - inactivo, como decía la tabla de 2.2, corrigiendo diseno.md 3.1
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-05-D7
+    decision: El ancla de especificacion es opcional (fichero.md o fichero.md#ancla)
+    motivo: Los casos límite de hito-0.md 2.3 dicen que un enlace sin ancla vale y apunta al fichero entero
+    alternativas:
+      - Ancla obligatoria, quitando ese caso límite de 2.3
+    reversibilidad: dificil
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D8
+    decision: >-
+      Estricto donde es barato: un texto de solo espacios es vacío; 1.0 no es un entero (en código,
+      después del esquema); la versión no admite metadatos de build; un campo con patrón anclado no
+      acaba en salto de línea (en código)
+    motivo: Relajar una regla después no rompe ningún fichero; endurecerla sí
+    alternativas:
+      - Seguir JSON Schema 2020-12 tal cual (1.0 es un entero) y aceptar los textos de espacios
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D9
+    decision: Un id de decisión repetido en el mismo fichero es un error de check_decisions
+    motivo: Dos decisiones con el mismo id no se pueden revisar ni volcar por separado al cerrar el hito
+    alternativas:
+      - Dejarlo para T-21
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D10
+    decision: Una clave repetida en YAML es un error de lectura, con un SafeLoader que la detecta
+    motivo: yaml.safe_load se queda con el último valor sin avisar; tomllib ya la rechaza en TOML
+    alternativas:
+      - yaml.safe_load tal cual
+      - Componer el YAML (yaml.compose) para buscar las repetidas y cargarlo después con safe_load
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D11
+    decision: La regla de que quien codex solo vale en modo manual queda para T-06
+    motivo: No está en las tablas de 2.2 y depende del modo del hito, que se conoce en spec validar
+    alternativas:
+      - Un if/then en el esquema de tareas
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D12
+    decision: Las tablas opcionales llevan default {} y los valores por defecto se aplican recorriendo el esquema
+    motivo: Cada valor está en un solo sitio, la hoja; no se repite el objeto entero en la tabla
+    alternativas:
+      - Repetir en cada tabla el objeto completo de valores por defecto
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D13
+    decision: stack.plantillas, tareas[].depende_de y autonomia.rutas_protegidas no admiten repetidos
+    motivo: Un repetido es un error, y quitar la regla después no rompe ningún fichero
+    alternativas:
+      - Admitir repetidos
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D14
+    decision: >-
+      Cada error es un Issue con ruta (tareas[3].depende_de[0], la raíz es ""), palabra clave y mensaje
+      en español; required y las claves desconocidas apuntan a la clave
+    motivo: Es el formato de ruta de spec validar (2.3) y lo que T-06 necesita para su salida
+    alternativas:
+      - Devolver los errores de jsonschema tal cual, en inglés
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D15
+    decision: La regla difícil + alto + agente va en código y no en el esquema
+    motivo: Así el error lleva el mensaje del punto 9 (el agente tenía que haber parado)
+    alternativas:
+      - Un if/then en el esquema, con un error genérico
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D16
+    decision: El $id de cada esquema es su URL raw en la rama main del repo
+    motivo: Es una URL que existe y que un editor puede usar; la versión del contrato es la del paquete
+    alternativas:
+      - Una URL fijada a una etiqueta (cuando exista v3.0.0)
+      - Un URN que no se puede descargar
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D17
+    decision: Un test lento comprueba que el wheel lleva los tres esquemas
+    motivo: Es la razón de T-05-D1; si un cambio del backend los dejara fuera, la CLI instalada fallaría
+    alternativas:
+      - Comprobarlo solo una vez a mano
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-05-D18
+    decision: schemas.py también deja públicos SCHEMA_NAMES y format_path
+    motivo: T-06 tiene que dar las rutas de sus propios errores (E03-E13) en el mismo formato
+    alternativas:
+      - Dejarlos privados y que T-06 los haga públicos
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es reversible y de impacto bajo según la matriz del punto 9, así que basta con registrarla
+    agente: Claude Code (Opus 5.5)
+
+  - id: T-05-D19
+    decision: >-
+      Tras la revisión propia, rama y proyecto.repo rechazan también lo que git y GitHub no admiten:
+      dos puntos seguidos, un punto al principio o al final o acabar en .lock en la rama; un repo . o
+      .., o un dueño con guiones al principio, al final o seguidos
+    motivo: Un fichero dado por válido fallaría después en git checkout o en gh api; aplica el principio de T-05-D8
+    alternativas:
+      - Dejar los patrones de hito-0.md 2.2 tal cual ([a-z0-9._-]+ en la rama)
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: >-
+      Es reversible (relajar después no rompe ficheros), de impacto bajo según la matriz del punto 9,
+      y sigue el principio que Pedro fijó en el plan; los ficheros del repo siguen siendo válidos
+    agente: Claude Code (Opus 5.5)
+
+  - id: T-05-D20
+    decision: >-
+      Las comprobaciones estrictas siguen en un recorrido aparte, después del esquema, y un test
+      limita los esquemas a las palabras clave que ese recorrido y apply_defaults siguen
+    motivo: >-
+      La revisión propia avisó de que una palabra clave nueva (anyOf, oneOf…) se saltaría las
+      comprobaciones sin avisar; el test lo convierte en un fallo
+    alternativas:
+      - Ampliar Draft202012Validator (comprobador de tipos y palabra clave pattern propios) y quitar el recorrido
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: >-
+      Mantiene lo aprobado en el plan («en código, después del esquema») y solo añade un test;
+      reversible y de impacto bajo según la matriz del punto 9
+    agente: Claude Code (Opus 5.5)

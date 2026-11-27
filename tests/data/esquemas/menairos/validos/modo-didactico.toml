@@ -1,0 +1,14 @@
+# Válido: el modo didáctico por defecto.
+# regla: modo.defecto
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modo]
+defecto = "didactico"

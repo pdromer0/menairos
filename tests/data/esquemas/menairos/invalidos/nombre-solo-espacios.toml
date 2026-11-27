@@ -1,0 +1,12 @@
+# Inválido: un nombre de solo espacios.
+# regla: proyecto.nombre
+# error: proyecto.nombre pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "   "
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]

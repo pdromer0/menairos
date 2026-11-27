@@ -1,0 +1,15 @@
+# Inválido: una ruta protegida vacía.
+# regla: autonomia.rutas_protegidas
+# error: autonomia.rutas_protegidas[0] pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+rutas_protegidas = [""]

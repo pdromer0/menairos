@@ -1,0 +1,12 @@
+# Válido: un enlace sin ancla apunta al fichero entero (2.3).
+# regla: tareas[].especificacion
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1.md
+    criterios_aceptacion:
+      - La primera tarea funciona

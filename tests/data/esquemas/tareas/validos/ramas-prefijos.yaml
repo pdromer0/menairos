@@ -1,0 +1,54 @@
+# Válido: los siete prefijos de rama, con puntos, guiones bajos y dígitos.
+# regla: tareas[].rama
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1.paso_1-x
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+  - id: T-02
+    titulo: Primera tarea
+    rama: fix/h1.paso_2-x
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+  - id: T-03
+    titulo: Primera tarea
+    rama: docs/h1.paso_3-x
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+  - id: T-04
+    titulo: Primera tarea
+    rama: refactor/h1.paso_4-x
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+  - id: T-05
+    titulo: Primera tarea
+    rama: test/h1.paso_5-x
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+  - id: T-06
+    titulo: Primera tarea
+    rama: chore/h1.paso_6-x
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
+  - id: T-07
+    titulo: Primera tarea
+    rama: ci/h1.paso_7-x
+    especificacion:
+      - hito-1.md#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona

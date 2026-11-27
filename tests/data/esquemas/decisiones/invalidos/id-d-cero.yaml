@@ -1,0 +1,13 @@
+# Inválido: un id de decisión con D0.
+# regla: decisiones[].id
+# error: decisiones[0].id pattern
+tarea: T-07
+decisiones:
+  - id: T-07-D0
+    decision: Guardar la caché en .cache/menairos/
+    motivo: Ya está en el .gitignore de la plantilla base
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro

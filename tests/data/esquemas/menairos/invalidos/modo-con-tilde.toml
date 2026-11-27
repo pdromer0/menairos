@@ -1,0 +1,15 @@
+# Inválido: un modo con tilde (automático).
+# regla: modo.defecto
+# error: modo.defecto enum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modo]
+defecto = "automático"

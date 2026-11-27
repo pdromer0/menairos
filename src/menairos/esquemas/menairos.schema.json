@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/pdromer0/menairos/main/src/menairos/esquemas/menairos.schema.json",
+  "title": "Configuración de Menairos de un proyecto",
+  "description": "Formato de menairos.toml (hito-0.md 2.2 y diseno.md 3.1). Una clave desconocida es un error. Las tablas y claves que faltan toman su valor por defecto. La CLI comprueba además que un entero no se escriba como decimal (1.0) y que un campo con patrón no acabe en salto de línea.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["menairos", "proyecto", "stack"],
+  "properties": {
+    "menairos": {
+      "description": "La versión de Menairos que usa el proyecto.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version"],
+      "properties": {
+        "version": {
+          "description": "Versión semántica, con prerelease y sin metadatos de build (3.0.0, 3.1.0-dev).",
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?$"
+        }
+      }
+    },
+    "proyecto": {
+      "description": "Datos del proyecto.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nombre", "repo"],
+      "properties": {
+        "nombre": {
+          "description": "Nombre del proyecto.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "repo": {
+          "description": "Repositorio de GitHub: dueño/repo, con las reglas de GitHub (el dueño, letras, dígitos y guiones sueltos, sin guion al principio ni al final; el repo, distinto de . y ..).",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*/(?!\\.\\.?$)[A-Za-z0-9._-]+$"
+        },
+        "visibilidad": {
+          "description": "Visibilidad del repo (el modo automático en un repo privado necesita GitHub Pro).",
+          "enum": ["publico", "privado"],
+          "default": "publico"
+        },
+        "idioma_docs": {
+          "description": "Idioma de la documentación: código de 2 letras en minúsculas.",
+          "$ref": "#/$defs/idioma",
+          "default": "es"
+        },
+        "idioma_codigo": {
+          "description": "Idioma del código: código de 2 letras en minúsculas.",
+          "$ref": "#/$defs/idioma",
+          "default": "en"
+        }
+      }
+    },
+    "stack": {
+      "description": "Plantillas de stack del proyecto.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plantillas"],
+      "properties": {
+        "plantillas": {
+          "description": "Plantillas de stack: al menos una, sin repetir, y entre ellas base.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": {"const": "base"},
+          "items": {"$ref": "#/$defs/texto_no_vacio"}
+        }
+      }
+    },
+    "modo": {
+      "description": "Modo de trabajo por defecto.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "defecto": {
+          "description": "Modo por defecto del proyecto.",
+          "enum": ["manual", "didactico", "automatico"],
+          "default": "manual"
+        },
+        "resumen_aprendizaje": {
+          "description": "Si el cierre del hito incluye el resumen de aprendizaje.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "entornos": {
+      "description": "Entorno por defecto de cada modo: un valor por defecto, no una restricción.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "manual": {
+          "description": "Entorno por defecto del modo manual.",
+          "enum": ["nube", "local"],
+          "default": "nube"
+        },
+        "didactico": {
+          "description": "Entorno por defecto del modo didáctico.",
+          "enum": ["nube", "local"],
+          "default": "nube"
+        },
+        "automatico": {
+          "description": "Entorno del modo automático.",
+          "enum": ["actions", "tareas-programadas"],
+          "default": "actions"
+        }
+      }
+    },
+    "modelos": {
+      "description": "Modelo de cada papel (punto 17).",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "crear_spec": {
+          "description": "Modelo de /crear-spec.",
+          "$ref": "#/$defs/modelo",
+          "default": "opus"
+        },
+        "plan": {
+          "description": "Modelo del plan, según la tarea sea normal o crítica.",
+          "$ref": "#/$defs/modelo_por_criticidad",
+          "default": {}
+        },
+        "implementacion": {
+          "description": "Modelo de la implementación, según la tarea sea normal o crítica.",
+          "$ref": "#/$defs/modelo_por_criticidad",
+          "default": {}
+        },
+        "revisor_plan": {
+          "description": "Modelo del subagente revisor-plan.",
+          "$ref": "#/$defs/modelo",
+          "default": "opus"
+        },
+        "revisor_pr": {
+          "description": "Modelo del revisor de los PR.",
+          "$ref": "#/$defs/modelo",
+          "default": "opus"
+        },
+        "informe": {
+          "description": "Modelo del informe del hito.",
+          "$ref": "#/$defs/modelo",
+          "default": "sonnet"
+        }
+      }
+    },
+    "revisores": {
+      "description": "Quién revisa cada cosa.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "spec": {
+          "description": "Revisor de /validar-spec.",
+          "$ref": "#/$defs/revisor",
+          "default": "codex"
+        },
+        "pr": {
+          "description": "Revisor bloqueante de los PR.",
+          "$ref": "#/$defs/revisor",
+          "default": "claude"
+        },
+        "segunda_opinion_critica": {
+          "description": "Segunda opinión en las tareas críticas.",
+          "$ref": "#/$defs/revisor",
+          "default": "codex"
+        }
+      }
+    },
+    "autonomia": {
+      "description": "Lo que el modo automático puede hacer solo.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "paralelismo": {
+          "description": "Tareas a la vez.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 1
+        },
+        "criticas_pasan_por_pedro": {
+          "description": "Si las tareas críticas necesitan a Pedro.",
+          "type": "boolean",
+          "default": true
+        },
+        "dependencias_nuevas_pasan_por_pedro": {
+          "description": "Si una dependencia nueva necesita a Pedro.",
+          "type": "boolean",
+          "default": true
+        },
+        "rutas_protegidas": {
+          "description": "Rutas que el agente no cambia solo; sin repetir.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/texto_no_vacio"},
+          "default": [".github/workflows/", ".claude/", "AGENTS.md", "menairos.toml"]
+        }
+      }
+    },
+    "escalado": {
+      "description": "Cuándo se escala a Pedro.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "rondas_plan": {
+          "description": "Rondas de revisión del plan antes de escalar.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 2
+        },
+        "rondas_pr": {
+          "description": "Rondas de revisión del PR antes de escalar.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 2
+        },
+        "fallos_seguidos": {
+          "description": "Fallos seguidos antes de escalar.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 2
+        },
+        "recordatorio_horas": {
+          "description": "Horas hasta recordar un escalado sin respuesta.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 24
+        }
+      }
+    },
+    "guardarrailes": {
+      "description": "Topes contra el consumo sin progreso (punto 17).",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "modo_observacion": {
+          "description": "Si los guardarraíles suaves solo registran (primer hito automático).",
+          "type": "boolean",
+          "default": true
+        },
+        "anti_bucle_repeticiones": {
+          "description": "Fallos seguidos del mismo comando, sin cambios, antes de bloquearlo.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 3
+        },
+        "sesiones_por_tarea": {
+          "description": "Sesiones como máximo por tarea.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 8
+        },
+        "sesiones_dia": {
+          "description": "Sesiones como máximo por día.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 15
+        },
+        "aviso_presupuesto_pct": {
+          "description": "Porcentaje del presupuesto al que se avisa (1 a 100).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 80
+        },
+        "ventana_horaria": {
+          "description": "Ventana en la que se trabaja, HH:MM-HH:MM en 24 h (22:00-07:00); vacía = sin ventana.",
+          "type": "string",
+          "pattern": "^(?:(?:[01][0-9]|2[0-3]):[0-5][0-9]-(?:[01][0-9]|2[0-3]):[0-5][0-9])?$",
+          "default": ""
+        },
+        "repaso_horas": {
+          "description": "Horas entre repasos del workflow repaso.",
+          "$ref": "#/$defs/entero_positivo",
+          "default": 3
+        },
+        "max_turnos": {
+          "description": "Turnos como máximo de cada sesión.",
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "plan": {"description": "Sesión de plan.", "$ref": "#/$defs/entero_positivo", "default": 25},
+            "implementacion": {"description": "Sesión de implementación.", "$ref": "#/$defs/entero_positivo", "default": 100},
+            "revision": {"description": "Sesión de revisión.", "$ref": "#/$defs/entero_positivo", "default": 20}
+          }
+        },
+        "timeout_min": {
+          "description": "Minutos como máximo de cada sesión.",
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "plan": {"description": "Sesión de plan.", "$ref": "#/$defs/entero_positivo", "default": 20},
+            "implementacion": {"description": "Sesión de implementación.", "$ref": "#/$defs/entero_positivo", "default": 90},
+            "revision": {"description": "Sesión de revisión.", "$ref": "#/$defs/entero_positivo", "default": 20}
+          }
+        }
+      }
+    },
+    "modulos": {
+      "description": "Estado de cada módulo del método (ADR 0019).",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "revisor_plan": {"description": "Subagente revisor-plan.", "$ref": "#/$defs/estado_modulo", "default": "activo"},
+        "mutante": {"description": "Subagente mutante (versiones incorrectas).", "$ref": "#/$defs/estado_modulo", "default": "inactivo"},
+        "orquestador": {"description": "Orquestador del modo automático.", "$ref": "#/$defs/estado_modulo", "default": "inactivo"},
+        "auto_merge": {"description": "Fusión automática por checks y política.", "$ref": "#/$defs/estado_modulo", "default": "inactivo"}
+      }
+    }
+  },
+  "$defs": {
+    "texto_no_vacio": {
+      "description": "Texto con al menos un carácter que no sea un espacio.",
+      "type": "string",
+      "pattern": "[^\\s\\uFEFF]"
+    },
+    "idioma": {
+      "description": "Código de idioma de 2 letras en minúsculas (es, en).",
+      "type": "string",
+      "pattern": "^[a-z]{2}$"
+    },
+    "entero_positivo": {
+      "description": "Entero mayor o igual que 1.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "modelo": {
+      "description": "Modelo de Claude.",
+      "enum": ["opus", "sonnet", "haiku"]
+    },
+    "modelo_por_criticidad": {
+      "description": "Modelo para las tareas normales y para las críticas.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "normal": {"description": "Tareas normales.", "$ref": "#/$defs/modelo", "default": "sonnet"},
+        "critica": {"description": "Tareas críticas.", "$ref": "#/$defs/modelo", "default": "opus"}
+      }
+    },
+    "revisor": {
+      "description": "Quién revisa.",
+      "enum": ["codex", "claude"]
+    },
+    "estado_modulo": {
+      "description": "Estado de un módulo.",
+      "enum": ["inactivo", "piloto", "activo", "retirado"]
+    }
+  }
+}

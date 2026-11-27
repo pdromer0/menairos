@@ -1,0 +1,12 @@
+# Inválido: una decisión sin motivo.
+# regla: decisiones[].motivo
+# error: decisiones[0].motivo required
+tarea: T-07
+decisiones:
+  - id: T-07-D1
+    decision: Guardar la caché en .cache/menairos/
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro

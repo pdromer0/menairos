@@ -1,0 +1,5 @@
+# Inválido: un id de tarea con un solo dígito (T-7).
+# regla: tarea
+# error: tarea pattern
+tarea: T-7
+decisiones: []

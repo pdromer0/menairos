@@ -1,0 +1,11 @@
+# Inválido: una tarea sin especificacion.
+# regla: tareas[].especificacion
+# error: tareas[0].especificacion required
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    criterios_aceptacion:
+      - La primera tarea funciona

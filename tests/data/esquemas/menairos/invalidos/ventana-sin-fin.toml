@@ -1,0 +1,15 @@
+# Inválido: una ventana sin hora de fin.
+# regla: guardarrailes.ventana_horaria
+# error: guardarrailes.ventana_horaria pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes]
+ventana_horaria = "22:00"

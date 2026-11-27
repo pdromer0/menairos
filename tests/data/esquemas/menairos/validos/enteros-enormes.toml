@@ -1,0 +1,20 @@
+# Válido: umbrales enormes (el máximo de un entero de TOML): no hay tope.
+# regla: enteros
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+paralelismo = 9223372036854775807
+
+[guardarrailes]
+sesiones_dia = 9223372036854775807
+
+[guardarrailes.max_turnos]
+implementacion = 9223372036854775807

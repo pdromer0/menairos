@@ -1,0 +1,13 @@
+# Inválido: una visibilidad que no existe (publica).
+# regla: proyecto.visibilidad
+# error: proyecto.visibilidad enum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+visibilidad = "publica"
+
+[stack]
+plantillas = ["base"]

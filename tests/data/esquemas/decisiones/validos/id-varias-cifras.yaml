@@ -1,0 +1,12 @@
+# Válido: un id de decisión de varias cifras, en una tarea de tres dígitos.
+# regla: decisiones[].id
+tarea: T-104
+decisiones:
+  - id: T-104-D12
+    decision: Guardar la caché en .cache/menairos/
+    motivo: Ya está en el .gitignore de la plantilla base
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro

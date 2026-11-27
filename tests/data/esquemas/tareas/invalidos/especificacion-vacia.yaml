@@ -1,0 +1,12 @@
+# Inválido: una lista de especificacion vacía.
+# regla: tareas[].especificacion
+# error: tareas[0].especificacion minItems
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion: []
+    criterios_aceptacion:
+      - La primera tarea funciona

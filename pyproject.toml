@@ -3,7 +3,10 @@ name = "menairos"
 version = "3.0.0.dev0"
 description = "Método de desarrollo con agentes de IA, distribuido como plugin de Claude Code"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "jsonschema>=4.26.0",
+    "pyyaml>=6.0.4",
+]
 
 [project.scripts]
 menairos = "menairos.cli:main"

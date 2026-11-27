@@ -1,0 +1,15 @@
+# Inválido: actions como entorno del modo manual.
+# regla: entornos.*
+# error: entornos.manual enum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[entornos]
+manual = "actions"

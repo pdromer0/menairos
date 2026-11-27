@@ -1,0 +1,15 @@
+# Inválido: resumen_aprendizaje como texto.
+# regla: modo.resumen_aprendizaje
+# error: modo.resumen_aprendizaje type
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modo]
+resumen_aprendizaje = "si"

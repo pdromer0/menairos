@@ -1,0 +1,12 @@
+# Inválido: una versión con metadatos de build (3.0.0+b1).
+# regla: menairos.version
+# error: menairos.version pattern
+[menairos]
+version = "3.0.0+b1"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]

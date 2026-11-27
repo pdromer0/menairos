@@ -1,0 +1,15 @@
+# Inválido: 0 rondas de plan.
+# regla: enteros
+# error: escalado.rondas_plan minimum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[escalado]
+rondas_plan = 0

@@ -1,0 +1,11 @@
+# Válido: una versión con prerelease (3.1.0-rc.1).
+# regla: menairos.version
+[menairos]
+version = "3.1.0-rc.1"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]

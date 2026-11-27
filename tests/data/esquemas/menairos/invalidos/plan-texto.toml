@@ -1,0 +1,15 @@
+# Inválido: el modelo del plan como texto en lugar de {normal, critica}.
+# regla: modelos.*
+# error: modelos.plan type
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modelos]
+plan = "opus"

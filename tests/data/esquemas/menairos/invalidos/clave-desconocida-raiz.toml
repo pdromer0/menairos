@@ -1,0 +1,15 @@
+# Inválido: una errata en una tabla ([modelo] por [modelos]).
+# regla: claves-desconocidas
+# error: modelo additionalProperties
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modelo]
+crear_spec = "opus"

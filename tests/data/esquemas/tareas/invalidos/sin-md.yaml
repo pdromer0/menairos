@@ -1,0 +1,13 @@
+# Inválido: un enlace sin .md.
+# regla: tareas[].especificacion
+# error: tareas[0].especificacion[0] pattern
+hito: 1
+titulo: Hito 1 — Ejemplo
+tareas:
+  - id: T-01
+    titulo: Primera tarea
+    rama: feat/h1-primera
+    especificacion:
+      - hito-1#primera-tarea
+    criterios_aceptacion:
+      - La primera tarea funciona
