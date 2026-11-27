@@ -29,21 +29,22 @@ permitir = ["Bash(uv run *)", "Bash(uv sync *)"]
 [ficheros]
 fusionables = [".gitignore", ".pre-commit-config.yaml", ".github/workflows/ci.yml", "AGENTS.md"]
 
-# Comprobaciones deliberadas (hito-0.md 3.6); las provoca T-13.
+# Comprobaciones deliberadas (hito-0.md 3.6); las provoca T-13. Los mensajes se comprobaron
+# provocando cada fallo en un proyecto generado (2026-11-27).
 [[comprobaciones]]
 nombre = "formato"
 provoca = "un fichero Python mal formateado"
 salta = "pre-commit"
-mensaje = "MENSAJE_FORMATO"
+mensaje = "hook id: ruff-format"
 
 [[comprobaciones]]
 nombre = "tipos"
 provoca = "un error de tipos en src/"
 salta = "pre-commit"
-mensaje = "MENSAJE_TIPOS"
+mensaje = "hook id: pyright"
 
 [[comprobaciones]]
 nombre = "test-que-falla"
 provoca = "un test que falla"
 salta = "n3"
-mensaje = "MENSAJE_TEST"
+mensaje = " failed"

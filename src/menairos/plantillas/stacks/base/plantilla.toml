@@ -50,12 +50,14 @@ permitir = [
 [ficheros]
 fusionables = [".gitignore", ".pre-commit-config.yaml", ".github/workflows/ci.yml", "AGENTS.md"]
 
-# Comprobaciones deliberadas (hito-0.md 3.6); las provoca T-13.
+# Comprobaciones deliberadas (hito-0.md 3.6); las provoca T-13. El mensaje de la clave falsa se
+# comprobó provocándola en un proyecto generado (2026-11-27); los de GitHub son los que dio en
+# T-02 (anexo de hito-0.md).
 [[comprobaciones]]
 nombre = "clave-falsa"
 provoca = "una clave con el formato de un proveedor real, inventada en cada ejecución"
 salta = "pre-commit"
-mensaje = "MENSAJE_CLAVE"
+mensaje = "leaks found"
 
 [[comprobaciones]]
 nombre = "check-obligatorio"
