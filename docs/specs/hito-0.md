@@ -449,45 +449,135 @@ línea `**Justificación:**` no vacía. Un fichero sin puntos es válido.
 menairos spec publicar [--hito N] [--seco] [--json] [--raiz RUTA]
 ```
 
-- **Precondición:** `spec validar` sin errores. Si los hay, no publica nada y sale con `1`.
+- **Precondición:** `spec validar` sin errores. Si los hay, no publica nada, no llama a GitHub y
+  sale con `1`. Sus avisos pasan a la salida.
 - **Siempre por `gh api`** (ADR 0016), con un envoltorio fino que en los tests se sustituye por un
   doble con tope: el envoltorio es `menairos.github` y el doble, `tests/doble_github.py` (T-07).
-- **`--seco`** muestra lo que haría sin escribir nada en GitHub. `/validar-spec` lo enseña a Pedro
-  antes de pedir el OK.
+- **El repo** es `proyecto.repo` de `menairos.toml`.
+- **`--seco`** hace las mismas lecturas y muestra lo que haría sin escribir nada en GitHub.
+  `/validar-spec` lo enseña a Pedro antes de pedir el OK.
+- **Límites de GitHub**, comprobados antes de llamar:
+  - el nombre de una etiqueta, 50 caracteres (`area:` y el área);
+  - el título de un issue, 256;
+  - su cuerpo, 65 536.
+
+  Si se pasa alguno, no llama a GitHub y sale con `1`.
+
+**Primero lee y después escribe.**
+- Lee, todo paginado:
+  - las etiquetas;
+  - los milestones, con `state=all`;
+  - los issues, con `state=all` y sin los PR;
+  - las relaciones «blocked by» de cada issue abierto de una tarea.
+- Si dos issues llevan la misma marca, o un cuerpo la lleva dos veces, para sin escribir nada y
+  sale con `1`.
+- Después escribe en el orden de abajo, con una pausa de 1 s entre dos escrituras: es lo que pide
+  GitHub para no caer en su límite secundario.
 
 Lo que hace, en este orden:
 
-1. **Etiquetas** de `diseno.md` 3.4 y una `area:*` por cada área del YAML: crea las que falten;
-   no toca las que existen.
-2. **Milestone** «Hito N — título»: lo crea si no existe (búsqueda por título exacto).
-3. **Issues**, uno por tarea:
+1. **Etiquetas** de `diseno.md` 3.4 y una `area:*` por cada área del YAML
+   (`src/menairos/labels.py`): crea las que falten, comparando los nombres sin mayúsculas; no toca
+   las que existen.
+2. **Milestone**, con el `titulo` del YAML, que ya empieza por «Hito N — »:
+   - lo busca por título, sin distinguir mayúsculas ni los espacios de los extremos;
+   - lo crea solo si falta y algún issue nuevo lo necesita;
+   - si está cerrado, lo usa igual y avisa;
+   - se asigna al crear el issue: si cambia el título del hito, los issues ya publicados no se
+     mueven.
+3. **Issues**, uno por tarea, en el orden del YAML:
    - título `T-01 · título de la tarea`;
-   - cuerpo desde la plantilla de issue: resumen, enlaces a las secciones de la especificación,
-     criterios de aceptación, rama, dependencias, si necesita el portátil y quién la hace;
+   - un cuerpo que genera la orden (la plantilla de issue `tarea.md` va aparte; ver
+     `abiertas.md`). Solo depende del YAML y de `proyecto.repo`, y lleva:
+     - un resumen: la tarea, el hito, el área y, si es crítica, su motivo;
+     - los enlaces a las secciones de la especificación, en `main`;
+     - los criterios de aceptación, como casillas;
+     - la rama;
+     - las dependencias (`T-xx · título`);
+     - si necesita el portátil;
+     - quién la hace;
+     - el modo;
    - etiquetas `tipo:tarea`, `critica` si lo es, `area:*` y `modo:*` si la tarea fija modo;
-   - una marca oculta en el cuerpo, `<!-- menairos:tarea=T-01 hito=0 -->`, que es lo que usa la
-     idempotencia (no el título, que Pedro puede cambiar).
+   - una marca oculta en la última línea del cuerpo,
+     `<!-- menairos:tarea=T-01 hito=0 huella=<título>.<cuerpo>.<etiquetas> -->`, que es lo que
+     usa la idempotencia (no el título, que Pedro puede cambiar).
 4. **Dependencias nativas «blocked by»**, una por cada `depende_de`, después de crear todos los
-   issues.
+   issues. Cada una se escribe con el **id** del issue que bloquea, no con su número.
 
-**Idempotencia.** Una segunda ejecución sin cambios no hace ninguna escritura. Con cambios en el
-YAML:
+**La huella** (decisión de Pedro, 2026-11-27, en tres partes desde el plan de T-08):
+- **Qué es:** tres partes, cada una con los 16 primeros caracteres hex de un SHA-256:
+  - del título;
+  - del cuerpo generado, sin la marca;
+  - de las etiquetas que pone publicar, en minúsculas, ordenadas y una por línea.
+- **Comparada entera,** dice si la tarea cambió.
+- **Por partes,** dice:
+  - qué cambió;
+  - si el cuerpo actual sigue siendo el generado (antes de comparar, se pasa de CRLF a LF y se le
+    quita la marca);
+  - qué etiquetas puso publicar la vez anterior. Se prueba con todos los candidatos de un conjunto
+    cerrado (`tipo:tarea`, con o sin `critica`, un área, y ningún modo o uno de los tres), y vale
+    el que da la misma huella.
+- **Una marca con la huella rota** se reconoce por su tarea y su hito, y cuenta como cambiada.
+- **Solo cuenta la marca que ocupa una línea entera fuera de los bloques de código**: un issue que
+  cita el cuerpo de otro dentro de un bloque no se lleva su marca.
+
+**Etiquetas de un issue.** Publicar solo añade o quita las suyas:
+- `tipo:tarea`, `critica` y `area:*` lo son siempre, porque solo las pone el script (3.4);
+- un `modo:*` lo es solo si lo confirma la huella;
+- nunca toca `en-curso`, `necesita-pedro`, `aprobado-pedro` ni un `modo:*` puesto a mano;
+- si la tarea fija un modo y el issue tiene otro puesto a mano, se queda el de Pedro, con un
+  aviso.
+
+**Idempotencia.** Una segunda ejecución sin cambios no hace ninguna escritura.
 
 | Situación | Qué hace |
 | --- | --- |
 | Tarea nueva | Crea su issue y sus dependencias |
-| Tarea cambiada, issue abierto | Actualiza el cuerpo y las etiquetas, y lo informa |
-| Tarea cambiada, issue cerrado | No toca nada; lo informa como aviso |
+| Misma huella, aunque Pedro haya editado el issue a mano | No toca el issue |
+| Huella distinta, issue abierto | Vuelve a leer el issue y reescribe solo las partes que cambiaron, con la marca nueva. El título, si cambió el suyo. El cuerpo, si cambió el suyo; si no, solo cambia la marca dentro del cuerpo actual, y se conserva lo editado a mano. Las etiquetas, si cambiaron las suyas. Si reescribe un cuerpo o un título editados a mano, lo avisa |
+| Huella distinta, issue cerrado | No toca nada, tampoco sus dependencias; lo informa como aviso |
 | Tarea borrada del YAML | No cierra ni borra el issue; lo informa como aviso |
-| Dependencia nueva o quitada | Añade o quita la relación «blocked by» |
+| Dependencia nueva, quitada o que falta | Añade o quita la relación «blocked by», cambie o no la huella |
+| Fallo a mitad | La siguiente ejecución completa lo que falta, sin duplicar |
+
+**Las dependencias entre tareas del hito solo se gestionan en el YAML** (`depende_de`; decisión
+de Pedro, 2026-11-27):
+- se sincronizan en cada ejecución, en el issue abierto de cada tarea del YAML, frente a todos los
+  issues que llevan una marca del hito, también los de tareas borradas del YAML. Las relaciones
+  del issue de una tarea borrada no se tocan, igual que el resto de ese issue;
+- por eso, **una relación «blocked by» que se añada a mano entre dos issues del hito se quita en
+  la publicación siguiente**;
+- las relaciones con cualquier otro issue (un bug, otro hito, otro repo) no se tocan, y las de un
+  issue cerrado tampoco.
 
 **Nunca borra ni cierra nada** (las reglas del método v2: nada de `DELETE` por la API), salvo una
 excepción (decisión de Pedro, 2026-11-27): quitar una relación «blocked by» entre dos issues, que
 borra un enlace y no datos. El envoltorio de `gh api` la permite con una lista explícita de un solo
 patrón de ruta y rechaza cualquier otro `DELETE` antes de llamar a `gh`.
 
-**Salida:** con `--json`, `{"creados": [...], "actualizados": [...], "sin_cambios": [...],
-"avisos": [...]}`; sin `--json`, un resumen legible.
+**Salida:**
+- con `--json`: `{"ok", "seco", "repo", "hito", "creados", "actualizados", "quitados",
+  "sin_cambios", "avisos", "errores"}`. Cada elemento lleva `tipo` (`etiqueta`, `milestone`,
+  `issue` o `dependencia`); los avisos y los errores llevan `codigo` y `mensaje`;
+- sin `--json`: un resumen legible;
+- sale con `0` si se publicó todo (aunque haya avisos), `1` con errores y `2` en un error de uso,
+  como `spec validar`. Son errores los de la especificación, un límite, una marca repetida o un
+  fallo de GitHub. En este último, la salida dice qué escritura falló:
+  - con resultado desconocido, si no hubo respuesta o fue un 5xx;
+  - que no se guardó, si GitHub la rechazó con un 4xx.
+
+| Avisos | Cuándo |
+| --- | --- |
+| `issue-cerrado` | La tarea cambió y su issue está cerrado |
+| `tarea-borrada` | Un issue con la marca de una tarea que ya no está en el YAML |
+| `cuerpo-reescrito`, `titulo-reescrito` | Se reescribió un cuerpo o un título editados a mano |
+| `modo-a-mano` | La tarea fija un modo y el issue tiene otro puesto a mano |
+| `marca-ilegible` | La huella de la marca no se puede leer |
+| `milestone-cerrado` | El milestone del hito está cerrado |
+| `posible-duplicado` | Un issue sin marca con el título de una tarea que aún no tiene issue |
+| `issue-cambiado` | El issue se cerró o perdió su marca entre la lectura y la escritura: no se tocan ni él ni sus dependencias |
+
+Los errores son los de `spec validar`, más `limite`, `marca-repetida` y `github`.
 
 **Casos límite** que deben tener test (con el doble de GitHub):
 
@@ -498,11 +588,16 @@ patrón de ruta y rechaza cualquier otro `DELETE` antes de llamar a `gh`.
 - fallo de la API a mitad de la publicación: la siguiente ejecución completa lo que faltaba sin
   duplicar;
 - paginación: más de 100 issues o etiquetas en el repo;
-- una dependencia a una tarea cuyo issue está cerrado: se crea igual.
+- una dependencia a una tarea cuyo issue está cerrado: se crea igual;
+- un cuerpo guardado con CRLF, como lo deja la web: se reconoce igual.
 
-**Por verificar en esta tarea:** la ruta REST para añadir y quitar dependencias «blocked by»
-(el método v2 solo la leía: `GET /repos/{o}/{r}/issues/{n}/dependencies/blocked_by`). Se comprueba en la
-documentación de GitHub y contra el repo de prueba antes de implementarla.
+**Verificado en T-08** (anexo), en la documentación de GitHub y contra el repo de prueba:
+- `POST …/issues/{n}/dependencies/blocked_by` con `{"issue_id": <id>}`, el id del issue que
+  bloquea, responde 201 con el issue bloqueado;
+- `DELETE …/issues/{n}/dependencies/blocked_by/{id}` responde 200 con el issue bloqueado;
+- un duplicado, o un issue que depende de sí mismo, da 422 con solo un `message`;
+- un id que no existe da 404;
+- se puede depender de un issue cerrado, y el listado lo incluye.
 
 ### 2.5 Hecho cuando
 
@@ -2008,5 +2103,361 @@ Del agente (`decidido_por: agente`):
   cierra en T-22 (`abiertas.md`).
 - **Un ancla del anexo de T-06** («istanbul» con U+0307 tras la i) lleva la marca combinante
   literal, porque es el ancla que dio GitHub. Ya estaba en `main`, y T-07 no la toca.
+- **El grep de los nombres de los proyectos anteriores:** lo lanza Pedro o el chat. Esta sesión no
+  los conoce y no escribió ninguno.
+
+### T-08 — `menairos spec publicar`
+
+*Hecha el 2026-11-27, en local (WSL2), con Claude Code (Opus 5.5, modo plan y después auto) a partir
+de un encargo del chat. Sin issue. Tarea crítica: antes de enseñarlo, un subagente revisó el plan a
+la contra (18 hallazgos, incorporados). Pedro lo revisó en el chat y aprobó P1–P8 con la
+recomendación, más un añadido: las dependencias entre tareas del hito solo se gestionan en el
+YAML.*
+
+**Qué se hizo**
+
+- `menairos spec publicar [--hito N] [--seco] [--json] [--raiz RUTA]` (`src/menairos/cli.py`):
+  - comparte `--hito`, `--json` y `--raiz` con `spec validar`;
+  - salida legible o JSON;
+  - sale con 0, 1 o 2.
+- `src/menairos/spec_publication.py` (`publish_spec`):
+  - la precondición de `spec validar` y los límites de GitHub, antes de cualquier llamada;
+  - primero lee todo y comprueba las marcas repetidas; después escribe etiquetas, milestone,
+    issues y dependencias, con 1 s entre escrituras;
+  - la tabla de idempotencia de 2.4, con el issue releído antes de cada `PATCH`;
+  - las dependencias, sincronizadas siempre y solo entre issues con marca del hito, por id;
+  - ante un fallo de GitHub, dice qué escritura quedó con resultado desconocido.
+- `src/menairos/task_issues.py`:
+  - el título, el cuerpo y las etiquetas del issue de una tarea;
+  - la marca, con la huella de tres partes;
+  - la lectura de la marca, en dos niveles;
+  - las etiquetas de la vez anterior, deducidas de la huella.
+
+  T-19 lo puede reutilizar para el `desfase`.
+- `src/menairos/labels.py`: el catálogo de `diseno.md` 3.4, con el color y la descripción de cada
+  etiqueta, y los límites de GitHub. T-12 lo reutilizará.
+- `src/menairos/github.py`:
+  - `GitHub(write_interval=…)`, la pausa entre escrituras;
+  - el patrón del único `DELETE` ya era el bueno: solo cambia su comentario.
+- `tests/doble_github.py`, más fiel y más estricto:
+  - `POST` de «blocked by» devuelve el issue bloqueado;
+  - el duplicado y la autodependencia dan 422 con solo un `message`;
+  - `add_foreign_blocked_by` crea un bloqueante de otro repo;
+  - los límites de longitud de GitHub dan 422.
+- `tests/data/spec_publicar/ejemplo/`: un proyecto sintético, el hito 0 con 4 tareas y 2 áreas, que
+  pasa `spec validar` sin errores ni avisos. Lo usan los tests y es lo que se publicó en
+  menairos-prueba.
+- Tests (169 nuevos):
+  - `tests/test_spec_publicar.py` (118): la tabla de idempotencia, los casos límite de 2.4 y del
+    plan, la CLI y los dos barridos de fallos;
+  - `tests/test_cuerpo_issue.py` (31): los cuerpos esperados, escritos a mano, y la huella,
+    recalculada con `hashlib`;
+  - `tests/test_etiquetas.py` (5): el catálogo frente a la tabla de 3.4;
+  - 10 en `tests/test_doble_github.py` y 4 en `tests/test_github.py`.
+- Cambios de especificación:
+  - §2.4 de este documento, reescrita: la huella, el cuerpo, las etiquetas, el milestone, lo que se
+    lee antes de escribir, los límites, la tabla de idempotencia, la regla de las dependencias, la
+    pausa, la salida y lo verificado;
+  - `abiertas.md`: se cierra la ruta de «blocked by» (resultado abajo) y se abre la unificación de
+    la plantilla de issue con el cuerpo generado, para T-09;
+  - `lecciones.md`.
+
+**Decisiones del diff**
+
+Las 21 de `decisiones/T-08.yaml`.
+
+De Pedro, en el encargo y en el plan:
+- la huella en la marca, en tres partes (decisión 1 y P1);
+- la actualización por partes, con el issue releído (P2);
+- las dependencias, siempre y solo entre issues del hito, y solo desde el YAML (P3 y el añadido);
+- el título del milestone (P4);
+- la verificación de la ruta (P5);
+- el ejemplo (P6);
+- la pausa (P7);
+- la plantilla de issue (P8);
+- el cuerpo generado;
+- las etiquetas propias y el modo;
+- leer antes de escribir;
+- la salida;
+- ninguna escritura fuera de menairos-prueba (decisión 2).
+
+Del agente (`decidido_por: agente`):
+- la lectura y la escritura en un solo commit (T-08-D14);
+- cuatro ejecuciones reales más (T-08-D15);
+- los avisos `titulo-reescrito` e `issue-cambiado` (T-08-D16);
+- el test del CRLF endurecido (T-08-D17);
+- tras la revisión:
+  - las etiquetas siempre propias (T-08-D18);
+  - la marca fuera de los bloques de código (T-08-D19);
+  - los mensajes de un fallo de escritura (T-08-D20);
+  - un solo camino para el modo seco (T-08-D21).
+
+**Medidas**
+
+- **La ruta de «blocked by»**, primero en la documentación de GitHub (issue-dependencies,
+  2022-11-28) y después contra `pdromer0/menairos-prueba`. Se crearon los issues de prueba #1 (A),
+  #2 (B) y #3 (C, cerrado), y los tres quedaron cerrados al terminar.
+
+  | Llamada | Resultado |
+  | --- | --- |
+  | `POST …/issues/1/dependencies/blocked_by {"issue_id": <id de B>}` | 201, con el issue **bloqueado** (#1), no el que bloquea |
+  | El mismo `POST` repetido | 422: «An error occurred while adding the blocking issue to the issue. Validation failed: Target issue has already been taken», solo con `message`, sin `errors` |
+  | `{"issue_id": <id de A>}` en A | 422: «… Target issue cannot be the same as the source issue» |
+  | `{"issue_id": <id de C>}` (cerrado) | 201 |
+  | `{"issue_id": 0}` | 404 |
+  | `GET …/issues/1/dependencies/blocked_by` | B y C, con su `id` (C cerrado) |
+  | `DELETE …/issues/7/dependencies/blocked_by/<id>`, lanzado por la CLI | 200, con el issue bloqueado (#7) |
+
+  - **Ruta:** `…/issues/{n}/dependencies/blocked_by` y, para quitar, `…/blocked_by/{issue_id}`.
+  - **Id o número:** el **id** del issue que bloquea, en el cuerpo y en el `DELETE`.
+
+  Coincide con el patrón de `_ALLOWED_DELETES` y con las rutas del doble, que no cambian. El doble
+  sí cambia: devolvía el issue que bloquea y un 422 con `errors`. No se probó un número de issue
+  como `issue_id`: los id son globales, y uno pequeño puede ser el de un issue real de otro repo.
+
+  El listado de issues trae `issue_dependencies_summary`, y en él `total_blocked_by` cuenta
+  también los cerrados; `spec publicar` no lo usa todavía.
+- **Publicación real en menairos-prueba**, con `--raiz tests/data/spec_publicar/ejemplo` y siempre
+  con `menairos.github`. Lo que se creó: las 12 etiquetas (las 10 de 3.4, `area:datos` y
+  `area:entorno`), el milestone #1 «Hito 0 — Ejemplo de spec publicar (T-08)», los issues #4 a #7
+  (T-01 a T-04) y las relaciones #5 ← #4, #6 ← #4 y #7 ← #5, #6.
+
+  | Ejecución | Escrituras | Tiempo |
+  | --- | --- | --- |
+  | `--seco` | 0 (haría 21) | — |
+  | 1.ª | 21 | 51 s (20 pausas de 1 s) |
+  | 2.ª | **0** (7 GET) | 8 s |
+  | 3.ª, con una variante en el scratchpad (T-04 sin depender de T-03 y un criterio de T-02 cambiado) | 3: 2 `PATCH` del cuerpo y el `DELETE` | 16 s |
+  | 4.ª, la misma variante | 0 | — |
+  | 5.ª y 6.ª, con un transporte que anota las respuestas: el original y otra vez la variante | 3 y 3 (las respuestas, en la tabla de arriba) | — |
+  | 7.ª, el original | 3: deja el repo como el ejemplo | — |
+  | 8.ª, después de guardar con `gh api` el cuerpo de #4 con CRLF (GitHub lo guarda tal cual, también al final) | **0** | — |
+  | 9.ª, el original, con el código final (tras la revisión) | **0** | — |
+
+  Las huellas de los cuatro issues reales son las del test de valor fijo
+  (`test_las_huellas_del_ejemplo_no_cambian_sin_querer`). En el HTML del issue #6, la marca no
+  aparece y la casilla es una `task-list-item`. Los enlaces dan 404 porque el ejemplo no está en
+  ese repo.
+- **`--seco` contra `pdromer0/menairos`** (rama de T-08, solo GET, 4 s; repetido con el código
+  final, con la misma salida): haría 91 escrituras, que
+  son 17 etiquetas, el milestone, los 28 issues y las 45 dependencias. No hay ningún aviso: el repo
+  no tiene issues con marca, solo los 6 PR de T-02 a T-07, que se ignoran. La salida:
+
+  ```text
+  spec publicar · hito 0 · pdromer0/menairos
+  En seco: no se escribe nada en GitHub; esto es lo que haría.
+
+  Se crearían (91):
+    etiqueta     tipo:tarea
+    etiqueta     tipo:bug
+    etiqueta     tipo:idea
+    etiqueta     critica
+    etiqueta     modo:manual
+    etiqueta     modo:didactico
+    etiqueta     modo:automatico
+    etiqueta     en-curso
+    etiqueta     necesita-pedro
+    etiqueta     aprobado-pedro
+    etiqueta     area:arranque
+    etiqueta     area:contratos
+    etiqueta     area:plantillas
+    etiqueta     area:entorno
+    etiqueta     area:especificar
+    etiqueta     area:implementar
+    etiqueta     area:cierre
+    milestone    (nuevo) Hito 0 — Núcleo en modo manual
+    issue        (nuevo) T-01 · Repo, protección y pasos manuales
+    issue        (nuevo) T-02 · Esqueleto del paquete, stack, CI y comprobaciones deliberadas
+    issue        (nuevo) T-03 · Documentos al repo y los 20 ADRs
+    issue        (nuevo) T-04 · Verificación temprana del plugin (V-plugin) y repo de prueba
+    issue        (nuevo) T-05 · Esquemas JSON
+    issue        (nuevo) T-06 · menairos spec validar (E01–E12 y avisos)
+    issue        (nuevo) T-07 · Envoltorio de gh api y doble de GitHub con tope
+    issue        (nuevo) T-08 · menairos spec publicar
+    issue        (nuevo) T-09 · Plantillas de documentos y sustitución {{…}}
+    issue        (nuevo) T-10 · Plantillas base y python-uv, manifiesto y composición
+    issue        (nuevo) T-11 · menairos entorno: capas local y repo
+    issue        (nuevo) T-12 · menairos entorno: capas GitHub y nube, y --comprobar
+    issue        (nuevo) T-13 · Comprobaciones deliberadas automáticas
+    issue        (nuevo) T-14 · /preparar-entorno
+    issue        (nuevo) T-15 · /crear-spec (lluvia de ideas) con spec nuevo, estado y fase
+    issue        (nuevo) T-16 · Modo MVP, inventario-mvp y E14
+    issue        (nuevo) T-17 · /crear-spec --siguiente
+    issue        (nuevo) T-18 · /validar-spec, revisor (Claude y Codex), informe y E15
+    issue        (nuevo) T-19 · menairos contexto
+    issue        (nuevo) T-20 · Hooks en Python (incluido el anti-bucle)
+    issue        (nuevo) T-21 · menairos decisiones validar
+    issue        (nuevo) T-22 · /implementar (manual y didáctico) y revisor-plan
+    issue        (nuevo) T-23 · /sincronizar y mutante
+    issue        (nuevo) T-24 · menairos informe
+    issue        (nuevo) T-25 · menairos cierre --aprobar y /cerrar-hito
+    issue        (nuevo) T-26 · Verificaciones en Actions (App menairos-agente)
+    issue        (nuevo) T-27 · Prueba de punta a punta
+    issue        (nuevo) T-28 · Cierre del H0 y v3.0.0
+    dependencia  (nuevo) T-02 depende de (nuevo) T-01
+    dependencia  (nuevo) T-03 depende de (nuevo) T-02
+    dependencia  (nuevo) T-04 depende de (nuevo) T-02
+    dependencia  (nuevo) T-05 depende de (nuevo) T-02
+    dependencia  (nuevo) T-06 depende de (nuevo) T-05
+    dependencia  (nuevo) T-07 depende de (nuevo) T-02
+    dependencia  (nuevo) T-08 depende de (nuevo) T-06
+    dependencia  (nuevo) T-08 depende de (nuevo) T-07
+    dependencia  (nuevo) T-09 depende de (nuevo) T-05
+    dependencia  (nuevo) T-10 depende de (nuevo) T-09
+    dependencia  (nuevo) T-10 depende de (nuevo) T-06
+    dependencia  (nuevo) T-11 depende de (nuevo) T-10
+    dependencia  (nuevo) T-12 depende de (nuevo) T-11
+    dependencia  (nuevo) T-12 depende de (nuevo) T-07
+    dependencia  (nuevo) T-13 depende de (nuevo) T-10
+    dependencia  (nuevo) T-14 depende de (nuevo) T-12
+    dependencia  (nuevo) T-14 depende de (nuevo) T-13
+    dependencia  (nuevo) T-15 depende de (nuevo) T-09
+    dependencia  (nuevo) T-16 depende de (nuevo) T-15
+    dependencia  (nuevo) T-17 depende de (nuevo) T-15
+    dependencia  (nuevo) T-18 depende de (nuevo) T-06
+    dependencia  (nuevo) T-18 depende de (nuevo) T-08
+    dependencia  (nuevo) T-18 depende de (nuevo) T-15
+    dependencia  (nuevo) T-19 depende de (nuevo) T-06
+    dependencia  (nuevo) T-19 depende de (nuevo) T-07
+    dependencia  (nuevo) T-20 depende de (nuevo) T-10
+    dependencia  (nuevo) T-21 depende de (nuevo) T-05
+    dependencia  (nuevo) T-22 depende de (nuevo) T-19
+    dependencia  (nuevo) T-22 depende de (nuevo) T-20
+    dependencia  (nuevo) T-22 depende de (nuevo) T-21
+    dependencia  (nuevo) T-23 depende de (nuevo) T-07
+    dependencia  (nuevo) T-23 depende de (nuevo) T-22
+    dependencia  (nuevo) T-24 depende de (nuevo) T-21
+    dependencia  (nuevo) T-24 depende de (nuevo) T-07
+    dependencia  (nuevo) T-25 depende de (nuevo) T-24
+    dependencia  (nuevo) T-26 depende de (nuevo) T-04
+    dependencia  (nuevo) T-27 depende de (nuevo) T-14
+    dependencia  (nuevo) T-27 depende de (nuevo) T-16
+    dependencia  (nuevo) T-27 depende de (nuevo) T-17
+    dependencia  (nuevo) T-27 depende de (nuevo) T-18
+    dependencia  (nuevo) T-27 depende de (nuevo) T-22
+    dependencia  (nuevo) T-27 depende de (nuevo) T-23
+    dependencia  (nuevo) T-27 depende de (nuevo) T-25
+    dependencia  (nuevo) T-28 depende de (nuevo) T-26
+    dependencia  (nuevo) T-28 depende de (nuevo) T-27
+
+  Resultado: haría 91 escrituras.
+  ```
+- **Tests:** 789 en el repo, en unos 8 s; los 154 de los tres ficheros nuevos, en unos 5 s. El
+  barrido de la actualización (18 llamadas × 2) tarda 1,4 s.
+- **Tiempo:**
+  - plan desde antes de las 15:55 (hora local);
+  - aprobación a las 16:15;
+  - verificación de la ruta, de 16:15 a 16:16;
+  - primer commit a las 16:17;
+  - implementación hasta las 16:40;
+  - versiones incorrectas, de 16:36 a 16:40;
+  - publicación real, de 16:40 a 16:45;
+  - revisión propia y correcciones, de 16:47 a 17:02.
+
+  La apertura del PR y la N3 constan en su cuerpo.
+
+**Diferencias con la documentación y hallazgos**
+
+- **La documentación de issue-dependencies no dice qué issue devuelven** el `POST` y el `DELETE`:
+  es el bloqueado. Tampoco da la forma del 422, que solo trae `message`.
+- **GitHub guarda el cuerpo tal como llega, CRLF incluido**: quien busque la marca anclada al
+  final de la línea tiene que pasar antes a LF.
+- **2.4 decía «Milestone «Hito N — título»»**, pero el `titulo` del YAML ya empieza así (P4).
+- **La revisión a la contra del plan** encontró, entre otros:
+  - escribir sobre una lectura de minutos antes, que podía deshacer un `en-curso`;
+  - una prueba con un número de issue como `issue_id`, que podía escribir fuera del repo de
+    prueba;
+  - que el listado de bloqueantes tenía que incluir los cerrados;
+  - que el CRLF tenía que pasarse a LF antes de buscar la marca.
+
+**Versiones incorrectas**
+
+34. Cada una se aplicó sin commit con un script, se lanzaron los tests de T-08 (y los del
+envoltorio y del catálogo) y se deshizo con `git checkout`; el árbol quedó limpio.
+- Una no hizo fallar su test a la primera: la del CRLF. El test se endureció (T-08-D17) y después
+  falló.
+- Después de las correcciones de la revisión, se lanzaron otra vez las 34 sobre el código final; la
+  tabla da esa segunda pasada.
+- Como el script deshace con `git checkout -- src`, se lanza siempre con las correcciones ya en un
+  commit.
+
+| Versión incorrecta | Tests que fallaron |
+| --- | --- |
+| Huella sin la parte de las etiquetas | 12, entre ellos `test_modo_de_publicar_se_quita` |
+| Contenido comparado con la marca dentro | 13 |
+| Issues buscados por título | 7 |
+| `GET issues` sin `state=all` | 4 |
+| Los PR sin filtrar | 1 |
+| `get` en vez de `get_all` | 2, entre ellos el de más de 100 issues |
+| Marcas repetidas comprobadas tras crear las etiquetas | 2 |
+| Dependencia con el número en vez del id | 89 |
+| Relaciones comparadas por número / se quitan todas las que sobran | 1 / 1: `test_relaciones_ajenas_no_se_tocan` |
+| Dependencias escritas junto a cada issue | 3, entre ellos la dependencia hacia delante |
+| Relaciones de publicar = solo las de las tareas del YAML | 1 |
+| Dependencias solo con la huella distinta | 18, entre ellos los barridos de fallos |
+| `PATCH` sin releer el issue | 6 |
+| Issue cerrado tratado como abierto | 3 |
+| Se quita cualquier `modo:*` / sin deducir, un `modo:*` se quita / no se quita el de publicar | 4 / 4 / 2 |
+| Choque de modo: se añade igual | 1 |
+| Cuerpo reescrito aunque su parte no cambie / aviso de cuerpo reescrito siempre | 2 / 8 |
+| Marca sin anclar a la línea | 3 |
+| CRLF sin pasar a LF | En la primera pasada, 0; con el test endurecido, 3 |
+| Etiquetas comparadas con mayúsculas / milestones sin `state=all` | 1 / 1 |
+| `--seco` que escribe / sin la precondición / sin comprobar los límites | 3 / 2 / 3 |
+| Sin pausa / pausa antes de la primera escritura / pausa en los GET | 1 / 4 / 3 |
+| Sale con 0 tras un fallo / JSON con `ensure_ascii` | 2 / 1 |
+| Etiqueta de área sin límite en el catálogo | 2 |
+
+**Revisión**
+
+- `/code-review` alto sobre la rama, antes de la N3: 10 hallazgos, clasificados antes de tocar
+  nada.
+- **Corregidos**, cada uno con un test que falla con el código de antes (9 tests nuevos, los 9
+  comprobados contra el commit anterior a las correcciones):
+  - una `critica` o un `area:*` de más se quedaban cuando la huella deducía las etiquetas de antes,
+    y se quitaban cuando no; ahora se quitan siempre, porque son de publicar;
+  - un issue cerrado durante la publicación (`issue-cambiado`) recibía igual sus dependencias;
+  - un `ForbiddenRequest` del envoltorio (un `next` fuera de api.github.com) salía como una
+    traza, sin informe;
+  - un bug que citara el cuerpo de un issue dentro de un bloque de código se llevaba su marca: o
+    paraba todo con `marca-repetida`, o se quedaba el issue;
+  - con la marca ilegible, el título se reescribía sin aviso, y el cuerpo sí avisaba;
+  - un 4xx en una escritura se presentaba como «resultado desconocido»;
+  - `_stop` no se usaba;
+  - el modo seco tenía su propio camino para el informe, que podía separarse del real.
+
+  Ahora hay un solo `_apply`, cuyo `_send` no llama a GitHub en seco.
+- **Corregido en la especificación:** el texto de 2.4 decía que las dependencias se sincronizan
+  «entre los issues» con marca, también los de tareas borradas. Se podía leer que el issue de una
+  tarea borrada también se sincroniza, y no se hace: «no se toca» (P3). El texto lo aclara.
+- **Sin corregir:**
+  - la marca no tiene que ser la última línea: Pedro escribe sus notas al final del cuerpo, y
+    pasaría a crearse un issue duplicado;
+  - en un choque de modo, la huella guarda el modo del YAML. Si Pedro cambiara después su
+    etiqueta justo por esa y el YAML quitara el modo, publicar la quitaría. Es la contrapartida
+    elegida en el plan: con la huella de las etiquetas que se ponen, la orden no convergería y
+    escribiría en cada ejecución.
+
+**Pendiente**
+
+- **Para Pedro, tras fusionar:**
+  - publicar el hito 0 en `pdromer0/menairos` con `uv run menairos spec publicar`, con `--seco`
+    delante (el de arriba es el de esta rama);
+  - cerrar los issues de T-01 a T-08 con un enlace a su PR (§0). `spec publicar` nunca cierra
+    nada.
+- **En menairos-prueba quedan:**
+  - los issues #4 a #7 del ejemplo, abiertos;
+  - el milestone #1;
+  - las 12 etiquetas.
+
+  Pedro puede cerrarlos cuando quiera. Si se publicara otra vez el ejemplo, no se duplicaría nada.
+- **Para T-09:** unificar la plantilla de issue «Tarea» con el cuerpo generado (`abiertas.md`).
+- **Para T-19:** el `desfase` puede reutilizar `task_issues` (la marca y la huella).
+- **Sin probar en real**, para no crear etiquetas que no se pueden borrar:
+  - los límites de longitud de GitHub (50, 256 y 65 536), que salen de su documentación y de sus
+    mensajes de error;
+  - asignar un milestone cerrado a un issue nuevo.
+- **Al reescribir un cuerpo**, las casillas marcadas a mano se pierden; el aviso `cuerpo-reescrito`
+  lo dice.
 - **El grep de los nombres de los proyectos anteriores:** lo lanza Pedro o el chat. Esta sesión no
   los conoce y no escribió ninguno.

@@ -637,6 +637,56 @@ def test_un_tiempo_agotado_no_se_reintenta() -> None:
     assert esperas == []
 
 
+# ── Pausa entre escrituras (T-08) ──────────────────────────────────────────
+
+
+def test_sin_write_interval_las_escrituras_no_esperan() -> None:
+    cli, _, esperas = cliente(ok({}, 201), ok({}, 201))
+    cli.post(f"{REPO}/labels", {"name": "a"})
+    cli.post(f"{REPO}/labels", {"name": "b"})
+    assert esperas == []
+
+
+def test_write_interval_espera_entre_dos_escrituras_y_nunca_en_un_get() -> None:
+    transporte = Enlatado(
+        ok([]), ok({}, 201), ok([]), ok({}), fallo(422), ok(status=200), ok([])
+    )
+    esperas: list[float] = []
+    cli = GitHub(transporte, sleep=esperas.append, write_interval=1.0)
+    cli.get(f"{REPO}/labels")
+    assert esperas == []  # un GET no espera
+    cli.post(f"{REPO}/labels", {"name": "a"})
+    assert esperas == []  # la primera escritura no espera
+    cli.get(f"{REPO}/labels")
+    cli.patch(f"{REPO}/issues/1", {"body": "x"})
+    assert esperas == [1.0]
+    with pytest.raises(GitHubError):
+        cli.post(f"{REPO}/issues", {"title": "x"})
+    assert esperas == [1.0, 1.0]  # también antes de una escritura que falla
+    cli.delete(QUITAR)
+    cli.get(f"{REPO}/labels")
+    assert esperas == [1.0, 1.0, 1.0]
+
+
+def test_una_peticion_rechazada_antes_de_enviarla_no_cuenta_como_escritura() -> None:
+    esperas: list[float] = []
+    cli = GitHub(Enlatado(ok({}, 201)), sleep=esperas.append, write_interval=1.0)
+    with pytest.raises(ForbiddenRequest):
+        cli.delete(f"{REPO}/labels/a")
+    cli.post(f"{REPO}/labels", {"name": "a"})
+    assert esperas == []
+
+
+def test_la_pausa_no_se_suma_a_las_esperas_de_los_reintentos() -> None:
+    transporte = Enlatado(ok({}, 201), fallo(502), ok(["a"]), ok({}))
+    esperas: list[float] = []
+    cli = GitHub(transporte, sleep=esperas.append, write_interval=1.0)
+    cli.post(f"{REPO}/labels", {"name": "a"})
+    assert cli.get(f"{REPO}/labels") == ["a"]
+    cli.patch(f"{REPO}/issues/1", {"body": "x"})
+    assert esperas == [1.0, 1.0]  # el reintento del GET y la pausa del PATCH
+
+
 def test_sin_sleep_se_usa_default_sleep_del_modulo(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

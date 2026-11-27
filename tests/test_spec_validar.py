@@ -1106,7 +1106,10 @@ def test_cli_falta_un_fichero_sale_con_2(
         (["spec", "validar", "--otra"], "argumentos no reconocidos: --otra"),
         (["spec", "validar", "--js"], "argumentos no reconocidos: --js"),
         (["spec"], "falta un argumento obligatorio: ORDEN"),
-        (["spec", "nada"], "orden no válida: 'nada' (se admite: 'validar')"),
+        (
+            ["spec", "nada"],
+            "orden no válida: 'nada' (se admite: 'validar', 'publicar')",
+        ),
         (["nada"], "orden no válida: 'nada' (se admite: 'spec')"),
     ],
 )

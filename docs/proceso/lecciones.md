@@ -39,6 +39,26 @@ tareas a las que afecta.
   *Afecta a:* T-08, T-19.
 - **`--input` y `-f` cambian el método por defecto de `gh api` a POST**: se pasa siempre
   `--method`. *Origen:* T-07.
+- **Las dependencias entre tareas del hito solo se gestionan en el YAML (`depende_de`)**:
+  `spec publicar` las sincroniza en cada ejecución, así que una relación «blocked by» que se añada
+  a mano entre dos issues del hito se quita en la publicación siguiente. Las relaciones con otros
+  issues no se tocan. *Origen:* T-08 (decisión de Pedro). *Afecta a:* T-19, T-22, T-25 y al
+  trabajo de Pedro en la web.
+- **Una dependencia «blocked by» se crea con el `id` del issue que bloquea, no con su número**, y
+  la respuesta es el issue **bloqueado**:
+  - un duplicado da 422 con solo un `message`, sin `errors`;
+  - el listado incluye los bloqueantes cerrados.
+
+  *Origen:* T-08. *Afecta a:* T-19 y T-23.
+- **Los `id` de GitHub son globales**: para probar una ruta con un id que no exista se usa `0`,
+  nunca un número pequeño inventado, que puede ser el de un issue real de otro repo. *Origen:* T-08
+  (revisión del plan). *Afecta a:* toda verificación contra la API.
+- **GitHub guarda el cuerpo de un issue tal como llega, también con CRLF**: quien busque en él una
+  línea anclada al final (como la marca) pasa antes de CRLF a LF. *Origen:* T-08. *Afecta a:* T-19
+  (`desfase`).
+- **Lo que se lee al principio de una orden larga puede haber cambiado al escribir**: antes de un
+  `PATCH` se vuelve a leer el issue, para no deshacer un `en-curso` o una edición hecha entretanto.
+  *Origen:* T-08 (revisión del plan). *Afecta a:* T-23 y T-25.
 
 ## Comprobaciones
 
@@ -50,6 +70,12 @@ tareas a las que afecta.
   (`gh`). *Afecta a:* T-13.
 - **Un hook en verde no dice qué revisó**: los scripts de comprobación dicen siempre qué
   ejecutan. *Origen:* lección de un proyecto anterior; aplicada en T-02.
+- **Los datos de un test tienen que tener la forma real**: el test del CRLF pasaba aunque el cuerpo
+  no se normalizara, porque la marca era la última línea sin salto final; la web deja también un
+  CRLF detrás. Lo destapó la versión incorrecta. *Origen:* T-08.
+- **Para verificar en real una escritura que el deny de `.claude/settings.json` impide desde el
+  shell** (un `DELETE`), se usa la propia orden de la CLI, que pasa por la lista de
+  `menairos.github`, y no un script que esquive el deny. *Origen:* T-08 (P5).
 
 ## Contratos
 
@@ -92,6 +118,11 @@ tareas a las que afecta.
   *Origen:* T-06.
 
 ## Forma de trabajar
+
+- **El plan de una tarea crítica se revisa a la contra antes de enseñarlo**, con un subagente de
+  contexto limpio que lee el código y la especificación. En T-08 encontró fallos de verdad: escribir
+  sobre una lectura vieja y una prueba que podía escribir fuera del repo de prueba. *Origen:* T-08.
+  *Afecta a:* las tareas críticas hasta que exista `revisor-plan` (T-22).
 
 - **Los nombres de los proyectos anteriores no entran en el repo**: se citan como «el método v2»
   o «un proyecto anterior». El patrón de búsqueda no se guarda en el repo, porque haría fallar el

@@ -1,0 +1,44 @@
+# Tareas de ejemplo de spec publicar (T-08). Datos sintéticos.
+hito: 0
+titulo: "Hito 0 — Ejemplo de spec publicar (T-08)"
+tareas:
+  - id: T-01
+    titulo: "Datos de ejemplo"
+    rama: feat/h0-datos
+    area: datos
+    especificacion: ["hito-0.md#11-datos-de-ejemplo"]
+    criterios_aceptacion:
+      - "Los datos de ejemplo existen"
+      - "Se leen con `uv run ejemplo`"
+
+  - id: T-02
+    titulo: "Lectura de los datos"
+    rama: feat/h0-lectura
+    depende_de: [T-01]
+    area: datos
+    critica: true
+    motivo_critica: "Fija el formato que leen las demás tareas"
+    especificacion: ["hito-0.md#12-lectura", "hito-0.md"]
+    criterios_aceptacion:
+      - "Lee los datos de T-01"
+
+  - id: T-03
+    titulo: "Entorno local"
+    rama: chore/h0-entorno
+    depende_de: [T-01]
+    area: entorno
+    donde: local
+    modo: didactico
+    especificacion: ["hito-0.md#21-entorno"]
+    criterios_aceptacion:
+      - "El entorno se prepara en local"
+
+  - id: T-04
+    titulo: "Revisión con Codex"
+    rama: test/h0-revision
+    depende_de: [T-02, T-03]
+    area: entorno
+    quien: codex
+    especificacion: ["hito-0.md#2-segunda-parte"]
+    criterios_aceptacion:
+      - "Codex revisa la lectura y el entorno"

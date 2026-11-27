@@ -1,0 +1,12 @@
+# Proyecto de ejemplo de `menairos spec publicar` (T-08). Lo usan los tests y se publica de verdad
+# en el repo de prueba (hito-0.md, anexo de T-08). Los datos son sintéticos.
+
+[menairos]
+version = "3.0.0-dev"
+
+[proyecto]
+nombre = "menairos-prueba"
+repo = "pdromer0/menairos-prueba"
+
+[stack]
+plantillas = ["base", "python-uv"]

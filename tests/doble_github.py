@@ -216,6 +216,34 @@ def _invalid(resource: str, field: str, code: str = "invalid") -> _Reply:
     return _Reply(422, [{"resource": resource, "code": code, "field": field}])
 
 
+def _dependency_error(problem: str) -> _Reply:
+    """The 422 GitHub gives for a dependency it refuses: only a message (T-08)."""
+    reply = _Reply(422)
+    reply.response = Response(
+        422,
+        {},
+        {
+            "message": (
+                "An error occurred while adding the blocking issue to the issue. "
+                f"Validation failed: {problem}"
+            ),
+            "documentation_url": "https://docs.github.com/rest/issues/issue-dependencies",
+            "status": "422",
+        },
+    )
+    return reply
+
+
+LABEL_NAME_MAX = 50
+LABEL_DESCRIPTION_MAX = 100
+ISSUE_TITLE_MAX = 256
+ISSUE_BODY_MAX = 65536
+
+
+def _too_long(value: Any, limit: int) -> bool:
+    return isinstance(value, str) and len(value) > limit
+
+
 API = "https://api.github.com"
 
 
@@ -234,8 +262,15 @@ class FakeGitHub:
 
     Stricter than GitHub when unsure: an issue with a label or milestone that
     does not exist is a 422, and an unknown route, query parameter or body field
-    raises ``UnsupportedRoute``. The dependency routes follow GitHub's
-    documentation and are verified in T-08.
+    raises ``UnsupportedRoute``. GitHub's length limits (label name 50 and
+    description 100 characters, issue title 256 and body 65536) are a 422.
+
+    The dependency routes were verified in T-08 against the test repository:
+    ``issue_id`` is the blocking issue's ``id``; adding answers 201 with the
+    *blocked* issue; a repeated relation or an issue blocked by itself is a 422
+    with only a ``message``; an unknown id is a 404; a closed blocking issue is
+    accepted and listed. A blocking issue from another repository can be set up
+    with ``add_foreign_blocked_by`` (its number may clash with a local one).
 
     Past ``limit`` calls it raises ``RunawayLoop``, and keeps raising it: the
     count only grows.
@@ -253,6 +288,7 @@ class FakeGitHub:
         self.milestones: list[dict[str, Any]] = []
         self.issues: dict[int, dict[str, Any]] = {}
         self.blocked_by: dict[int, list[int]] = {}
+        self.foreign_blocked_by: dict[int, list[dict[str, Any]]] = {}
         self._failures: list[_Failure] = []
         self._ids = itertools.count(9001)
         self._route_table = [
@@ -351,6 +387,39 @@ class FakeGitHub:
         if missing:
             raise ValueError(f"add_blocked_by: el doble no tiene los issues {missing}")
         self.blocked_by.setdefault(number, []).append(blocking_number)
+
+    def add_foreign_blocked_by(
+        self,
+        number: int,
+        *,
+        repo: str = "otro/repo",
+        foreign_number: int = 1,
+        state: str = "open",
+    ) -> dict[str, Any]:
+        """Mark issue ``number`` as blocked by an issue of another repo (no call).
+
+        Returns the foreign issue, with its own ``id``.
+        """
+        if number not in self.issues:
+            raise ValueError(
+                f"add_foreign_blocked_by: el doble no tiene el issue {number}"
+            )
+        ident = next(self._ids)
+        foreign: dict[str, Any] = {
+            "id": ident,
+            "node_id": f"I_{ident}",
+            "number": foreign_number,
+            "title": f"Issue {foreign_number} de {repo}",
+            "body": None,
+            "state": state,
+            "labels": [],
+            "milestone": None,
+            "url": f"{API}/repos/{repo}/issues/{foreign_number}",
+            "repository_url": f"{API}/repos/{repo}",
+            "html_url": f"https://github.com/{repo}/issues/{foreign_number}",
+        }
+        self.foreign_blocked_by.setdefault(number, []).append(foreign)
+        return foreign
 
     # ── Failures and queries ─────────────────────────────────────────────
 
@@ -538,6 +607,12 @@ class FakeGitHub:
             raise _Reply(404)
         return self.issues[number]
 
+    def _check_issue_lengths(self, body: Mapping[str, Any]) -> None:
+        if _too_long(body.get("title"), ISSUE_TITLE_MAX):
+            raise _invalid("Issue", "title")
+        if _too_long(body.get("body"), ISSUE_BODY_MAX):
+            raise _invalid("Issue", "body")
+
     def _created(self, item: dict[str, Any]) -> Response:
         return Response(201, {}, copy.deepcopy(item))
 
@@ -559,6 +634,10 @@ class FakeGitHub:
         name = body.get("name")
         if not isinstance(name, str) or not name.strip():
             raise _invalid("Label", "name", "missing_field")
+        if _too_long(name, LABEL_NAME_MAX):
+            raise _invalid("Label", "name")
+        if _too_long(body.get("description"), LABEL_DESCRIPTION_MAX):
+            raise _invalid("Label", "description")
         if any(label["name"].lower() == name.lower() for label in self.labels):
             raise _invalid("Label", "name", "already_exists")
         return self._created(
@@ -604,6 +683,7 @@ class FakeGitHub:
         title = body.get("title")
         if not isinstance(title, str) or not title.strip():
             raise _invalid("Issue", "title", "missing_field")
+        self._check_issue_lengths(body)
         labels = body.get("labels", [])
         if not isinstance(labels, list) or not all(isinstance(n, str) for n in labels):  # pyright: ignore[reportUnknownVariableType]
             raise _invalid("Issue", "labels")
@@ -629,6 +709,7 @@ class FakeGitHub:
             raise _invalid("Issue", "title")
         if body.get("state", "open") not in ("open", "closed"):
             raise _invalid("Issue", "state")
+        self._check_issue_lengths(body)
         labels = (
             [self._label(name) for name in body.get("labels", [])]
             if "labels" in body
@@ -654,6 +735,7 @@ class FakeGitHub:
         self._only(call)
         self._issue(int(number))
         blocking = [self.issues[n] for n in self.blocked_by.get(int(number), [])]
+        blocking += self.foreign_blocked_by.get(int(number), [])
         return self._page(call, blocking)
 
     def _add_blocked_by(self, call: Call, number: str) -> Response:
@@ -664,16 +746,26 @@ class FakeGitHub:
         if not isinstance(ident, int) or isinstance(ident, bool):
             raise _invalid("IssueDependency", "issue_id")
         blocking = self._by_id(ident)
-        if blocking == blocked or blocking in self.blocked_by.get(blocked, []):
-            raise _invalid("IssueDependency", "issue_id")
+        if blocking == blocked:
+            raise _dependency_error(
+                "Target issue cannot be the same as the source issue"
+            )
+        if blocking in self.blocked_by.get(blocked, []):
+            raise _dependency_error("Target issue has already been taken")
         self.blocked_by.setdefault(blocked, []).append(blocking)
-        return self._created(self.issues[blocking])
+        # GitHub answers with the blocked issue, not the blocking one (T-08).
+        return self._created(self.issues[blocked])
 
     def _remove_blocked_by(self, call: Call, number: str, ident: str) -> Response:
         blocked = int(number)
         self._issue(blocked)
-        blocking = self._by_id(int(ident))
-        if blocking not in self.blocked_by.get(blocked, []):
-            raise _Reply(404)
-        self.blocked_by[blocked].remove(blocking)
+        foreign = self.foreign_blocked_by.get(blocked, [])
+        match = [issue for issue in foreign if issue["id"] == int(ident)]
+        if match:
+            foreign.remove(match[0])
+        else:
+            blocking = self._by_id(int(ident))
+            if blocking not in self.blocked_by.get(blocked, []):
+                raise _Reply(404)
+            self.blocked_by[blocked].remove(blocking)
         return Response(200, {}, copy.deepcopy(self.issues[blocked]))

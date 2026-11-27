@@ -1,0 +1,263 @@
+# Registro de decisiones de T-08 (menairos spec publicar). Formato: src/menairos/esquemas/decisiones.schema.json.
+# Lo que está en el plan aprobado, o lo decidió Pedro en el encargo, va con decidido_por: pedro (hito-0.md 5.4);
+# lo que el agente decidió durante la implementación sin estar en el plan, con decidido_por: agente.
+tarea: T-08
+decisiones:
+  - id: T-08-D1
+    decision: >-
+      La marca oculta lleva una huella de tres partes, huella=<título>.<cuerpo>.<etiquetas>, cada una con los
+      16 primeros hex del SHA-256 del título, del cuerpo generado sin la marca y de las etiquetas que pone
+      publicar; se compara entera para saber si la tarea cambió y por partes para saber qué cambió (P1)
+    motivo: >-
+      Con una sola huella no se puede saber si el cuerpo actual era el generado (haría falta el título y las
+      etiquetas de antes) ni qué modo:* puso publicar
+    alternativas:
+      - Una sola huella, con etiquetas=… en claro en la marca, sin detectar el cuerpo editado a mano
+    reversibilidad: dificil
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-08-D2
+    decision: >-
+      Misma huella, el issue no se toca aunque se haya editado a mano; huella distinta y abierto, se relee el
+      issue y se reescribe solo la parte que cambió (título, cuerpo o etiquetas), con la marca nueva dentro del
+      cuerpo actual si su parte no cambió; huella distinta y cerrado, solo un aviso (decisión 1 y P2)
+    motivo: No deshacer lo que Pedro edita a mano ni un en-curso puesto mientras se publica
+    alternativas:
+      - Reescribir título, cuerpo y etiquetas cada vez que cambie la huella
+      - Escribir sobre la lectura del principio de la ejecución
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-08-D3
+    decision: >-
+      Las dependencias se sincronizan en cada ejecución, cambie o no la huella, solo entre issues con una marca
+      del hito (también los de tareas borradas) y solo en issues abiertos; se gestionan solo en el YAML, así
+      que una relación a mano entre dos issues del hito se quita (P3 y el añadido de Pedro)
+    motivo: Es lo único que completa un fallo entre crear los issues y crear las dependencias
+    alternativas:
+      - Sincronizarlas solo cuando cambia la huella
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-08-D4
+    decision: >-
+      El milestone es el titulo del YAML tal cual, buscado sin distinguir mayúsculas ni los espacios de los
+      extremos, y solo se crea si falta y algún issue nuevo lo necesita (P4)
+    motivo: El titulo del YAML ya empieza por «Hito N — »; un milestone vacío solo confundiría
+    alternativas:
+      - Anteponer «Hito N — » al titulo
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D5
+    decision: >-
+      La ruta de «blocked by» se verificó antes de implementar con tres issues de prueba en menairos-prueba
+      (añadir con el id, un duplicado, una autodependencia, un issue cerrado, el id 0 y el listado), y el
+      DELETE, con la propia CLI en la 3.ª ejecución del ejemplo (P5)
+    motivo: >-
+      El deny de .claude/settings.json impide el DELETE desde el shell; un número pequeño como issue_id
+      podría ser un issue real de otro repo
+    alternativas:
+      - Un DELETE desde un script que use menairos.github
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D6
+    decision: >-
+      El ejemplo que se publica en menairos-prueba es tests/data/spec_publicar/ejemplo, hito 0 con 4 tareas y 2
+      áreas, el mismo que usan los tests; sus enlaces dan 404 porque no se escriben ficheros en ese repo (P6)
+    motivo: No chocar con el hito 1 que publicará la demo de T-27
+    alternativas:
+      - Un número de hito que no se use nunca
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D7
+    decision: >-
+      1 s de pausa entre dos escrituras seguidas, como opción write_interval del cliente de menairos.github;
+      nunca antes de la primera ni en un GET (P7)
+    motivo: Lo pide GitHub para no caer en el límite secundario; el hito 0 son 91 escrituras
+    alternativas:
+      - Sin pausa, confiando en que RateLimited pare y la siguiente ejecución complete
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D8
+    decision: >-
+      El cuerpo lo genera la orden y la plantilla .github/ISSUE_TEMPLATE/tarea.md no cambia; la unificación es un
+      punto de abiertas.md que se cierra en T-09 (encargo y P8)
+    motivo: T-09 crea las plantillas de documentos y de issue
+    alternativas:
+      - Un criterio nuevo de T-09 en el YAML
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D9
+    decision: >-
+      El cuerpo solo depende del YAML y de proyecto.repo: resumen, enlaces a main, criterios como casillas,
+      rama, dependencias como «T-xx · título», portátil, quién y modo, y una nota de que se genera; sin texto
+      de la especificación, números de issue ni título del hito
+    motivo: Que el mismo YAML dé siempre el mismo issue y la huella no cambie por algo de fuera
+    alternativas:
+      - Copiar el texto de las secciones enlazadas
+      - Enlazar las dependencias por número de issue
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D10
+    decision: >-
+      Publicar solo añade o quita sus etiquetas: tipo:tarea, critica y area:* siempre; un modo:* solo si lo
+      confirma la huella (el candidato de un conjunto cerrado que da la misma huella); si la tarea fija un modo
+      y el issue tiene otro puesto a mano, se queda el de Pedro, con aviso y la huella del YAML
+    motivo: >-
+      Nunca tocar en-curso, necesita-pedro, aprobado-pedro ni un modo:* puesto a mano, y converger en la
+      ejecución siguiente
+    alternativas:
+      - Deducir las etiquetas de antes de las que tiene el issue ahora
+      - Añadir el modo del YAML aunque haya otro (dos modos)
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D11
+    decision: >-
+      Primero se lee todo y después se escribe; la precondición (spec validar), los límites de GitHub y las
+      marcas repetidas se comprueban antes de cualquier escritura; los PR y las marcas de otro hito se ignoran;
+      un cuerpo pasa de CRLF a LF antes de buscar la marca, anclada a su línea
+    motivo: Que un error conocido de antemano no deje nada escrito a medias
+    alternativas:
+      - Comprobar cada cosa al llegar a ella
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D12
+    decision: >-
+      Salida JSON con ok, seco, repo, hito, creados, actualizados, quitados, sin_cambios, avisos y errores;
+      códigos 0, 1 y 2 como spec validar; un fallo de GitHub dice qué escritura quedó con resultado desconocido
+    motivo: Que /validar-spec y Pedro sepan qué se hizo también cuando la ejecución se corta
+    alternativas:
+      - Solo las cuatro listas de la versión anterior de 2.4
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D13
+    decision: >-
+      Ninguna escritura en GitHub fuera de menairos-prueba salvo el push de la rama y el PR; contra
+      pdromer0/menairos, solo --seco (decisión 2 del encargo)
+    motivo: La publicación del hito 0 la hace Pedro después de fusionar
+    alternativas:
+      - Publicar el hito 0 desde la tarea
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-08-D14
+    decision: Los commits 5 y 6 del plan (lectura y escritura) y el ejemplo con los barridos de fallos van en un solo commit
+    motivo: El plan y las escrituras comparten las mismas estructuras y los tests de la tabla necesitan los dos
+    alternativas:
+      - Separar la lectura y el plan de las escrituras, con tests a medias en el primero
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Solo cambia cómo se agrupan los commits, no lo que hace la orden
+
+  - id: T-08-D15
+    decision: >-
+      Además de las cuatro ejecuciones del plan, cuatro más en menairos-prueba: dos con un transporte que anota
+      las respuestas (para ver qué devuelve el DELETE), una que devuelve el repo al estado del ejemplo y otra
+      tras guardar de verdad un cuerpo con CRLF en el issue #4
+    motivo: >-
+      Saber el código y el cuerpo reales del DELETE, dejar menairos-prueba como el ejemplo del repo y probar en
+      real el riesgo del CRLF que señaló la revisión del plan
+    alternativas:
+      - Quedarse con las cuatro ejecuciones y el DELETE sin la respuesta exacta
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Solo escribe en menairos-prueba, donde Pedro lo permitió, y todo pasa por publish_spec y menairos.github
+
+  - id: T-08-D16
+    decision: >-
+      Dos avisos que no estaban en el plan: titulo-reescrito (se reescribe un título cambiado a mano porque
+      también cambió en el YAML) e issue-cambiado (el issue se cerró o perdió su marca entre la lectura y el
+      PATCH, y no se toca)
+    motivo: El primero es el del cuerpo aplicado al título; el segundo sale de releer antes del PATCH
+    alternativas:
+      - Reescribir el título sin avisar
+      - Escribir el PATCH aunque el issue releído ya no sea el mismo
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Solo añade avisos; no cambia qué se escribe
+
+  - id: T-08-D17
+    decision: El test del CRLF guarda también un CRLF detrás de la marca, como la web
+    motivo: Con la marca como última línea sin salto final, el test pasaba con la versión incorrecta
+    alternativas:
+      - Probar el CRLF solo en los tests de unidad de la marca
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Endurece un test del plan sin cambiar el código
+
+  - id: T-08-D18
+    decision: >-
+      Tras la revisión, tipo:tarea, critica y area:* que sobran se quitan también cuando la huella deduce las
+      etiquetas de antes, y no solo cuando no las deduce
+    motivo: Son siempre de publicar (diseno.md 3.4); las dos ramas daban resultados distintos para el mismo issue
+    alternativas:
+      - Quitar solo lo que puso publicar la vez anterior
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Aplica la regla del plan (son siempre de publicar) a las dos ramas
+
+  - id: T-08-D19
+    decision: >-
+      Tras la revisión, una marca dentro de un bloque de código cercado no cuenta; sigue sin tener que ser la
+      última línea del cuerpo
+    motivo: >-
+      Un bug que cita el cuerpo de un issue no debe parar la publicación ni quedarse el issue; exigir la última
+      línea rompería las notas que Pedro añade al final
+    alternativas:
+      - Exigir que la marca sea la última línea
+      - Dejar que valga en cualquier línea, también en un bloque de código
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Hace la lectura de la marca más estricta sin cambiar su formato
+
+  - id: T-08-D20
+    decision: >-
+      Tras la revisión, un fallo de escritura dice «resultado desconocido» solo sin respuesta o con un 5xx; con
+      un 4xx, que no se guardó; un ForbiddenRequest del envoltorio es un error del informe, no una traza
+    motivo: El mensaje tiene que decir lo que pasó y qué hacer
+    alternativas:
+      - Decir siempre que el resultado es desconocido
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Solo cambia mensajes y la forma de informar un error que ya paraba la ejecución
+
+  - id: T-08-D21
+    decision: >-
+      Tras la revisión, el modo seco y el real comparten un solo camino (_apply), con un _send que no llama a
+      GitHub en seco; un issue saltado por issue-cambiado no recibe sus dependencias; se borra _stop
+    motivo: Que lo que dice --seco no se pueda separar de lo que hace la publicación real
+    alternativas:
+      - Mantener dos caminos y un test que los compare
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es una refactorización interna con los mismos tests en verde
