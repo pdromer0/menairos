@@ -188,7 +188,8 @@ class FakeGitHub:
     raises ``UnsupportedRoute``. The dependency routes follow GitHub's
     documentation and are verified in T-08.
 
-    Past ``limit`` calls it raises ``RunawayLoop``, and keeps raising it.
+    Past ``limit`` calls it raises ``RunawayLoop``, and keeps raising it: the
+    count only grows.
     """
 
     def __init__(
@@ -205,7 +206,6 @@ class FakeGitHub:
         self.blocked_by: dict[int, list[int]] = {}
         self._failures: list[_Failure] = []
         self._ids = itertools.count(9001)
-        self._runaway = False
 
     # ── State ────────────────────────────────────────────────────────────
 
@@ -338,8 +338,7 @@ class FakeGitHub:
             request.body,
         )
         self.calls.append(call)
-        if self._runaway or len(self.calls) > self.limit:
-            self._runaway = True
+        if len(self.calls) > self.limit:
             raise RunawayLoop(len(self.calls), self.limit, self.calls[-5:])
         failure = next(
             (f for f in self._failures if f.matches(len(self.calls), call)), None
