@@ -1,0 +1,12 @@
+# Inválido: un tipo que no existe (las extras llegarán más adelante).
+# regla: plantilla.tipo
+# error: plantilla.tipo enum
+[plantilla]
+nombre = "servicios"
+version = "1.0.0"
+tipo = "extra"
+
+[ordenes]
+n1 = "scripts/n1.sh"
+n2 = "scripts/n2.sh"
+n3 = "scripts/n3.sh"

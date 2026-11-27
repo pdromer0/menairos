@@ -1,0 +1,28 @@
+# Válido: una plantilla de lenguaje con su propiedad, sus órdenes y sus herramientas.
+# regla: tipo-lenguaje
+# regla: propiedad
+# regla: ordenes
+# regla: herramientas
+# regla: plantilla.requiere
+# regla: plantilla.version
+[plantilla]
+nombre = "python-uv"
+version = "10.0.12"
+tipo = "lenguaje"
+requiere = ["base"]
+
+[herramientas]
+uv = ">=0.13.10"
+python = "3.14"
+git = ">=2"
+
+[propiedad]
+extensiones = [".py", ".pyi"]
+carpetas = ["src/", "tests/", "a/b-c/"]
+
+[ordenes]
+formato = "uv run --frozen ruff format ."
+formato_fichero = "uv run --frozen ruff format {fichero}"
+lint = "uv run --frozen ruff check ."
+tipos = "uv run --frozen pyright"
+tests_area = 'uv run --frozen pytest -m "not slow" {rutas}'

@@ -1,0 +1,43 @@
+# Válido: todas las tablas y claves que admite el esquema.
+# regla: claves-desconocidas
+# regla: plantilla.tipo
+# regla: permisos
+# regla: ficheros.fusionables
+# regla: comprobaciones
+[plantilla]
+nombre = "base"
+version = "1.0.0"
+tipo = "base"
+requiere = []
+
+[herramientas]
+git = ">=2.43.0"
+gh = ">=2.103.3"
+claude = ">=2.1.326"
+codex = ">=1"
+docker = ">=29.1"
+
+[ordenes]
+n1 = "scripts/n1.sh {rutas}"
+n2 = "scripts/n2.sh"
+n3 = "scripts/n3.sh"
+
+[permisos]
+denegar = ["Bash(gh pr merge *)"]
+preguntar = ["Bash(menairos cierre * --aprobar)"]
+permitir = ["Bash(scripts/n1.sh *)"]
+
+[ficheros]
+fusionables = [".gitignore", "AGENTS.md"]
+
+[[comprobaciones]]
+nombre = "clave-falsa"
+provoca = "una clave falsa"
+salta = "pre-commit"
+mensaje = "gitleaks"
+
+[[comprobaciones]]
+nombre = "push-a-main"
+provoca = "un push directo a main"
+salta = "github"
+mensaje = "GH013"

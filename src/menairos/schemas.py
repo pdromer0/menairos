@@ -1,7 +1,7 @@
 """JSON Schemas of the Menairos contract: load, validate and fill in defaults.
 
-The three schemas (``menairos``, ``tareas`` and ``decisiones``) live in the
-``esquemas/`` folder inside the package, so they travel with
+The four schemas (``menairos``, ``tareas``, ``decisiones`` and ``plantilla``)
+live in the ``esquemas/`` folder inside the package, so they travel with
 ``uv tool install``, and are read with :mod:`importlib.resources`.
 
 Validation has three layers:
@@ -32,7 +32,7 @@ import yaml
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-type SchemaName = Literal["menairos", "tareas", "decisiones"]
+type SchemaName = Literal["menairos", "tareas", "decisiones", "plantilla"]
 type _Part = str | int
 type _Found = tuple[tuple[_Part, ...], str, str]
 
@@ -108,14 +108,19 @@ def load_document(path: Path) -> Any:
     YAML is loaded safely and a repeated key raises :class:`DuplicateKeyError`;
     ``tomllib`` already rejects repeated keys in TOML.
     """
-    text = path.read_text(encoding="utf-8-sig")
-    if path.suffix == ".toml":
+    return load_text(path.read_text(encoding="utf-8-sig"), path.suffix)
+
+
+def load_text(text: str, suffix: str) -> Any:
+    """Read a ``.toml`` or ``.yaml``/``.yml`` document from its text.
+
+    The same rules as :func:`load_document`; ``suffix`` says the format.
+    """
+    if suffix == ".toml":
         return tomllib.loads(text)
-    if path.suffix in (".yaml", ".yml"):
+    if suffix in (".yaml", ".yml"):
         return yaml.load(text, Loader=_StrictSafeLoader)
-    raise ValueError(
-        f"formato no admitido: «{path.suffix}» (se espera .toml, .yaml o .yml)"
-    )
+    raise ValueError(f"formato no admitido: «{suffix}» (se espera .toml, .yaml o .yml)")
 
 
 def validate(name: SchemaName, document: Any) -> list[Issue]:

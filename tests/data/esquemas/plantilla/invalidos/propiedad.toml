@@ -1,0 +1,19 @@
+# Inválido: a la propiedad le faltan las carpetas, y una extensión no lleva punto.
+# regla: propiedad
+# error: propiedad.carpetas required
+# error: propiedad.extensiones[0] pattern
+[plantilla]
+nombre = "juguete"
+version = "1.0.0"
+tipo = "lenguaje"
+requiere = ["base"]
+
+[propiedad]
+extensiones = ["jug"]
+
+[ordenes]
+formato = "f ."
+formato_fichero = "f {fichero}"
+lint = "l ."
+tipos = "t"
+tests_area = "p {rutas}"

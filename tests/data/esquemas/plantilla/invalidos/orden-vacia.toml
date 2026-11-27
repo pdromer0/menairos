@@ -1,0 +1,12 @@
+# Inválido: una orden de solo espacios.
+# regla: ordenes
+# error: ordenes.n1 pattern
+[plantilla]
+nombre = "base"
+version = "1.0.0"
+tipo = "base"
+
+[ordenes]
+n1 = "  "
+n2 = "scripts/n2.sh"
+n3 = "scripts/n3.sh"

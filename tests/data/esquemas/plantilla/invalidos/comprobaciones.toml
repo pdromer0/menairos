@@ -1,0 +1,24 @@
+# Inválido: una comprobación que salta en «ci» y otra sin mensaje.
+# regla: comprobaciones
+# error: comprobaciones[0].salta enum
+# error: comprobaciones[1].mensaje required
+[plantilla]
+nombre = "base"
+version = "1.0.0"
+tipo = "base"
+
+[ordenes]
+n1 = "scripts/n1.sh"
+n2 = "scripts/n2.sh"
+n3 = "scripts/n3.sh"
+
+[[comprobaciones]]
+nombre = "test-que-falla"
+provoca = "un test que falla"
+salta = "ci"
+mensaje = "failed"
+
+[[comprobaciones]]
+nombre = "formato"
+provoca = "mal formato"
+salta = "pre-commit"

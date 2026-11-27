@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/pdromer0/menairos/main/src/menairos/esquemas/plantilla.schema.json",
+  "title": "Manifiesto de una plantilla de stack",
+  "description": "Formato de plantilla.toml (hito-0.md 3.3). Una clave desconocida es un error. Las claves opcionales toman su valor por defecto. Una plantilla base declara las órdenes n1, n2 y n3 del proyecto; una de lenguaje, lo que es suyo ([propiedad]) y sus órdenes formato, formato_fichero, lint, tipos y tests_area. La CLI comprueba lo que el esquema no expresa (menairos.stacks).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "plantilla",
+    "ordenes"
+  ],
+  "$defs": {
+    "texto_no_vacio": {
+      "description": "Texto con al menos un carácter que no sea un espacio.",
+      "type": "string",
+      "pattern": "[^\\s\\uFEFF]"
+    },
+    "nombre_plantilla": {
+      "description": "Nombre de una plantilla: minúsculas, cifras y guiones sueltos (python-uv).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "version_herramienta": {
+      "description": "Versión mínima (>=0.13.10) o exacta (3.14), con una a tres cifras.",
+      "type": "string",
+      "pattern": "^(>=)?[0-9]+(\\.[0-9]+){0,2}$"
+    }
+  },
+  "properties": {
+    "plantilla": {
+      "description": "La plantilla: nombre, versión, tipo y las que requiere.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nombre",
+        "version",
+        "tipo"
+      ],
+      "properties": {
+        "nombre": {
+          "description": "Nombre de la plantilla; es el de su carpeta.",
+          "$ref": "#/$defs/nombre_plantilla"
+        },
+        "version": {
+          "description": "Versión de la plantilla: X.Y.Z.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "tipo": {
+          "description": "base (la llevan todos los proyectos) o lenguaje.",
+          "enum": [
+            "base",
+            "lenguaje"
+          ]
+        },
+        "requiere": {
+          "description": "Las plantillas que tienen que ir antes.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nombre_plantilla"
+          },
+          "default": []
+        }
+      }
+    },
+    "herramientas": {
+      "description": "Las herramientas del sistema que comprueba la capa local, con su versión.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "git": {
+          "description": "Versión de git.",
+          "$ref": "#/$defs/version_herramienta"
+        },
+        "gh": {
+          "description": "Versión de La CLI de GitHub.",
+          "$ref": "#/$defs/version_herramienta"
+        },
+        "claude": {
+          "description": "Versión de Claude Code.",
+          "$ref": "#/$defs/version_herramienta"
+        },
+        "uv": {
+          "description": "Versión de uv.",
+          "$ref": "#/$defs/version_herramienta"
+        },
+        "python": {
+          "description": "Versión de Python.",
+          "$ref": "#/$defs/version_herramienta"
+        },
+        "codex": {
+          "description": "Versión de Codex.",
+          "$ref": "#/$defs/version_herramienta"
+        },
+        "docker": {
+          "description": "Versión de Docker.",
+          "$ref": "#/$defs/version_herramienta"
+        }
+      }
+    },
+    "propiedad": {
+      "description": "Lo que es de la plantilla (solo las de lenguaje): por extensión y, si ninguna extensión coincide, por carpeta.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extensiones",
+        "carpetas"
+      ],
+      "properties": {
+        "extensiones": {
+          "description": "Extensiones de fichero (.py).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^\\.[A-Za-z0-9]+$"
+          }
+        },
+        "carpetas": {
+          "description": "Carpetas, acabadas en / (tests/).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*/$"
+          }
+        }
+      }
+    },
+    "ordenes": {
+      "description": "Las órdenes del contrato común: /implementar y los hooks solo usan estas.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "n1": {
+          "description": "N1 del proyecto (base): scripts/n1.sh, que admite rutas de tests.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "n2": {
+          "description": "N2 del proyecto (base): la N1 con sello.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "n3": {
+          "description": "N3 del proyecto (base): la comprobación completa.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "formato": {
+          "description": "Formatea todo lo de la plantilla (lenguaje).",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "formato_fichero": {
+          "description": "Formatea un fichero, con el hueco {fichero} (lenguaje; hook PostToolUse).",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "lint": {
+          "description": "Lint de la plantilla (lenguaje).",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "tipos": {
+          "description": "Comprobación de tipos (lenguaje).",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "tests_area": {
+          "description": "Tests de unas rutas, con el hueco {rutas} (lenguaje).",
+          "$ref": "#/$defs/texto_no_vacio"
+        }
+      }
+    },
+    "permisos": {
+      "description": "Reglas de .claude/settings.json, que genera la CLI uniendo las de cada plantilla.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "denegar": {
+          "description": "Reglas deny.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/texto_no_vacio"
+          },
+          "default": []
+        },
+        "preguntar": {
+          "description": "Reglas ask.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/texto_no_vacio"
+          },
+          "default": []
+        },
+        "permitir": {
+          "description": "Reglas allow.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/texto_no_vacio"
+          },
+          "default": []
+        }
+      }
+    },
+    "ficheros": {
+      "description": "Qué ficheros de la plantilla se pueden fusionar con los de otras.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "fusionables": {
+          "description": "Rutas fusionables (las que tienen regla de fusión en la CLI).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/texto_no_vacio"
+          },
+          "default": []
+        }
+      }
+    },
+    "comprobaciones": {
+      "description": "Las comprobaciones deliberadas (hito-0.md 3.6).",
+      "type": "array",
+      "default": [],
+      "items": {
+        "description": "Una comprobación deliberada: qué se provoca, qué debe saltar y con qué mensaje.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nombre",
+          "provoca",
+          "salta",
+          "mensaje"
+        ],
+        "properties": {
+          "nombre": {
+            "description": "Nombre corto.",
+            "$ref": "#/$defs/nombre_plantilla"
+          },
+          "provoca": {
+            "description": "El fallo que se provoca.",
+            "$ref": "#/$defs/texto_no_vacio"
+          },
+          "salta": {
+            "description": "Qué debe saltar.",
+            "enum": [
+              "pre-commit",
+              "n3",
+              "github"
+            ]
+          },
+          "mensaje": {
+            "description": "Lo que debe decir al saltar.",
+            "$ref": "#/$defs/texto_no_vacio"
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "plantilla": {
+        "properties": {
+          "tipo": {
+            "const": "lenguaje"
+          }
+        },
+        "required": [
+          "tipo"
+        ]
+      }
+    },
+    "required": [
+      "plantilla"
+    ]
+  },
+  "then": {
+    "required": [
+      "propiedad"
+    ],
+    "properties": {
+      "ordenes": {
+        "required": [
+          "formato",
+          "formato_fichero",
+          "lint",
+          "tipos",
+          "tests_area"
+        ]
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "ordenes": {
+        "required": [
+          "n1",
+          "n2",
+          "n3"
+        ]
+      }
+    }
+  }
+}

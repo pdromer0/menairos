@@ -1,0 +1,7 @@
+# Inválido: falta la tabla [ordenes].
+# regla: tablas-obligatorias
+# error: ordenes required
+[plantilla]
+nombre = "base"
+version = "1.0.0"
+tipo = "base"

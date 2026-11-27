@@ -1,0 +1,15 @@
+# Inválido: una plantilla de lenguaje sin propiedad y sin tests_area.
+# regla: tipo-lenguaje
+# error: propiedad required
+# error: ordenes.tests_area required
+[plantilla]
+nombre = "juguete"
+version = "1.0.0"
+tipo = "lenguaje"
+requiere = ["base"]
+
+[ordenes]
+formato = "f ."
+formato_fichero = "f {fichero}"
+lint = "l ."
+tipos = "t"
