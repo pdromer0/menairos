@@ -1,0 +1,3 @@
+# Abiertas
+
+Ningún punto abierto.
