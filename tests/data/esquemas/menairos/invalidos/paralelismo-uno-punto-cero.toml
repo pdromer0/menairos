@@ -1,0 +1,15 @@
+# Inválido: un entero escrito como decimal (1.0): lo rechaza la CLI.
+# regla: enteros
+# error: autonomia.paralelismo type
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+paralelismo = 1.0

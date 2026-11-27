@@ -1,0 +1,15 @@
+# Válido: los estados piloto y retirado.
+# regla: modulos.*
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modulos]
+mutante = "piloto"
+auto_merge = "retirado"

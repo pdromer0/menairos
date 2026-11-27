@@ -1,0 +1,12 @@
+# Inválido: una versión con v delante (v3.0.0).
+# regla: menairos.version
+# error: menairos.version pattern
+[menairos]
+version = "v3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]

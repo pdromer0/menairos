@@ -1,6 +1,7 @@
 """Tests de los esquemas JSON del contrato y de su módulo (T-05)."""
 
 import re
+import tomllib
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,27 @@ DATOS = RAIZ / "tests" / "data" / "esquemas"
 # Las reglas de las tablas de hito-0.md 2.2 (más «claves-desconocidas» y los casos
 # límite que se recorren aquí). Cada una tiene al menos un caso válido y uno inválido.
 REGLAS: dict[SchemaName, set[str]] = {
+    "menairos": {
+        "claves-desconocidas",
+        "tablas-obligatorias",
+        "menairos.version",
+        "proyecto.nombre",
+        "proyecto.repo",
+        "proyecto.visibilidad",
+        "proyecto.idiomas",
+        "stack.plantillas",
+        "modo.defecto",
+        "modo.resumen_aprendizaje",
+        "entornos.*",
+        "modelos.*",
+        "revisores.*",
+        "enteros",
+        "booleanos",
+        "autonomia.rutas_protegidas",
+        "guardarrailes.aviso_presupuesto_pct",
+        "guardarrailes.ventana_horaria",
+        "modulos.*",
+    },
     "tareas": {
         "claves-desconocidas",
         "hito",
@@ -189,6 +211,39 @@ def test_cada_regla_tiene_un_caso_valido_y_uno_invalido(esquema: SchemaName) -> 
 # ── Valores por defecto ─────────────────────────────────────────────────────
 
 
+def _ejemplo_de_diseno() -> dict[str, Any]:
+    """El bloque TOML de diseno.md 3.1, leído del propio documento."""
+    diseno = (RAIZ / "docs" / "diseno.md").read_text(encoding="utf-8")
+    seccion = diseno.split("### 3.1", 1)[1]
+    bloque = re.search(r"```toml\n(.*?)```", seccion, re.DOTALL)
+    assert bloque is not None, "diseno.md 3.1 no tiene un bloque toml"
+    return tomllib.loads(bloque.group(1))
+
+
+def test_valores_por_defecto_de_menairos_toml_son_los_de_diseno() -> None:
+    """Las claves obligatorias del ejemplo, con sus defaults, dan el ejemplo entero."""
+    ejemplo = _ejemplo_de_diseno()
+    minimo = {
+        "menairos": {"version": ejemplo["menairos"]["version"]},
+        "proyecto": {
+            "nombre": ejemplo["proyecto"]["nombre"],
+            "repo": ejemplo["proyecto"]["repo"],
+        },
+        "stack": {"plantillas": ejemplo["stack"]["plantillas"]},
+    }
+    assert validate("menairos", minimo) == []
+    assert apply_defaults("menairos", minimo) == ejemplo
+
+
+def test_las_subtablas_que_faltan_se_crean_con_sus_valores() -> None:
+    """Una tabla de modelo con solo una clave recibe la otra."""
+    documento = load_document(DATOS / "menairos" / "validos" / "modelos-haiku.toml")
+    modelos = apply_defaults("menairos", documento)["modelos"]
+    assert modelos["plan"] == {"normal": "haiku", "critica": "opus"}
+    assert modelos["implementacion"] == {"normal": "sonnet", "critica": "opus"}
+    assert modelos["informe"] == "haiku"
+
+
 def test_valores_por_defecto_de_una_tarea() -> None:
     """Los de la tabla de hito-0.md 2.2; motivo_critica no tiene."""
     escrita = _minimo("tareas")["tareas"][0]
@@ -229,6 +284,10 @@ def test_un_valor_explicito_no_se_sustituye() -> None:
 
 
 # ── Ficheros del repo ───────────────────────────────────────────────────────
+
+
+def test_el_menairos_toml_del_repo_es_valido() -> None:
+    assert validate("menairos", load_document(RAIZ / "menairos.toml")) == []
 
 
 @pytest.mark.parametrize(
@@ -324,3 +383,18 @@ def test_un_formato_desconocido_es_un_error(tmp_path: Path) -> None:
     ruta.write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="formato no admitido"):
         load_document(ruta)
+
+
+@pytest.mark.parametrize(
+    ("caso", "mensaje"),
+    [
+        ("sin-base", 'debe incluir "base"'),
+        ("pct-101", "debe ser como máximo 100 (valor: 101)"),
+        ("plan-texto", 'debe ser una tabla (valor: "opus")'),
+    ],
+)
+def test_los_mensajes_de_menairos_toml_estan_en_espanol(
+    caso: str, mensaje: str
+) -> None:
+    ruta = DATOS / "menairos" / "invalidos" / f"{caso}.toml"
+    assert [p.message for p in validate("menairos", load_document(ruta))] == [mensaje]

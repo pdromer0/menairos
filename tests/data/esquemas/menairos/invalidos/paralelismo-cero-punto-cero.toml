@@ -1,0 +1,16 @@
+# Inválido: 0.0: por debajo del mínimo y escrito como decimal.
+# regla: enteros
+# error: autonomia.paralelismo minimum
+# error: autonomia.paralelismo type
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+paralelismo = 0.0

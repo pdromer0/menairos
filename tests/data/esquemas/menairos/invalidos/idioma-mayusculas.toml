@@ -1,0 +1,13 @@
+# Inválido: un idioma en mayúsculas.
+# regla: proyecto.idiomas
+# error: proyecto.idioma_codigo pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+idioma_codigo = "EN"
+
+[stack]
+plantillas = ["base"]

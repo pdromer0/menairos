@@ -1,0 +1,15 @@
+# Inválido: un modelo que no existe en una tabla de modelo.
+# regla: modelos.*
+# error: modelos.plan.critica enum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modelos]
+plan = { critica = "gpt" }

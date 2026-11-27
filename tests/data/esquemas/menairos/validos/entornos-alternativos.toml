@@ -1,0 +1,16 @@
+# Válido: los otros valores de cada entorno.
+# regla: entornos.*
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[entornos]
+manual = "local"
+didactico = "local"
+automatico = "tareas-programadas"

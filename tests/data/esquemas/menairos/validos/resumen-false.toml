@@ -1,0 +1,14 @@
+# Válido: sin resumen de aprendizaje.
+# regla: modo.resumen_aprendizaje
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modo]
+resumen_aprendizaje = false

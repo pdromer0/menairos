@@ -1,0 +1,12 @@
+# Inválido: una plantilla repetida.
+# regla: stack.plantillas
+# error: stack.plantillas uniqueItems
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base", "base"]

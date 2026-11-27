@@ -1,0 +1,11 @@
+# Inválido: el proyecto sin nombre.
+# regla: proyecto.nombre
+# error: proyecto.nombre required
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]

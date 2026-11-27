@@ -1,0 +1,11 @@
+# Inválido: la tabla [menairos] sin version.
+# regla: menairos.version
+# error: menairos.version required
+[menairos]
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]

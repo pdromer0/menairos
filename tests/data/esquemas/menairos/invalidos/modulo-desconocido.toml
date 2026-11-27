@@ -1,0 +1,15 @@
+# Inválido: un módulo que no existe.
+# regla: modulos.*
+# error: modulos.revisor_pr additionalProperties
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modulos]
+revisor_pr = "activo"

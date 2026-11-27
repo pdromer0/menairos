@@ -1,0 +1,14 @@
+# Válido: una lista de rutas protegidas vacía.
+# regla: autonomia.rutas_protegidas
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+rutas_protegidas = []

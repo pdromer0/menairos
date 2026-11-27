@@ -1,0 +1,15 @@
+# Inválido: un paralelismo decimal (1.5).
+# regla: enteros
+# error: autonomia.paralelismo type
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+paralelismo = 1.5

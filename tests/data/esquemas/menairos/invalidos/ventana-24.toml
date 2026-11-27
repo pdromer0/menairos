@@ -1,0 +1,15 @@
+# Inválido: una hora 24:00.
+# regla: guardarrailes.ventana_horaria
+# error: guardarrailes.ventana_horaria pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes]
+ventana_horaria = "24:00-07:00"

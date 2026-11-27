@@ -1,0 +1,13 @@
+# Inválido: una lista de plantillas vacía.
+# regla: stack.plantillas
+# error: stack.plantillas minItems
+# error: stack.plantillas contains
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = []

@@ -1,0 +1,15 @@
+# Válido: haiku en un papel y una tabla de modelo con solo una clave.
+# regla: modelos.*
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modelos]
+informe = "haiku"
+plan = { normal = "haiku" }

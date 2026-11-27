@@ -1,0 +1,15 @@
+# Inválido: codex como modelo (es un revisor, no un modelo).
+# regla: modelos.*
+# error: modelos.revisor_pr enum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modelos]
+revisor_pr = "codex"

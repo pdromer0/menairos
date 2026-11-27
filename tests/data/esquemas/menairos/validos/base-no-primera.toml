@@ -1,0 +1,11 @@
+# Válido: base no tiene por qué ser la primera plantilla.
+# regla: stack.plantillas
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["python-uv", "base"]

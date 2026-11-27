@@ -1,0 +1,8 @@
+# Inválido: falta la tabla [proyecto].
+# regla: tablas-obligatorias
+# error: proyecto required
+[menairos]
+version = "3.0.0"
+
+[stack]
+plantillas = ["base"]

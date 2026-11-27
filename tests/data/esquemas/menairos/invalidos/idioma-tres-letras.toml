@@ -1,0 +1,13 @@
+# Inválido: un idioma de tres letras.
+# regla: proyecto.idiomas
+# error: proyecto.idioma_docs pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+idioma_docs = "esp"
+
+[stack]
+plantillas = ["base"]

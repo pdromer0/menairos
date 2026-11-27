@@ -1,0 +1,15 @@
+# Inválido: un aviso de presupuesto de 101 %.
+# regla: guardarrailes.aviso_presupuesto_pct
+# error: guardarrailes.aviso_presupuesto_pct maximum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes]
+aviso_presupuesto_pct = 101

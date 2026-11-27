@@ -1,0 +1,15 @@
+# Inválido: un booleano como texto.
+# regla: booleanos
+# error: autonomia.criticas_pasan_por_pedro type
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+criticas_pasan_por_pedro = "true"

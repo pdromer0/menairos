@@ -1,0 +1,15 @@
+# Inválido: 0 turnos de plan.
+# regla: enteros
+# error: guardarrailes.max_turnos.plan minimum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes.max_turnos]
+plan = 0

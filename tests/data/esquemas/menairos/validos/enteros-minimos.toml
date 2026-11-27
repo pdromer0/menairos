@@ -1,0 +1,38 @@
+# Válido: todos los enteros en su mínimo (1).
+# regla: enteros
+# regla: guardarrailes.aviso_presupuesto_pct
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[autonomia]
+paralelismo = 1
+
+[escalado]
+rondas_plan = 1
+rondas_pr = 1
+fallos_seguidos = 1
+recordatorio_horas = 1
+
+[guardarrailes]
+anti_bucle_repeticiones = 1
+sesiones_por_tarea = 1
+sesiones_dia = 1
+aviso_presupuesto_pct = 1
+repaso_horas = 1
+
+[guardarrailes.max_turnos]
+plan = 1
+implementacion = 1
+revision = 1
+
+[guardarrailes.timeout_min]
+plan = 1
+implementacion = 1
+revision = 1

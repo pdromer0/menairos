@@ -1,0 +1,75 @@
+# Válido: el ejemplo de diseno.md 3.1, con todas las claves.
+# regla: claves-desconocidas
+# regla: booleanos
+# regla: modulos.*
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "pdromer0/ejemplo"
+visibilidad = "publico"          # publico | privado (automático en privado: GitHub Pro)
+idioma_docs = "es"
+idioma_codigo = "en"
+
+[stack]
+plantillas = ["base", "python-uv"]
+
+[modo]
+defecto = "manual"               # manual | didactico | automatico
+resumen_aprendizaje = true
+
+[entornos]                       # entornos por defecto, no una restricción
+manual = "nube"                  # nube | local
+didactico = "nube"
+automatico = "actions"           # actions | tareas-programadas
+
+[modelos]
+crear_spec = "opus"
+plan = { normal = "sonnet", critica = "opus" }
+implementacion = { normal = "sonnet", critica = "opus" }
+revisor_plan = "opus"
+revisor_pr = "opus"
+informe = "sonnet"
+
+[revisores]
+spec = "codex"                   # codex | claude
+pr = "claude"
+segunda_opinion_critica = "codex"
+
+[autonomia]
+paralelismo = 1
+criticas_pasan_por_pedro = true
+dependencias_nuevas_pasan_por_pedro = true
+rutas_protegidas = [".github/workflows/", ".claude/", "AGENTS.md", "menairos.toml"]
+
+[escalado]
+rondas_plan = 2
+rondas_pr = 2
+fallos_seguidos = 2
+recordatorio_horas = 24
+
+[guardarrailes]
+modo_observacion = true          # el primer hito automático: los suaves solo registran
+anti_bucle_repeticiones = 3
+sesiones_por_tarea = 8
+sesiones_dia = 15
+aviso_presupuesto_pct = 80
+ventana_horaria = ""             # p. ej. "22:00-07:00"; vacío = sin ventana
+repaso_horas = 3
+
+[guardarrailes.max_turnos]
+plan = 25
+implementacion = 100
+revision = 20
+
+[guardarrailes.timeout_min]
+plan = 20
+implementacion = 90
+revision = 20
+
+[modulos]                        # inactivo | piloto | activo | retirado
+revisor_plan = "activo"
+mutante = "inactivo"
+orquestador = "inactivo"
+auto_merge = "inactivo"

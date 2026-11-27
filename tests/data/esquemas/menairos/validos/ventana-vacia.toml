@@ -1,0 +1,14 @@
+# Válido: una ventana horaria vacía (sin ventana).
+# regla: guardarrailes.ventana_horaria
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes]
+ventana_horaria = ""

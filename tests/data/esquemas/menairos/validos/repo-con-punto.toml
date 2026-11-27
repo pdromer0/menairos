@@ -1,0 +1,11 @@
+# Válido: un repo con punto en el nombre.
+# regla: proyecto.repo
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto.v2"
+
+[stack]
+plantillas = ["base"]

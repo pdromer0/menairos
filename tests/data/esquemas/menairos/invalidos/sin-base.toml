@@ -1,0 +1,12 @@
+# Inválido: las plantillas sin base.
+# regla: stack.plantillas
+# error: stack.plantillas contains
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["python-uv"]

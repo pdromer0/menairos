@@ -1,0 +1,15 @@
+# Inválido: un umbral como texto.
+# regla: enteros
+# error: guardarrailes.sesiones_dia type
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes]
+sesiones_dia = "15"

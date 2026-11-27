@@ -1,5 +1,5 @@
 # Configuración de Menairos para este proyecto.
-# El resto de claves toma sus valores por defecto del esquema (llega en una tarea posterior).
+# El resto de claves toma su valor por defecto de src/menairos/esquemas/menairos.schema.json.
 
 [menairos]
 version = "3.0.0-dev"

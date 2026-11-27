@@ -1,0 +1,15 @@
+# Inválido: un estado de módulo que no existe (activado).
+# regla: modulos.*
+# error: modulos.auto_merge enum
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[modulos]
+auto_merge = "activado"

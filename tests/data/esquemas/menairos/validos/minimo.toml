@@ -1,0 +1,13 @@
+# Válido: solo las tablas y claves obligatorias.
+# regla: tablas-obligatorias
+# regla: proyecto.nombre
+# regla: stack.plantillas
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]

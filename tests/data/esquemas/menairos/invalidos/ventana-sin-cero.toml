@@ -1,0 +1,15 @@
+# Inválido: una hora sin el cero inicial.
+# regla: guardarrailes.ventana_horaria
+# error: guardarrailes.ventana_horaria pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+
+[stack]
+plantillas = ["base"]
+
+[guardarrailes]
+ventana_horaria = "9:00-17:00"

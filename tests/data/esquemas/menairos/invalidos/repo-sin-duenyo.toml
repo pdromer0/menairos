@@ -1,0 +1,12 @@
+# Inválido: un repo sin dueño.
+# regla: proyecto.repo
+# error: proyecto.repo pattern
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "proyecto"
+
+[stack]
+plantillas = ["base"]

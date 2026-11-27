@@ -1,0 +1,12 @@
+# Válido: un proyecto privado.
+# regla: proyecto.visibilidad
+[menairos]
+version = "3.0.0"
+
+[proyecto]
+nombre = "ejemplo"
+repo = "ejemplo/proyecto"
+visibilidad = "privado"
+
+[stack]
+plantillas = ["base"]
