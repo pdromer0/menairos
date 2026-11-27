@@ -93,6 +93,11 @@ tareas a las que afecta.
 - **`yaml.safe_load` se queda con el último valor de una clave repetida, sin avisar**: los YAML de
   Menairos se leen con `load_document` de `menairos.schemas`, que lo convierte en un error.
   *Origen:* T-05. *Afecta a:* todo lo que lea YAML.
+- **Lo que entra en una huella o en un contrato se revisa por sus consecuencias de producto.** En
+  T-08 el cuerpo llevaba los títulos de las dependencias: renombrar una tarea reescribía el cuerpo
+  de todas las que dependían de ella y borraba sus casillas marcadas. *Origen:* auditoría de T-08
+  (decisión de Pedro, 2026-11-27). *Afecta a:* T-09, T-19 y cualquier formato que se guarde en
+  GitHub.
 - **Las anclas de GitHub conservan el `\p{Word}` de Ruby** (letras, marcas, cifras decimales y
   `_`), además de `-` y los espacios: el `\w` de Python no sirve, porque quita las marcas
   combinantes y conserva `①` y `²`. Las anclas se calculan con `menairos.markdown`. *Origen:*
@@ -123,6 +128,17 @@ tareas a las que afecta.
   contexto limpio que lee el código y la especificación. En T-08 encontró fallos de verdad: escribir
   sobre una lectura vieja y una prueba que podía escribir fuera del repo de prueba. *Origen:* T-08.
   *Afecta a:* las tareas críticas hasta que exista `revisor-plan` (T-22).
+- **La criba de esa revisión a la contra va en una tabla** (hallazgo, qué se hace y por qué): Pedro
+  ve de un vistazo qué entró en el plan y qué no. *Origen:* auditoría de T-08 (decisión de Pedro,
+  2026-11-27). *Afecta a:* las tareas críticas hasta `revisor-plan` (T-22).
+- **Una defensa ante ediciones a mano simultáneas se pregunta, no se incorpora**: cada una suma
+  código y casos, y es Pedro quien decide si el riesgo lo merece. *Origen:* auditoría de T-08
+  (decisión de Pedro, 2026-11-27). *Afecta a:* T-19, T-23 y T-25.
+- **Si las correcciones tras `/code-review` pasan de unas 100 líneas de `src/`, se hace una segunda
+  revisión ligera** antes de la N3: tantas líneas son código nuevo sin revisar. *Origen:* auditoría
+  de T-08 (decisión de Pedro, 2026-11-27).
+- **La entrada del anexo de una tarea ocupa unas 80 líneas como mucho**: el detalle va en el
+  registro de decisiones y en el PR. *Origen:* auditoría de T-08 (decisión de Pedro, 2026-11-27).
 
 - **Los nombres de los proyectos anteriores no entran en el repo**: se citan como «el método v2»
   o «un proyecto anterior». El patrón de búsqueda no se guarda en el repo, porque haría fallar el
