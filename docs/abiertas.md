@@ -42,13 +42,6 @@ local (6.3).
 hacer observando un job real. Se cierra en **T-26**, con una herramienta de control de salida en
 modo solo registro.
 
-### ¿Cuál es la ruta REST para crear y quitar dependencias «blocked by»?
-
-**Justificación:** el método v2 solo leía las dependencias por REST; la escritura no está comprobada. Se
-cierra en **T-08**, en la documentación de GitHub y contra el repo de prueba. El único `DELETE` que
-admite el envoltorio de T-07 y las rutas del doble parten de la ruta documentada
-(`…/issues/{n}/dependencies/blocked_by/{issue_id}`): si T-08 encuentra otra, los cambia a la vez.
-
 ### ¿Qué versión de `gh` hay en las sesiones en la nube?
 
 **Justificación:** el envoltorio de T-07 solo usa opciones de `gh api` que existen desde gh 1.0.0
@@ -84,6 +77,14 @@ entra por PR, como cualquier otro cambio.
 que una carpeta `plantillas/` en la raíz (`hito-0.md` 1.3 y `diseno.md` 2.3) no llegaría a la CLI
 instalada. A los esquemas les pasaba lo mismo, y en T-05 se movieron a `src/menairos/esquemas/`
 (decisión de Pedro, 2026-11-27). Se decide en **T-09**, la primera tarea que crea plantillas.
+
+### ¿Cómo se unifican la plantilla de issue «Tarea» y el cuerpo que genera `spec publicar`?
+
+**Justificación:** desde T-08, `menairos spec publicar` genera el cuerpo de los issues de tarea
+(resumen, especificación, criterios, datos y la marca; `hito-0.md` 2.4), y
+`.github/ISSUE_TEMPLATE/tarea.md` (Objetivo, Alcance, Criterios de aceptación, Dependencias) no
+cambió, así que hoy no coinciden. Se cierra en **T-09**, que crea las plantillas de documentos y de
+issue (3.2) y las unifica.
 
 ### ¿Qué versión lleva el plugin durante el desarrollo?
 
