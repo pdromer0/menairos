@@ -255,6 +255,9 @@ class FakeGitHub:
         self.blocked_by: dict[int, list[int]] = {}
         self._failures: list[_Failure] = []
         self._ids = itertools.count(9001)
+        self._route_table = [
+            (re.compile(pattern), handlers) for pattern, handlers in self._routes()
+        ]
 
     # ── State ────────────────────────────────────────────────────────────
 
@@ -305,7 +308,23 @@ class FakeGitHub:
         milestone: int | None = None,
         pull_request: bool = False,
     ) -> dict[str, Any]:
-        """Add an issue (or a pull request) directly (no call is recorded)."""
+        """Add an issue (or a pull request) directly (no call is recorded).
+
+        Its labels and milestone must exist already (``ValueError`` if not).
+        """
+        missing = [name for name in labels if not self._has_label(name)]
+        if missing:
+            raise ValueError(
+                f"add_issue: el doble no tiene las etiquetas {missing}; créalas antes "
+                "con add_label"
+            )
+        if milestone is not None and not any(
+            m["number"] == milestone for m in self.milestones
+        ):
+            raise ValueError(
+                f"add_issue: el doble no tiene el milestone {milestone}; créalo antes "
+                "con add_milestone"
+            )
         ident = next(self._ids)
         number = len(self.issues) + 1
         kind = "pull" if pull_request else "issues"
@@ -328,8 +347,9 @@ class FakeGitHub:
 
     def add_blocked_by(self, number: int, blocking_number: int) -> None:
         """Mark issue ``number`` as blocked by ``blocking_number`` (no call)."""
-        self._issue(number)
-        self._issue(blocking_number)
+        missing = [n for n in (number, blocking_number) if n not in self.issues]
+        if missing:
+            raise ValueError(f"add_blocked_by: el doble no tiene los issues {missing}")
         self.blocked_by.setdefault(number, []).append(blocking_number)
 
     # ── Failures and queries ─────────────────────────────────────────────
@@ -417,8 +437,8 @@ class FakeGitHub:
             raise UnsupportedRoute(f"El doble no modela {call.describe()}")
         rest = call.path.removeprefix(base)
         method = call.method
-        for pattern, handlers in self._routes():
-            match = re.fullmatch(pattern, rest)
+        for pattern, handlers in self._route_table:
+            match = pattern.fullmatch(rest)
             if match and method in handlers:
                 return handlers[method](call, *match.groups())
         raise UnsupportedRoute(f"El doble no modela {call.describe()}")
@@ -495,6 +515,9 @@ class FakeGitHub:
         if state not in ("open", "closed", "all"):
             raise _Reply(422)
         return [item for item in items if state in ("all", item["state"])]
+
+    def _has_label(self, name: str) -> bool:
+        return any(label["name"].lower() == name.lower() for label in self.labels)
 
     def _label(self, name: str) -> dict[str, Any]:
         for label in self.labels:

@@ -286,6 +286,20 @@ def test_lo_que_el_doble_no_modela_falla_a_la_vista(
         _cliente(doble).request(metodo, ruta, params=params, body=cuerpo)
 
 
+def test_preparar_el_doble_con_datos_que_faltan_da_un_error_claro() -> None:
+    doble = FakeGitHub()
+    with pytest.raises(
+        ValueError, match=r"no tiene las etiquetas \['falta'\]; créalas"
+    ):
+        doble.add_issue("x", labels=["falta"])
+    with pytest.raises(ValueError, match="no tiene el milestone 3; créalo"):
+        doble.add_issue("x", milestone=3)
+    doble.add_issue("x")
+    with pytest.raises(ValueError, match=r"no tiene los issues \[2\]"):
+        doble.add_blocked_by(1, 2)
+    assert list(doble.issues) == [1]
+
+
 # ── Fallos programables ────────────────────────────────────────────────────
 
 
