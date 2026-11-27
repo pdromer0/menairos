@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# N3: comprobación completa (formato, lint, tipos y todos los tests, incluidos los slow).
+# N3: comprobación completa (formato, lint, tipos, todos los tests, incluidos los slow, y la
+# especificación del propio repo con menairos spec validar).
 # Uso: scripts/n3.sh
 set -uo pipefail
 
@@ -28,6 +29,7 @@ paso uv run --frozen ruff format --check .
 paso uv run --frozen ruff check .
 paso uv run --frozen pyright
 paso uv run --frozen pytest
+paso uv run --frozen menairos spec validar
 
 echo "Resumen N3:"
 printf '  %s\n' "${resumen[@]}"
