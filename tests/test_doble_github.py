@@ -228,7 +228,9 @@ def test_blocked_by_se_crea_con_el_id_y_no_con_el_numero() -> None:
     with pytest.raises(GitHubError) as error:
         cli.post(ruta, {"issue_id": b["number"]})
     assert error.value.status == 404
-    assert cli.post(ruta, {"issue_id": b["id"]})["number"] == b["number"]
+    # Como GitHub (verificado en T-08): 201 con el issue bloqueado, no el que bloquea.
+    respuesta = cli.request("POST", ruta, body={"issue_id": b["id"]})
+    assert (respuesta.status, respuesta.data["number"]) == (201, a["number"])
     assert [i["number"] for i in cli.get_all(ruta)] == [b["number"]]
     assert doble.blocked_by == {a["number"]: [b["number"]]}
 
@@ -247,6 +249,92 @@ def test_blocked_by_invalido_da_422(caso: str) -> None:
         _cliente(doble).post(f"{REPO}/issues/1/dependencies/blocked_by", cuerpo)
     assert error.value.status == 422
     assert doble.blocked_by == {1: [2]}
+
+
+@pytest.mark.parametrize(
+    ("caso", "texto"),
+    [
+        ("repetida", "Target issue has already been taken"),
+        ("a-si-misma", "Target issue cannot be the same as the source issue"),
+    ],
+)
+def test_el_422_de_una_dependencia_solo_trae_el_mensaje_de_github(
+    caso: str, texto: str
+) -> None:
+    """La forma del 422 que dio GitHub en T-08: un message, sin errors."""
+    doble = FakeGitHub()
+    a, b = doble.add_issue("T-01"), doble.add_issue("T-02")
+    doble.add_blocked_by(a["number"], b["number"])
+    ident = b["id"] if caso == "repetida" else a["id"]
+    with pytest.raises(GitHubError) as error:
+        _cliente(doble).post(
+            f"{REPO}/issues/1/dependencies/blocked_by", {"issue_id": ident}
+        )
+    assert "errors" not in error.value.detail
+    assert error.value.detail["message"].endswith(f"Validation failed: {texto}")
+    assert texto in error.value.message
+
+
+def test_un_bloqueante_de_otro_repo_se_lista_y_se_quita_por_su_id() -> None:
+    doble = FakeGitHub()
+    a, b = doble.add_issue("T-01"), doble.add_issue("T-02")
+    doble.add_blocked_by(a["number"], b["number"])
+    ajeno = doble.add_foreign_blocked_by(a["number"], foreign_number=b["number"])
+    cli = _cliente(doble)
+    ruta = f"{REPO}/issues/1/dependencies/blocked_by"
+    lista = cli.get_all(ruta)
+    assert [(i["number"], i["id"]) for i in lista] == [
+        (b["number"], b["id"]),
+        (b["number"], ajeno["id"]),
+    ]
+    assert ajeno["repository_url"].endswith("/repos/otro/repo")
+    cli.delete(f"{ruta}/{ajeno['id']}")
+    assert doble.foreign_blocked_by == {1: []}
+    assert doble.blocked_by == {1: [2]}
+    with pytest.raises(GitHubError) as error:
+        cli.post(ruta, {"issue_id": ajeno["id"]})
+    assert error.value.status == 404
+
+
+@pytest.mark.parametrize(
+    ("ruta", "cuerpo"),
+    [
+        ("labels", {"name": "a" * 51}),
+        ("labels", {"name": "a", "description": "d" * 101}),
+        ("issues", {"title": "t" * 257}),
+        ("issues", {"title": "t", "body": "b" * 65537}),
+        ("issues/1", {"title": "t" * 257}),
+        ("issues/1", {"body": "b" * 65537}),
+    ],
+    ids=[
+        "etiqueta-larga",
+        "descripcion-larga",
+        "titulo-largo",
+        "cuerpo-largo",
+        "patch-titulo",
+        "patch-cuerpo",
+    ],
+)
+def test_los_limites_de_longitud_de_github_dan_422(
+    ruta: str, cuerpo: dict[str, object]
+) -> None:
+    doble = FakeGitHub()
+    doble.add_issue("x")
+    metodo = "PATCH" if ruta == "issues/1" else "POST"
+    with pytest.raises(GitHubError) as error:
+        _cliente(doble).request(metodo, f"{REPO}/{ruta}", body=cuerpo)
+    assert error.value.status == 422
+    assert [label["name"] for label in doble.labels] == []
+    assert doble.issues[1]["title"] == "x"
+
+
+def test_los_limites_exactos_se_aceptan() -> None:
+    doble = FakeGitHub()
+    cli = _cliente(doble)
+    cli.post(f"{REPO}/labels", {"name": "a" * 50, "description": "d" * 100})
+    cli.post(f"{REPO}/issues", {"title": "t" * 256, "body": "b" * 65536})
+    assert len(doble.labels) == 1
+    assert len(doble.issues) == 1
 
 
 def test_quitar_un_blocked_by_con_el_unico_delete_permitido() -> None:
