@@ -1,0 +1,14 @@
+# Tareas del hito {{hito.numero}}. Formato: tareas.schema.json; lo comprueba `menairos spec validar`.
+hito: {{hito.numero}}
+titulo: "{{hito.titulo}}"
+tareas: []
+# Tarea de ejemplo: cambia «tareas: []» por «tareas:» y añade cada tarea con esta forma.
+# Opcionales: critica (con motivo_critica), donde, quien y modo.
+#  - id: T-01
+#    titulo: "Primera tarea del hito"
+#    rama: feat/h{{hito.numero}}-primera-tarea
+#    depende_de: []
+#    area: general
+#    especificacion: ["hito-{{hito.numero}}.md#objetivo"]
+#    criterios_aceptacion:
+#      - "Un criterio que se pueda comprobar"
