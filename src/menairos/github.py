@@ -56,6 +56,12 @@ _LINK = re.compile(r'<([^>]*)>\s*;\s*rel="([^"]*)"')
 _COLON_PLACEHOLDER = re.compile(r":(?:owner|repo|branch)\b", re.ASCII)
 API_ROOT = "https://api.github.com/"
 
+PROGRAM = "gh"
+"""The GitHub CLI. Only this module names it (a test checks it); ``menairos
+entorno`` checks its version and its session with these constants."""
+AUTH_STATUS: tuple[str, ...] = (PROGRAM, "auth", "status")
+AUTH_LOGIN = f"{PROGRAM} auth login"
+
 
 class GitHubError(Exception):
     """A call to GitHub failed; ``status`` is ``None`` if there was no HTTP answer."""
@@ -152,7 +158,7 @@ class GhCli:
     def argv(self, request: Request) -> list[str]:
         """Command line for a request (the body goes through stdin)."""
         argv = [
-            "gh",
+            PROGRAM,
             "api",
             "--method",
             request.method,
