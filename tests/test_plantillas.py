@@ -414,6 +414,25 @@ def test_un_texto_con_saltos_de_linea_es_un_error(valor: str) -> None:
     assert "saltos de línea" in problema
 
 
+@pytest.mark.parametrize(
+    "codigo", [0x00, 0x09, 0x1B, 0x7F, 0x9F, 0xD800, 0xFFFE, 0xFFFF]
+)
+def test_un_texto_con_caracteres_de_control_es_un_error(codigo: int) -> None:
+    """YAML no los admite ni escapados como los deja JSON (\\x7f, \\x9f…)."""
+    valores = _valores(hito__titulo=f"a{chr(codigo)}b")
+    for opciones in ({}, {"yaml": True}):
+        [problema] = _error('"{{hito.titulo}}"', valores, **opciones)
+        assert "caracteres de control" in problema
+
+
+def test_en_yaml_un_texto_fuera_de_comillas_es_un_error() -> None:
+    valores = _valores(hito__numero="1 # x")
+    for texto in ("hito: {{hito.numero}}", 'hito: "{{hito.numero}}', "# {{tarea.id}}"):
+        [problema] = _error(texto, valores, yaml=True)
+        assert "entre comillas dobles" in problema
+    assert fill("hito: {{hito.numero}}", _valores(), yaml=True) == "hito: 1"
+
+
 def test_salen_todos_los_problemas_con_su_linea_y_su_plantilla() -> None:
     texto = "{{proyecto.nombre}}\n{{nada}}\n\n{{ mal }}\n{{stack.plantillas}}\n"
     with pytest.raises(TemplateError) as error:

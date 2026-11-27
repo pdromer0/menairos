@@ -1,4 +1,4 @@
-# Registro de decisiones de {{tarea.id}}. Formato: decisiones.schema.json.
+# Registro de decisiones de una tarea. Formato: decisiones.schema.json.
 # Lo que está en el plan aprobado va con decidido_por: pedro; lo que el agente decidió durante la
 # implementación sin estar en el plan, con decidido_por: agente.
 tarea: "{{tarea.id}}"

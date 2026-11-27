@@ -10,21 +10,23 @@ Substitution has no logic and no dependencies:
 * the values come from ``menairos.toml`` (validated, with its defaults applied
   and flattened to dotted keys such as ``proyecto.nombre``) and from the few
   keys the caller passes (:data:`CALLER_KEYS`);
-* a value is a non-blank text without line breaks or an integer (not a
-  boolean); a table or a list is an error;
+* a value is a non-blank text without line breaks or control characters, or
+  an integer (not a boolean); a table or a list is an error;
 * a hole that is badly written, whose key does not exist or that the caller
   did not fill is an error; every problem of a template is reported at once;
 * ``\\{{`` writes a literal ``{{`` (as in Handlebars). The backslash has no
   escape of its own: a backslash right before a hole cannot be written;
 * the text is scanned once, so a value that contains ``{{…}}`` stays as is;
-* in a YAML template the template writes the double quotes around a text
-  hole and the text is escaped as inside them (its JSON without the quotes).
+* in a YAML template a text only goes in a hole the template writes between
+  double quotes (``"{{clave}}"``), and is escaped as inside them (its JSON
+  without the quotes); anywhere else, only an integer.
 
 Messages are in Spanish, because they are shown to the user.
 """
 
 import json
 import re
+import unicodedata
 from collections.abc import Mapping
 from importlib.resources import files
 from typing import Any
@@ -68,7 +70,8 @@ CALLER_KEYS: frozenset[str] = frozenset(
 _DOCS_DIR = files("menairos") / "plantillas" / "docs"
 _KEY = r"[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*"
 _HOLE = re.compile(rf"\{{\{{({_KEY})\}}\}}")
-_NOT_BLANK = re.compile(r"[^\s\uFEFF]")
+_NOT_BLANK = re.compile(r"[^\s\uFEFF]")  # the rule of schemas._NOT_BLANK
+_NONCHARACTERS = (chr(0xFFFE), chr(0xFFFF))
 _KINDS = {dict: "una tabla", list: "una lista", bool: "un booleano"}
 
 
@@ -130,16 +133,18 @@ def fill(
 ) -> str:
     """``text`` with every ``{{clave}}`` replaced by its value, in one pass.
 
-    ``yaml`` escapes the texts as inside YAML double quotes. ``name`` is the
-    template's, for the messages. Raises :class:`TemplateError` with every
-    problem found.
+    With ``yaml``, a text only goes in a hole written between double quotes
+    (``"{{clave}}"``) and is escaped as inside them; anywhere else, only an
+    integer. ``name`` is the template's, for the messages. Raises
+    :class:`TemplateError` with every problem found.
     """
     where = f"«{name}», " if name else ""
     out: list[str] = []
     problems: list[str] = []
     start = 0
+    line = 1
     while (at := text.find("{{", start)) != -1:
-        line = text.count("\n", 0, at) + 1
+        line += text.count("\n", start, at)
         if at > 0 and text[at - 1] == "\\":
             out += [text[start : at - 1], "{{"]
             start = at + 2
@@ -156,23 +161,12 @@ def fill(
             out.append("{{")
             start = at + 2
             continue
-        key = hole[1]
         start = hole.end()
-        if key not in values:
-            if key in CALLER_KEYS:
-                problem = f"hueco sin rellenar: «{key}» lo tiene que pasar quien llama"
-            else:
-                problem = (
-                    f"la clave «{key}» no existe: no es de menairos.toml ni de las "
-                    "que pasa quien llama"
-                )
-            problems.append(f"{where}línea {line}: {problem}")
-            continue
-        shown_value = _shown(key, values[key], yaml=yaml)
-        if shown_value.problem:
-            problems.append(f"{where}línea {line}: {shown_value.problem}")
-        else:
-            out.append(shown_value.text)
+        quoted = text[at - 1 : at] == '"' and text[start : start + 1] == '"'
+        try:
+            out.append(_shown(hole[1], values, yaml=yaml, quoted=quoted))
+        except _BadValue as error:
+            problems.append(f"{where}línea {line}: {error}")
     out.append(text[start:])
     if problems:
         raise TemplateError(problems)
@@ -184,26 +178,49 @@ def render(name: str, values: Mapping[str, object]) -> str:
     return fill(read(name), values, yaml=name.endswith((".yaml", ".yml")), name=name)
 
 
-class _Shown:
-    """A value as written in the template, or why it cannot be."""
-
-    def __init__(self, text: str = "", problem: str = "") -> None:
-        self.text = text
-        self.problem = problem
+class _BadValue(Exception):
+    """Why a hole cannot be filled; the message is in Spanish."""
 
 
-def _shown(key: str, value: object, *, yaml: bool) -> _Shown:
+def _shown(key: str, values: Mapping[str, object], *, yaml: bool, quoted: bool) -> str:
+    """The value of ``key`` as written in the template."""
+    if key not in values:
+        if key in CALLER_KEYS:
+            raise _BadValue(
+                f"hueco sin rellenar: «{key}» lo tiene que pasar quien llama"
+            )
+        raise _BadValue(
+            f"la clave «{key}» no existe: no es de menairos.toml ni de las que pasa "
+            "quien llama"
+        )
+    value = values[key]
     if isinstance(value, bool) or not isinstance(value, str | int):
         kind = _KINDS.get(type(value), f"de tipo {type(value).__name__}")
-        return _Shown(problem=f"«{key}» no es un texto ni un entero: es {kind}")
+        raise _BadValue(f"«{key}» no es un texto ni un entero: es {kind}")
     if isinstance(value, int):
-        return _Shown(str(value))
+        return str(value)
+    shown = json.dumps(value, ensure_ascii=False)
     if not _NOT_BLANK.search(value):
-        return _Shown(problem=f"«{key}» está vacío o solo tiene espacios")
+        raise _BadValue(f"«{key}» está vacío o solo tiene espacios")
     if value.splitlines() != [value]:
-        shown = json.dumps(value, ensure_ascii=False)
-        return _Shown(problem=f"«{key}» tiene saltos de línea: {shown}")
-    return _Shown(json.dumps(value, ensure_ascii=False)[1:-1] if yaml else value)
+        raise _BadValue(f"«{key}» tiene saltos de línea: {shown}")
+    if any(_is_control(char) for char in value):
+        raise _BadValue(f"«{key}» tiene caracteres de control: {ascii(value)}")
+    if yaml and not quoted:
+        raise _BadValue(
+            f"«{key}» es un texto y en una plantilla YAML un texto solo va en un "
+            'hueco entre comillas dobles ("{{clave}}")'
+        )
+    return shown[1:-1] if yaml else value
+
+
+def _is_control(char: str) -> bool:
+    """Control characters, lone surrogates and the two last noncharacters.
+
+    YAML rejects them even escaped as JSON leaves them; they have no place in
+    a document either. The tab is a control character too.
+    """
+    return unicodedata.category(char) in ("Cc", "Cs") or char in _NONCHARACTERS
 
 
 def _flatten(value: object, prefix: str, out: dict[str, object]) -> None:

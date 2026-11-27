@@ -5,8 +5,8 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-yaml
-        # Las plantillas YAML solo son YAML una vez rellenas: las comprueban los tests.
-        exclude: ^src/menairos/plantillas/
+        # Esta plantilla solo es YAML una vez rellena (hito: {{hito.numero}}): la comprueban los tests.
+        exclude: ^src/menairos/plantillas/docs/hito-N\.tareas\.yaml$
       - id: check-toml
 
   - repo: https://github.com/gitleaks/gitleaks
