@@ -2659,3 +2659,84 @@ Las ocho del plan fallan en su test:
   y E11 como punto. Las plantillas evitan esas líneas en sus comentarios; arreglarlo en
   `markdown.parse` cambia E10 y E11, y queda para una tarea de `spec validar` (por ejemplo T-18).
 - No se migran los documentos del propio Menairos a las plantillas (decisión del encargo).
+
+### T-10 — Plantillas base y python-uv, manifiesto y composición
+
+*Hecha el 2026-11-27, en local (WSL2), con Claude Code (Opus 5.5, modo plan y después auto), a
+partir del issue #18 y de un encargo del chat. Tarea crítica: plan revisado a la contra por un
+subagente (15 hallazgos, criba en el plan) y en el chat; Pedro aprobó P1–P8 con la recomendación
+y añadió la prueba de faltas de la N3 de Menairos.*
+
+**Qué se hizo**
+
+- `base` y `python-uv` en `src/menairos/plantillas/stacks/`: `plantilla.toml` (validado por
+  `esquemas/plantilla.schema.json`) y ficheros con el sufijo `.plantilla`.
+- `menairos.stacks`: carga y ordena las plantillas (`requiere` y `stack.plantillas`), compone en
+  memoria con cuatro reglas de fusión (`.gitignore`, pre-commit, CI con marcador y `AGENTS.md`),
+  genera `.claude/settings.json` y `scripts/stack/plantillas.txt`, y da el `Contract`.
+- Scripts del contrato: `n1.sh` reparte las rutas de tests por propiedad, `n2.sh` sella con la
+  huella del árbol (índice temporal y `git write-tree`) y `n3.sh` ejecuta las partes de cada
+  plantilla. Menairos los usa ya.
+- E13 en `spec validar`. §3.3 reescrita; 1.3, 2.3, 2.5 y 5.5, `diseno.md` 2.3, 5 y 6,
+  `AGENTS.md` y un punto nuevo en `abiertas.md`.
+
+**Decisiones del diff** (registro: `hito-0/decisiones/T-10.yaml`, de T-10-D1 a D13)
+
+- D1: Menairos adopta los scripts compuestos; la equivalencia admite dos diferencias. D2: la N3
+  generada no valida la especificación. D3: el contrato sirve para varias tecnologías. D4: los
+  ajustes, iguales en los tres modos en el H0.
+- D5–D11: solo `base` es un error, gitleaks v8.30.1, CI fusionable, el sufijo, `{{paquete}}`, las
+  rutas de tests y E13 por lista. D12 (agente): `if`/`then`/`else` en el esquema. D13 (agente):
+  los mensajes de las comprobaciones.
+
+**Medidas**
+
+- Versiones (2026-11-27, PyPI, `git ls-remote` y `--version`): ruff 0.17.6, pyright 1.1.414,
+  pytest 9.2.0, pytest-timeout 2.4.0, pre-commit 4.7.0, uv 0.13.10, pre-commit-hooks v6.0.0 y
+  gitleaks v8.30.1 (la única nueva). Las acciones conservan los SHA de T-02.
+- `stacks.py` tiene 767 líneas. Hay 154 tests nuevos (111 de composición y contrato, 41 de los
+  scripts y 2 lentos); el del proyecto generado tarda unos 5 s con la caché de uv.
+- Mensajes comprobados provocando cada falta en un proyecto generado:
+
+  | Falta | Mensaje |
+  | --- | --- |
+  | Formato | `hook id: ruff-format` |
+  | Tipos | `hook id: pyright` |
+  | Clave `ghp_` inventada | `leaks found` (`github-pat`) |
+  | Test que falla | `1 failed` |
+- **La N3 nueva de Menairos no da un verde falso** (añadido de Pedro). Una falta de cada tipo en
+  el repo, deshecha después, y en todas `scripts/n3.sh` salió con 1 y nombró el paso:
+
+  | Falta | Paso que falló |
+  | --- | --- |
+  | Mal formato | `ruff format --check`, con el fichero |
+  | Error de tipos | `pyright`, con la línea |
+  | Test que falla | `pytest`, con el test |
+  | Punto sin justificación | `spec` (E11) y `pytest`, por `test_el_propio_repo_valida` |
+
+**Versiones incorrectas**
+
+Las 22 del plan fallan en su test; un script aplica cada una, ejecuta su test y la deshace.
+Entre ellas: la N1 que para en la primera parte, el `GIT_INDEX_FILE` solo en `git add`, el
+marcador que queda, una línea más en un script de Menairos y un fichero oculto fuera del wheel.
+
+**Revisión**
+
+- **`/code-review` (alto):** 10 hallazgos. Se corrigieron 6:
+  - un nombre propio en el `CLAUDE.md` de `base`;
+  - las rutas relativas, que por un enlace simbólico salían del repo (reproducido, con test);
+  - toda plantilla de lenguaje requiere `base`;
+  - `plantillas.txt` sin una plantilla del stack es un error;
+  - dos limpiezas.
+
+  No se corrigieron 4: `git push *` permitido (decisión de T-02, y el ruleset es la primera
+  barrera); bash 4 y el `realpath` de GNU (el entorno es WSL2 o Linux); `--frozen` sin `uv.lock`
+  (el `uv sync` es de T-11); y `contract()` relee las plantillas en cada llamada (milisegundos).
+  Menos de 100 líneas de `src/`, sin segunda revisión.
+
+**Pendiente**
+
+- T-11: escribir sin sobrescribir, con el bit de ejecución, y `uv sync` antes del primer commit.
+  T-13: provocar las comprobaciones por `salta`. T-20: `Stop` lanza `scripts/n2.sh` y
+  `PostToolUse` usa `Contract.format_command`. T-22: la orden de `tests_commands`.
+- **Para Pedro:** los scripts necesitan bash 4 y el `realpath` de GNU: no van en un macOS de serie.
