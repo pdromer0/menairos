@@ -160,6 +160,12 @@ def test_el_entorno_de_los_programas_no_lleva_otro_repo_ni_otro_venv() -> None:
     }
 
 
+def test_git_habla_en_ingles_para_que_se_lean_sus_mensajes() -> None:
+    padre = {"LANG": "es_ES.UTF-8", "LANGUAGE": "es"}
+    assert core.environment_for_children(padre, "git")["LC_ALL"] == "C"
+    assert "LC_ALL" not in core.environment_for_children(padre, "uv")
+
+
 def test_la_raiz_del_json_es_la_ruta_real(
     doble_sistema: FakeSystem,
     capsys: pytest.CaptureFixture[str],

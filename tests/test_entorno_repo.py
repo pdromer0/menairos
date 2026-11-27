@@ -5,6 +5,7 @@ máquina; uv y pre-commit son del doble, que simula lo que escriben.
 """
 
 import os
+import shlex
 from collections.abc import Sequence
 from importlib.resources.abc import Traversable
 from pathlib import Path
@@ -372,18 +373,23 @@ def test_core_hooks_path_es_manual(tmp_path: Path) -> None:
     _git(sistema, raiz, "init", "-q", "-b", "main")
     _git(sistema, raiz, "config", "core.hooksPath", "otros-hooks")
     pre = paso(_repo(sistema, raiz), "repo", "pre-commit")
-    orden = "git config --local --unset-all core.hooksPath"
+    orden = "git config --file .git/config --unset-all core.hooksPath"
     assert (pre.state, pre.order) == ("manual", orden)
+    _git(sistema, raiz, *shlex.split(orden)[1:])
+    assert paso(_repo(sistema, raiz), "repo", "pre-commit").state == "hecho"
 
 
 def test_core_hooks_path_global_pide_quitarlo_de_la_global(tmp_path: Path) -> None:
     sistema = preparado(tmp_path)
     with sistema.git_config.open("a", encoding="utf-8") as config:
         config.write("[core]\n\thooksPath = /otros/hooks\n")
-    pre = paso(_repo(sistema, proyecto(sistema)), "repo", "pre-commit")
-    orden = "git config --global --unset-all core.hooksPath"
+    raiz = proyecto(sistema)
+    pre = paso(_repo(sistema, raiz), "repo", "pre-commit")
+    orden = f"git config --file {sistema.git_config} --unset-all core.hooksPath"
     assert (pre.state, pre.order) == ("manual", orden)
     assert "configuración global" in pre.detail
+    _git(sistema, raiz, *shlex.split(orden)[1:])
+    assert paso(_repo(sistema, raiz), "repo", "pre-commit").state == "hecho"
 
 
 def test_un_hook_ajeno_es_manual_y_no_se_toca(tmp_path: Path) -> None:

@@ -152,7 +152,7 @@ class RealSystem:
     def run(
         self, argv: Sequence[str], cwd: Path | None = None, timeout: float = 120
     ) -> Result:
-        env = environment_for_children(os.environ)
+        env = environment_for_children(os.environ, Path(argv[0]).name)
         try:
             done = subprocess.run(
                 list(argv),
@@ -186,13 +186,21 @@ class RealSystem:
         return "microsoft" in release.lower()
 
 
-def environment_for_children(parent: Mapping[str, str]) -> dict[str, str]:
-    """The environment of the programs: no outer venv nor outer repo, and gh quiet."""
+def environment_for_children(
+    parent: Mapping[str, str], program: str = ""
+) -> dict[str, str]:
+    """The environment of a program: no outer venv nor outer repo, and gh quiet.
+
+    git also gets ``LC_ALL=C``: its messages, which the repo layer reads (``not
+    a git repository``), are then in English whatever the user's language.
+    """
     env = {
         key: value
         for key, value in parent.items()
         if key != "VIRTUAL_ENV" and key not in GIT_LOCATION
     }
+    if program == "git":
+        env["LC_ALL"] = "C"
     return env | dict(github.GH_ENV)
 
 

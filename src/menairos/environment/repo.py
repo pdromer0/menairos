@@ -8,6 +8,7 @@ python-uv) and makes the first commit of a new repo, on ``main``, without a
 push. The layer stops at its first step that is not ``ok`` or ``hecho``.
 """
 
+import shlex
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import partial
@@ -16,7 +17,15 @@ from pathlib import Path
 from typing import Any
 
 from menairos import stacks
-from menairos.environment.core import GREEN, Layer, Result, Step, System, maker
+from menairos.environment.core import (
+    GREEN,
+    Layer,
+    Result,
+    Step,
+    StepMaker,
+    System,
+    maker,
+)
 from menairos.schemas import apply_defaults
 
 LAYER = "repo"
@@ -156,11 +165,13 @@ def templates_step(
                 conflicts.append(f"{path}: {problem}")
             else:
                 written.append(path)
-        for path in list(modes):
+        new_scripts = [p for p in written if repo.composed[p].executable]
+        for path in modes + new_scripts:
             try:
                 add_exec_bit(repo.root / path)
             except OSError as error:
-                modes.remove(path)
+                if path in modes:
+                    modes.remove(path)
                 conflicts.append(f"{path}: no se puede poner el bit: {error.strerror}")
         repo.written += written + modes
     new_key, new = ("faltan", missing) if repo.check_only else ("escritos", written)
@@ -230,8 +241,6 @@ def write_new(root: Path, path: str, wanted: stacks.StackFile) -> str | None:
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("xb") as handle:
             handle.write(wanted.text.encode("utf-8"))
-        if wanted.executable:
-            add_exec_bit(target)
     except FileExistsError:
         return "apareció mientras se escribía"
     except OSError as error:
@@ -274,19 +283,11 @@ def pre_commit_step(repo: Repo) -> Step:
     """git's pre-commit hook, installed by pre-commit."""
     make = maker(LAYER, "pre-commit")
     install = " ".join(PRE_COMMIT_INSTALL)
-    scope, _, hooks_path = (
-        repo.git("config", "--show-scope", "--get", "core.hooksPath")
-        .out.strip()
-        .partition("\t")
-    )
-    if hooks_path:
-        detail = (
-            f"core.hooksPath vale «{hooks_path}» (configuración {scope}), y pre-commit "
-            "no instala así"
-        )
-        return make(
-            "manual", detail, f"git config --{scope} --unset-all core.hooksPath"
-        )
+    found = repo.git(
+        "config", "--show-scope", "--show-origin", "--get", "core.hooksPath"
+    ).out.strip()
+    if found:
+        return hooks_path_step(make, found)
     where = repo.git("rev-parse", "--git-path", "hooks")
     if where.code != 0:
         return make("error", f"git no da su carpeta de hooks: {where.tail()}")
@@ -315,6 +316,26 @@ def pre_commit_step(repo: Repo) -> Step:
     if not installed():
         return make("error", "tras pre-commit install, el hook no está")
     return make("hecho", "hook instalado")
+
+
+def hooks_path_step(make: StepMaker, found: str) -> Step:
+    """``core.hooksPath`` is set: the order unsets it in the file that sets it.
+
+    ``found`` is ``scope<TAB>origin<TAB>value``, as ``git config --show-scope
+    --show-origin`` prints it; a value from ``-c`` has no file to edit.
+    """
+    scope, origin, value = (found.split("\t", 2) + ["", ""])[:3]
+    detail = (
+        f"core.hooksPath vale «{value}» (configuración {scope}), y pre-commit no "
+        "instala así"
+    )
+    if not origin.startswith("file:"):
+        return make("manual", f"{detail}; viene de {origin}")
+    sudo = "sudo " if scope == "system" else ""
+    file = shlex.quote(origin.removeprefix("file:"))
+    return make(
+        "manual", detail, f"{sudo}git config --file {file} --unset-all core.hooksPath"
+    )
 
 
 PREPARE: Mapping[str, Sequence[tuple[str, Callable[[Repo], Step]]]] = {
