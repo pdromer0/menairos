@@ -98,6 +98,14 @@ CI puede instalarla como el script de la nube, o en **T-28**, con `v3.0.0`.
 de cualquiera de ellas podría romper la CLI instalada; en ese caso, se ponen cotas superiores a
 jsonschema y PyYAML. Se verifica en **T-22**, cuando el plugin empiece a usar la CLI instalada.
 
+### ¿Deben ir los scripts del contrato en un macOS de serie?
+
+**Justificación:** `scripts/n1.sh`, `n2.sh` y `n3.sh` (y sus partes) necesitan bash 4 y el
+`realpath` de GNU; un macOS de serie trae bash 3.2 y el `realpath` de BSD, así que no van ahí. El
+entorno de trabajo es WSL2 o Linux (ver «Supuestos»), y la capa local de `menairos entorno` no lo
+comprueba. Se decide cuando un proyecto lo necesite: o se reescriben en POSIX `sh`, o la capa local
+pide bash 4 y coreutils. *Origen:* revisión de T-10; anotado en T-11.
+
 ## Producto
 
 ### ¿Cuál es el producto piloto?

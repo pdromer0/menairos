@@ -806,8 +806,8 @@ instrucciones) o `error`.
 
 | Capa | Qué comprueba y hace |
 | --- | --- |
-| **local** | Herramientas del manifiesto y sus versiones (`git`, `gh` con sesión, `uv`, `claude`; `codex` y `docker` si hacen falta); el repo bajo `~/proyectos/` y nunca en `/mnt/c`; `.wslconfig` con memoria y swap (solo aviso); `pre-commit install` |
-| **repo** | Aplica las plantillas; `uv sync`; primer commit en `main` si el repo es nuevo |
+| **local** | Herramientas del manifiesto y sus versiones (`git`, `gh` con sesión, `uv`, `claude`; `codex` si algún revisor de `menairos.toml` es Codex, y `docker` si una plantilla lo pide); el repo bajo `~/proyectos/` (si no, aviso) y nunca en una unidad de Windows (`/mnt/<letra>/`); `.wslconfig` con memoria y swap (solo aviso). Solo lee |
+| **repo** | Aplica las plantillas sin sobrescribir; lo que necesita cada plantilla de lenguaje (en python-uv, `uv sync` y `pre-commit install`); primer commit en `main` si el repo es nuevo, con todo lo que no ignora el `.gitignore` y sin push |
 | **github** | Crea el repo con la visibilidad de `menairos.toml` (con `--source --push`); ruleset de `main` (solo en público o con GitHub Pro; si no, aviso); escaneo de secretos y protección de push; Dependabot; informe privado de vulnerabilidades; fusión solo por *squash*; borrar la rama al fusionar; auto-merge permitido; etiquetas (las mismas de `spec publicar`) |
 | **nube** | Genera `scripts/entorno-nube.sh` (instala la CLI de Menairos y el plugin de Menairos fijados a la versión —`claude plugin marketplace add` y `claude plugin install`, comprobado en T-04—, `uv sync`, comprueba `gh`, amplía el tiempo máximo de los comandos para la N3) y las instrucciones para pegarlo en el entorno de la nube de Claude Code y de Codex |
 
@@ -821,6 +821,11 @@ Decisiones de comportamiento:
   `/preparar-entorno` con Pedro.
 - **`menairos.toml` lo crea `/crear-spec`**, porque es donde se decide el stack.
   `/preparar-entorno` lo necesita y para si no existe.
+- **Una capa para en su primer paso que no queda en `ok` o `hecho`**, y lista los que no
+  ejecutó. Sin capa, la de repo solo se ejecuta si la local queda en verde. Con conflictos, no hay
+  `uv sync`, ni `pre-commit install`, ni primer commit (decisiones de Pedro, T-11).
+- **Salida:** `0` si todo queda en `ok` o `hecho`; `1` si hay algún `manual` o `error`; `2` si no
+  se puede ejecutar (sin `menairos.toml`, o con uno no válido). Un aviso no cambia el estado.
 
 **Pasos manuales de Pedro**, al final y en una lista: crear la GitHub App `menairos-agente` e
 instalarla (en H0 solo se deja preparado; se usa en H1); CodeQL; la aprobación de los PR de forks;
@@ -829,7 +834,8 @@ anexo.
 
 **`--comprobar`** no escribe nada: verifica por la API todo lo que se puede verificar (también lo
 que Pedro hizo en la web) y marca como `manual` lo que no tiene API (el entorno de la nube), con
-lo que hay que mirar.
+lo que hay que mirar. En las capas local y repo, lo que la orden haría también sale como `manual`,
+con la orden exacta (`menairos entorno repo`).
 
 ### 3.5 `/preparar-entorno`
 
@@ -2740,3 +2746,82 @@ marcador que queda, una línea más en un script de Menairos y un fichero oculto
   T-13: provocar las comprobaciones por `salta`. T-20: `Stop` lanza `scripts/n2.sh` y
   `PostToolUse` usa `Contract.format_command`. T-22: la orden de `tests_commands`.
 - **Para Pedro:** los scripts necesitan bash 4 y el `realpath` de GNU: no van en un macOS de serie.
+
+### T-11 — `menairos entorno`: capas local y repo
+
+*Hecha el 2026-11-27, en local (WSL2), con Claude Code (Opus 5.5, modo plan y después auto), a
+partir del issue #19 y de un encargo del chat. Tarea delicada, no crítica: plan corto, sin revisión
+a la contra; Pedro aprobó P1–P6 con la recomendación.*
+
+**Qué se hizo**
+
+- `menairos.environment` (paquete: `core`, `local` y `repo`): pasos con los cuatro estados de 3.4,
+  el informe por capas y el protocolo `System`, que los tests sustituyen por un doble.
+- **Capa local**, que solo lee: ruta, herramientas y versiones de los manifiestos, sesión de `gh`,
+  `codex` si algún revisor lo es y `.wslconfig`.
+- **Capa repo**: la composición de T-10 sin sobrescribir nunca, `git init -b main`, `uv sync`,
+  `pre-commit install` y el primer commit, sin push. Para en el primer paso que no queda en verde.
+- `menairos entorno [local|repo] [--comprobar] [--json] [--raiz RUTA]`. §3.4 corregida y un punto
+  nuevo en `abiertas.md` (bash 4 y el `realpath` de GNU).
+
+**Decisiones del diff** (registro: `hito-0/decisiones/T-11.yaml`, de T-11-D1 a D10)
+
+- D1: lo que prepara cada plantilla de lenguaje va en una tabla del código. D2: `pre-commit
+  install`, en la capa repo. D3: el primer commit lleva todo (`git add -A`), y nunca con
+  conflictos. D4: con `--comprobar`, lo que se haría es `manual`. D5: sin capa, repo solo tras una
+  local en verde. D6: cualquier `/mnt/<letra>/`. D7: lo que interpreta el plan.
+- D8 (agente): un paquete en vez de un módulo de 880 líneas. D9 (agente): el bit que falta se pone;
+  un enlace en el camino es un conflicto; la identidad, con `git var`. D10 (agente): git con
+  `LC_ALL=C` y la orden de `core.hooksPath` con `--show-origin`.
+
+**Medidas**
+
+- `environment` tiene 931 líneas en cuatro ficheros. Hay 90 tests nuevos (42 de local, 33 de repo
+  y 15 de la CLI); git es el real en `tmp_path`, sin la configuración de la máquina.
+- Comprobado con las herramientas: `uv sync --check` no escribe; con un `uv.lock` desfasado,
+  `--check --locked` sale con 1 y `uv sync --locked` falla sin tocarlo (`uv lock --check` lo
+  distingue). `pre-commit install` no instala con `core.hooksPath`, y su hook lleva la marca
+  `# File generated by pre-commit`. `git var` sin identidad sale con 128.
+- **Prueba real** (una vez, en esta máquina):
+
+  | Orden | Resultado | Tiempo |
+  | --- | --- | --- |
+  | `entorno local` en Menairos | todo `ok`, también `.wslconfig` | 1,8 s |
+  | `entorno repo` en un proyecto nuevo en `/tmp` | 5 pasos `hecho`: 17 ficheros, `uv.lock`, hook y un commit de 19 ficheros, sin remoto | 5,4 s |
+  | `scripts/n3.sh` del proyecto nuevo | verde: formato, lint, tipos y tests | 2,9 s |
+  | `entorno repo` otra vez | los 5 pasos, `ok` | 0,2 s |
+  | `entorno --comprobar` en Menairos | 10 conflictos listados, nada escrito | — |
+
+  El primer commit tardó poco porque gitleaks ya estaba compilado en la caché de pre-commit.
+
+**Versiones incorrectas**
+
+Las 18 del plan (la 13, en sus dos sentidos) fallan en su test; un script aplica cada una, ejecuta
+su test y la deshace. Entre ellas: escribir sobre un fichero distinto, un `git init` con
+`--comprobar`, versiones comparadas como texto, `3.140` por `3.14`, solo `/mnt/c`, un commit con
+conflictos o con historia, un push, un enlace seguido y la barrera quitada.
+
+**Revisión**
+
+- **`/code-review` (alto):** 10 hallazgos. Se corrigieron 9:
+  - la orden de `core.hooksPath` no quitaba un valor global;
+  - un `--version` que falla daba `ok` sin versión mínima;
+  - un fallo de `rev-parse` que no es «no es un repo» llevaba a `git init`;
+  - `RealSystem` pasaba `GIT_DIR` y compañía;
+  - `%USERPROFILE%` en la página de códigos OEM;
+  - un `OSError` salía como traceback;
+  - `python` sin uv era `error`;
+  - la raíz del JSON no estaba resuelta;
+  - el entorno de gh, en dos copias.
+
+  No se corrigió uno: `stacks.resolve` corre tres veces (milisegundos).
+- **Segunda revisión ligera** (unas 100 líneas de `src/`): con git en español, «not a git
+  repository» no casaba y un proyecto nuevo no arrancaba. Se corrigió con `LC_ALL=C` en los git,
+  junto con la orden exacta de `core.hooksPath` (`--show-origin`) y el aviso del bit. Tras las
+  correcciones, la prueba real se repitió en una carpeta nueva y quedó igual de verde.
+
+**Pendiente**
+
+- T-12: las capas github y nube sobre los mismos pasos; el «repo existe en GitHub pero no en local,
+  y al revés» de 3.7. T-14: `/preparar-entorno` lee `--json` y resuelve los conflictos con Pedro.
+- Cuando llegue una segunda plantilla de lenguaje, la tabla de D1 pasa al manifiesto.
