@@ -493,40 +493,54 @@ Lo que hace, en este orden:
      - los enlaces a las secciones de la especificación, en `main`;
      - los criterios de aceptación, como casillas;
      - la rama;
-     - las dependencias (`T-xx · título`);
+     - las dependencias, solo por id (`T-06, T-07`): con el título, renombrar una tarea
+       reescribiría el cuerpo de todas las que dependen de ella, y perderían sus casillas
+       marcadas. La relación «blocked by» ya enseña los títulos;
      - si necesita el portátil;
      - quién la hace;
      - el modo;
    - etiquetas `tipo:tarea`, `critica` si lo es, `area:*` y `modo:*` si la tarea fija modo;
    - una marca oculta en la última línea del cuerpo,
-     `<!-- menairos:tarea=T-01 hito=0 huella=<título>.<cuerpo>.<etiquetas> -->`, que es lo que
-     usa la idempotencia (no el título, que Pedro puede cambiar).
+     `<!-- menairos:tarea=T-01 hito=0 modo=didactico huella=<título>.<cuerpo>.<etiquetas> -->`,
+     que es lo que usa la idempotencia (no el título, que Pedro puede cambiar):
+     - `modo=` dice qué `modo:*` es de publicar: el de la tarea, si el issue lo lleva una vez
+       publicado;
+     - va sin `modo=` si la tarea no fija modo o si el issue no lo lleva (tiene otro puesto a
+       mano, o Pedro lo quitó);
+     - es lo único que mira el issue: el título, el cuerpo y la huella solo dependen del YAML y
+       de `proyecto.repo`.
 4. **Dependencias nativas «blocked by»**, una por cada `depende_de`, después de crear todos los
    issues. Cada una se escribe con el **id** del issue que bloquea, no con su número.
 
-**La huella** (decisión de Pedro, 2026-11-27, en tres partes desde el plan de T-08):
+**La huella** (decisión de Pedro, 2026-11-27: en tres partes desde el plan de T-08, y con el modo
+en claro en la marca desde la auditoría de T-08):
 - **Qué es:** tres partes, cada una con los 16 primeros caracteres hex de un SHA-256:
   - del título;
   - del cuerpo generado, sin la marca;
-  - de las etiquetas que pone publicar, en minúsculas, ordenadas y una por línea.
+  - de las etiquetas del YAML, las que lleva un issue nuevo, en minúsculas, ordenadas y una por
+    línea. Incluyen el modo de la tarea también cuando el issue se queda con otro puesto a mano:
+    así un choque de modo no se reescribe en cada ejecución.
 - **Comparada entera,** dice si la tarea cambió.
 - **Por partes,** dice:
   - qué cambió;
   - si el cuerpo actual sigue siendo el generado (antes de comparar, se pasa de CRLF a LF y se le
     quita la marca);
-  - qué etiquetas puso publicar la vez anterior. Se prueba con todos los candidatos de un conjunto
-    cerrado (`tipo:tarea`, con o sin `critica`, un área, y ningún modo o uno de los tres), y vale
-    el que da la misma huella.
-- **Una marca con la huella rota** se reconoce por su tarea y su hito, y cuenta como cambiada.
+  - si cambiaron las etiquetas del YAML; solo entonces se tocan las del issue.
+- **Una marca ilegible** se reconoce por su tarea y su hito y cuenta como cambiada:
+  - es ilegible si la huella está rota, o si el `modo=` no es uno de los tres, está repetido o va
+    detrás de `huella=`;
+  - sin la huella no se lee el `modo=`, así que el `modo:*` del issue cuenta como puesto a mano.
 - **Solo cuenta la marca que ocupa una línea entera fuera de los bloques de código**: un issue que
   cita el cuerpo de otro dentro de un bloque no se lleva su marca.
 
 **Etiquetas de un issue.** Publicar solo añade o quita las suyas:
 - `tipo:tarea`, `critica` y `area:*` lo son siempre, porque solo las pone el script (3.4);
-- un `modo:*` lo es solo si lo confirma la huella;
-- nunca toca `en-curso`, `necesita-pedro`, `aprobado-pedro` ni un `modo:*` puesto a mano;
+- un `modo:*` lo es solo si lo dice la marca (`modo=`);
+- nunca toca `en-curso`, `necesita-pedro`, `aprobado-pedro` ni un `modo:*` que la marca no diga;
 - si la tarea fija un modo y el issue tiene otro puesto a mano, se queda el de Pedro, con un
-  aviso.
+  aviso, y la marca va sin `modo=`;
+- un `modo:*` puesto a mano igual al de la tarea pasa a ser de publicar (decisión de Pedro tras
+  la auditoría de T-08): si el YAML quita o cambia después el modo, publicar lo quita.
 
 **Idempotencia.** Una segunda ejecución sin cambios no hace ninguna escritura.
 
@@ -572,7 +586,7 @@ patrón de ruta y rechaza cualquier otro `DELETE` antes de llamar a `gh`.
 | `tarea-borrada` | Un issue con la marca de una tarea que ya no está en el YAML |
 | `cuerpo-reescrito`, `titulo-reescrito` | Se reescribió un cuerpo o un título editados a mano |
 | `modo-a-mano` | La tarea fija un modo y el issue tiene otro puesto a mano |
-| `marca-ilegible` | La huella de la marca no se puede leer |
+| `marca-ilegible` | La marca no se puede leer (la huella o el `modo=`) |
 | `milestone-cerrado` | El milestone del hito está cerrado |
 | `posible-duplicado` | Un issue sin marca con el título de una tarea que aún no tiene issue |
 | `issue-cambiado` | El issue se cerró o perdió su marca entre la lectura y la escritura: no se tocan ni él ni sus dependencias |

@@ -84,7 +84,9 @@ instalada. A los esquemas les pasaba lo mismo, y en T-05 se movieron a `src/mena
 (resumen, especificación, criterios, datos y la marca; `hito-0.md` 2.4), y
 `.github/ISSUE_TEMPLATE/tarea.md` (Objetivo, Alcance, Criterios de aceptación, Dependencias) no
 cambió, así que hoy no coinciden. Se cierra en **T-09**, que crea las plantillas de documentos y de
-issue (3.2) y las unifica.
+issue (3.2) y las unifica. Al unificarlas cambia el texto fijo del cuerpo, y con él la huella de
+todas las tareas: la publicación siguiente reescribe todos los cuerpos abiertos y pierden sus
+casillas marcadas. T-09 tiene que decidir cómo evitarlo (auditoría de T-08).
 
 ### ¿Qué versión lleva el plugin durante el desarrollo?
 
