@@ -2477,3 +2477,34 @@ envoltorio y del catálogo) y se deshizo con `git checkout`; el árbol quedó li
   lo dice.
 - **El grep de los nombres de los proyectos anteriores:** lo lanza Pedro o el chat. Esta sesión no
   los conoce y no escribió ninguno.
+
+**Corrección tras la auditoría** (2026-11-27, rama `fix/h0-spec-publicar-cuerpo`; T-08-D22 a D27)
+
+- **El cuerpo nombra las dependencias solo por id** (`T-02, T-03`). Con el título, renombrar una
+  tarea reescribía el cuerpo de las que dependen de ella y borraba sus casillas marcadas.
+- **La marca lleva el modo en claro** (`… hito=0 modo=didactico huella=… -->`): es el modo de la
+  tarea si el issue lo lleva cuando se escribe la marca.
+  - Sustituye a «las etiquetas de la vez anterior, deducidas de la huella» (arriba), que fallaba
+    cuando el área vieja ya no estaba en ningún sitio.
+  - Deja de valer el segundo «Sin corregir», porque en un choque la marca ya no reclama el modo.
+  - La parte de etiquetas de la huella se queda (P1).
+- **Prueba real**, con el código final y la CLI:
+
+  | Ejecución | Resultado |
+  | --- | --- |
+  | `--seco` en menairos-prueba | 3 cuerpos que cambiar (T-02 a T-04) y 0 avisos |
+  | 1.ª | 3 `PATCH` solo con `body`, 0 avisos, 14 s. T-01 no se toca: su marca no cambia |
+  | 2.ª | **0** escrituras, 7 s |
+  | `--seco` en `pdromer0/menairos` | 91 escrituras y 0 avisos; la salida legible, la de arriba |
+
+  Las huellas del test de valor fijo pasan a ser estas: T-02 `…8322ddfaa2e11a4c…`, T-03
+  `…c8747acd4eb1cfa4…` (con `modo=didactico`) y T-04 `…690b9f7ba2acfcc0…`. La de T-01 no cambia.
+- **Tests:** 808 en el repo, 19 más que antes. Hay 12 versiones incorrectas, y todas hacen
+  fallar algún test, también sobre el código final.
+- **Revisión:**
+  - **del plan, a la contra:** 15 hallazgos, cribados en una tabla;
+  - **`/code-review` alto:** 9 hallazgos. Se corrigieron 2 (el cuerpo, formado en un solo sitio, y
+    una ayuda de los tests) y se aclaró 2.4. Se aceptaron sin código las marcas viejas, que solo
+    hay en menairos-prueba, y la reescritura única de los cuerpos con dependencias.
+- **Pendiente:** cambiar el texto fijo del cuerpo (T-09) reescribe todos los cuerpos abiertos
+  (`abiertas.md`).

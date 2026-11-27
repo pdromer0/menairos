@@ -261,3 +261,91 @@ decisiones:
     impacto: bajo
     decidido_por: agente
     por_que_no_escalo: Es una refactorización interna con los mismos tests en verde
+
+  # Corrección tras la auditoría de Pedro (2026-11-27), rama fix/h0-spec-publicar-cuerpo.
+  - id: T-08-D22
+    decision: >-
+      El cuerpo nombra las dependencias solo por id, separadas por comas («Depende de: T-02, T-03»), y render
+      deja de recibir las demás tareas; sustituye a la parte de las dependencias de T-08-D9
+    motivo: >-
+      Con los títulos, renombrar una tarea cambiaba la huella del cuerpo de todas las que dependen de ella, y
+      sus cuerpos se reescribían perdiendo las casillas marcadas; la relación «blocked by» ya enseña los títulos
+    alternativas:
+      - Mantener «T-xx · título» y aceptar la reescritura al renombrar
+    reversibilidad: dificil
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-08-D23
+    decision: >-
+      La marca lleva el modo en claro entre hito= y huella= (<!-- menairos:tarea=T-03 hito=0 modo=didactico
+      huella=… -->), sin modo= si no hay ninguno; tipo:tarea, critica y area:* son siempre de publicar y el
+      modo:* de publicar es el de la marca. Un modo= desconocido, vacío, repetido o detrás de huella= hace
+      ilegible la marca entera, y el modo no se lee sin la huella. Sustituye a la deducción por candidatos de
+      T-08-D10
+    motivo: >-
+      La deducción por candidatos fallaba si el área vieja ya no estaba ni en el YAML ni en el issue, y el modo
+      de publicar pasaba a contar como puesto a mano
+    alternativas:
+      - Seguir deduciendo las etiquetas de antes con candidatos
+    reversibilidad: dificil
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-08-D24
+    decision: >-
+      La parte de etiquetas de la huella se queda, y sigue siendo el conjunto de etiquetas del YAML, modo
+      incluido, también en un choque de modo (P1 de la auditoría)
+    motivo: >-
+      Es lo único que dice si cambiaron las etiquetas de publicar (el área y la crítica no van en claro), y la
+      tabla de idempotencia solo las reescribe entonces; con el modo del YAML, un choque converge
+    alternativas:
+      - Quitarla y recalcular las etiquetas siempre que cambie la huella, que vuelve a poner una critica
+        quitada a mano aunque solo cambie un criterio
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D25
+    decision: >-
+      modo= es el modo de la tarea si el issue lo lleva al escribir la marca (al crearlo, o cuando cambia la
+      huella, tras el PATCH o tal como está si no se tocan sus etiquetas); si no lo lleva, ninguno: manda el
+      issue (P2 de la auditoría)
+    motivo: >-
+      Una sola regla; tras una marca ilegible o vieja el modo se recupera, y menairos-prueba escribe de verdad
+      un modo=. Coste aceptado: un modo:* puesto a mano igual al de la tarea pasa a ser de publicar
+    alternativas:
+      - Al pie de la letra, solo si publicar lo añadió o ya lo decía la marca, conservándolo si no se tocan las
+        etiquetas
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D26
+    decision: >-
+      El punto de abiertas.md de la unificación de la plantilla de issue avisa a T-09 de que cambiar el texto
+      fijo del cuerpo reescribe todos los cuerpos abiertos; no se cambia código (P3 de la auditoría)
+    motivo: >-
+      La plantilla, los nombres del código y los valores por defecto del esquema entran en la huella del
+      cuerpo, así que un cambio de formato pierde las casillas marcadas de todas las tareas abiertas
+    alternativas:
+      - Dejarlo solo en el anexo
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-08-D27
+    decision: >-
+      De la /code-review de la corrección: el cuerpo con la marca se forma en un solo sitio (body_with), los
+      tests comparten la ayuda que renderiza una tarea y §2.4 dice que modo= se decide solo al escribir la
+      marca. Se aceptan sin código las marcas de antes de la corrección cuya huella no cambia (su modo:* pasa a
+      contar como puesto a mano) y la reescritura única de los cuerpos con dependencias
+    motivo: >-
+      Las marcas viejas solo existen en menairos-prueba, donde T-01 no tiene modo y T-03 sí se migró; en
+      pdromer0/menairos no hay nada publicado, y en la prueba ningún cuerpo tenía casillas marcadas
+    alternativas:
+      - Código de migración para las marcas sin modo=
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: No cambia lo que hace la orden en ningún issue real; solo afecta al repo de prueba
