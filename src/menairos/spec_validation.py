@@ -2,14 +2,15 @@
 
 :func:`validate_spec` reads ``menairos.toml``, ``docs/specs/hito-N.md`` and
 ``docs/specs/hito-N.tareas.yaml``, ``docs/abiertas.md`` and ``docs/decisiones/``
-under a root folder and returns a :class:`Report` with the errors (E01–E12) and
-warnings (A01–A04). E13 arrives with the stack templates (T-10).
+under a root folder and returns a :class:`Report` with the errors (E01–E13) and
+warnings (A01–A04).
 
 A missing input is a :class:`UsageError` (exit code 2 in the CLI); a file that
 exists but cannot be read is an error of the check that needed it. If E01 or
 E02 fail, E03–E09 are skipped, because they need valid data; E10–E12 do not
-use the data and always run. A01 and A02 look at the documents as written,
-before :func:`menairos.schemas.apply_defaults`.
+use the data and always run. E13 only needs ``menairos.toml``: it is skipped
+when E01 fails. A01 and A02 look at the documents as written, before
+:func:`menairos.schemas.apply_defaults`.
 """
 
 import difflib
@@ -24,7 +25,7 @@ from typing import Any
 
 import yaml
 
-from menairos import markdown
+from menairos import markdown, stacks
 from menairos.schemas import (
     DuplicateKeyError,
     SchemaName,
@@ -41,6 +42,7 @@ ADR_DIR = "docs/decisiones"
 
 FUNCTIONAL_SECTION = "Validación funcional"
 DATA_CHECKS = ("E03", "E04", "E05", "E06", "E07", "E08", "E09")
+CONFIG_CHECKS = ("E13",)
 
 _TASKS_FILE = re.compile(r"hito-(0|[1-9][0-9]*)\.tareas\.yaml")
 _ADR_FILE = re.compile(r"[0-9]{4}-.*\.md")
@@ -136,6 +138,10 @@ def validate_spec(root: Path, milestone: int | None = None) -> Report:
     errors += _functional_section(root, spec_file)
     errors += _open_questions(root)
     errors += _stack_adr(root)
+    if config_eff is not None:
+        errors += _stack_templates(config_eff)
+    else:
+        skipped += CONFIG_CHECKS
 
     if tasks_ok:
         warnings += _motivo_without_critica(tasks["tareas"], tasks_file)
@@ -555,6 +561,32 @@ def _stack_adr(root: Path) -> list[Finding]:
             f"«{_ADR_STACK_LINE}» en algún {ADR_DIR}/NNNN-*.md"
         )
         found.append(Finding("E12", message, f"{ADR_DIR}/", ""))
+    return found
+
+
+def _stack_templates(config: Mapping[str, Any]) -> list[Finding]:
+    """E13: every template of ``stack.plantillas`` exists in this Menairos.
+
+    The name is looked up in the list of templates of the package, so a path
+    such as ``.`` or ``../docs`` never counts as a template.
+    """
+    found: list[Finding] = []
+    try:
+        names = stacks.available()
+    except stacks.StackError as error:  # the package itself is broken
+        return [Finding("E13", str(error), CONFIG_FILE, "stack.plantillas")]
+    listed = ", ".join(names)
+    for i, name in enumerate(config["stack"]["plantillas"]):
+        if name not in names:
+            message = (
+                f"la plantilla «{name}» no existe en esta versión de Menairos; "
+                f"las que hay: {listed}"
+            )
+            found.append(
+                Finding(
+                    "E13", message, CONFIG_FILE, format_path(("stack", "plantillas", i))
+                )
+            )
     return found
 
 
