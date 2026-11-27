@@ -124,3 +124,18 @@ decisiones:
     impacto: bajo
     decidido_por: agente
     por_que_no_escalo: Concretan reglas ya aprobadas (nunca sobrescribir, nada fuera de la raíz) sin cambiarlas
+
+  - id: T-11-D10
+    decision: >-
+      Los git que lanza menairos entorno van con LC_ALL=C, y la orden para quitar core.hooksPath edita
+      el fichero exacto que lo pone (git config --show-origin), con sudo si es de sistema
+    motivo: >-
+      La capa repo lee el mensaje «not a git repository», que con git en español no casa; y
+      --global no llega a un ~/.config/git/config ni a un fichero incluido (segunda revisión)
+    alternativas:
+      - Reconocer el «no es un repo» por el código de salida y la ausencia de .git
+      - Dar la orden con --global o --local según el ámbito
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Corrigen dos fallos de la revisión sin cambiar lo que hace la orden

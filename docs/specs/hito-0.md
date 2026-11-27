@@ -2764,19 +2764,20 @@ a la contra; Pedro aprobó P1–P6 con la recomendación.*
 - `menairos entorno [local|repo] [--comprobar] [--json] [--raiz RUTA]`. §3.4 corregida y un punto
   nuevo en `abiertas.md` (bash 4 y el `realpath` de GNU).
 
-**Decisiones del diff** (registro: `hito-0/decisiones/T-11.yaml`, de T-11-D1 a D9)
+**Decisiones del diff** (registro: `hito-0/decisiones/T-11.yaml`, de T-11-D1 a D10)
 
 - D1: lo que prepara cada plantilla de lenguaje va en una tabla del código. D2: `pre-commit
   install`, en la capa repo. D3: el primer commit lleva todo (`git add -A`), y nunca con
   conflictos. D4: con `--comprobar`, lo que se haría es `manual`. D5: sin capa, repo solo tras una
   local en verde. D6: cualquier `/mnt/<letra>/`. D7: lo que interpreta el plan.
 - D8 (agente): un paquete en vez de un módulo de 880 líneas. D9 (agente): el bit que falta se pone;
-  un enlace en el camino es un conflicto; la identidad, con `git var`.
+  un enlace en el camino es un conflicto; la identidad, con `git var`. D10 (agente): git con
+  `LC_ALL=C` y la orden de `core.hooksPath` con `--show-origin`.
 
 **Medidas**
 
-- `environment` tiene 841 líneas en cuatro ficheros. Hay 83 tests nuevos (41 de local, 30 de repo
-  y 12 de la CLI); git es el real en `tmp_path`, sin la configuración de la máquina.
+- `environment` tiene 931 líneas en cuatro ficheros. Hay 90 tests nuevos (42 de local, 33 de repo
+  y 15 de la CLI); git es el real en `tmp_path`, sin la configuración de la máquina.
 - Comprobado con las herramientas: `uv sync --check` no escribe; con un `uv.lock` desfasado,
   `--check --locked` sale con 1 y `uv sync --locked` falla sin tocarlo (`uv lock --check` lo
   distingue). `pre-commit install` no instala con `core.hooksPath`, y su hook lleva la marca
@@ -2802,7 +2803,22 @@ conflictos o con historia, un push, un enlace seguido y la barrera quitada.
 
 **Revisión**
 
-- `/code-review`: pendiente.
+- **`/code-review` (alto):** 10 hallazgos. Se corrigieron 9:
+  - la orden de `core.hooksPath` no quitaba un valor global;
+  - un `--version` que falla daba `ok` sin versión mínima;
+  - un fallo de `rev-parse` que no es «no es un repo» llevaba a `git init`;
+  - `RealSystem` pasaba `GIT_DIR` y compañía;
+  - `%USERPROFILE%` en la página de códigos OEM;
+  - un `OSError` salía como traceback;
+  - `python` sin uv era `error`;
+  - la raíz del JSON no estaba resuelta;
+  - el entorno de gh, en dos copias.
+
+  No se corrigió uno: `stacks.resolve` corre tres veces (milisegundos).
+- **Segunda revisión ligera** (unas 100 líneas de `src/`): con git en español, «not a git
+  repository» no casaba y un proyecto nuevo no arrancaba. Se corrigió con `LC_ALL=C` en los git,
+  junto con la orden exacta de `core.hooksPath` (`--show-origin`) y el aviso del bit. Tras las
+  correcciones, la prueba real se repitió en una carpeta nueva y quedó igual de verde.
 
 **Pendiente**
 
