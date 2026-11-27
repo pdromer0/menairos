@@ -1445,3 +1445,163 @@ Las seis del plan, cada una deshecha sin commit y con el test de `tests/test_plu
 - Actions, en T-26.
 - La versión del plugin durante el desarrollo, en T-22.
 - La línea de instalación del `README`, cuando se documente cómo se instala Menairos.
+
+### T-05 — Esquemas JSON
+
+*Hecha el 2026-11-27, en local (WSL2), con Claude Code (Opus 5.5, modo plan y después auto) a partir
+de un encargo del chat. Sin issue. El plan pasó dos rondas: la primera, con las dudas P1–P5; la
+segunda, con las respuestas de Pedro y sus ajustes A1–A4, revisados en el chat.*
+
+**Qué se hizo**
+
+- Los tres esquemas en `src/menairos/esquemas/` (`menairos`, `tareas` y `decisiones`, JSON Schema
+  2020-12), dentro del paquete y leídos con `importlib.resources`. Todos llevan `$schema`, `$id`,
+  `additionalProperties: false` en cada objeto, un `default` en cada clave opcional (salvo las
+  cuatro sin valor natural) y una `description` en español en cada clave.
+- `src/menairos/schemas.py`:
+  - `load_schema` y `load_document`: TOML con `tomllib` y YAML con una subclase de
+    `yaml.SafeLoader` que rechaza las claves repetidas;
+  - `validate`: el esquema con `Draft202012Validator` y, después, las comprobaciones estrictas
+    (`1.0` donde va un entero, un salto de línea final en un patrón anclado). Devuelve `Issue`s
+    con la ruta del formato de 2.3 y el mensaje en español;
+  - `apply_defaults`;
+  - `is_marked`, que calcula la marca;
+  - `check_decisions`: el id es de la tarea, no se repite, y difícil + alto + agente es un error.
+- `tests/data/esquemas/`: 158 casos (48 válidos y 110 inválidos). Cada uno declara en su cabecera
+  la regla que prueba y, si es inválido, la ruta y la palabra clave del error esperado.
+  `tests/test_esquemas.py` (220 tests) comprueba que cada caso da exactamente esos errores y que
+  cada regla de 2.2 tiene al menos un caso válido y uno inválido.
+- El registro de decisiones empieza: `docs/specs/hito-0/decisiones/T-05.yaml`, con 20 decisiones
+  (17 de Pedro y 3 del agente) y validado por un test.
+- Cambios de especificación: §1.3, §2.2 y §2.5 de este documento; la cabecera y el criterio 1 de
+  T-05 en `hito-0.tareas.yaml`; `diseno.md` §3.3 (la marca no se escribe); un punto nuevo en
+  `abiertas.md` (dónde viven las plantillas, para T-09); y la sección «Contratos» de
+  `lecciones.md`.
+
+**Decisiones del diff**
+
+Las 20 de `decisiones/T-05.yaml`. Las de Pedro:
+
+- Los esquemas, dentro del paquete; jsonschema y PyYAML como dependencias del paquete; el registro
+  de decisiones desde T-05.
+- Módulo `schemas.py` (P1).
+- Sin `default` en `motivo_critica`, `por_que_no_escalo`, `agente` ni `revisor` (P2).
+- `revisor_plan` activo por defecto (P3).
+- Ancla opcional en `especificacion` (P4).
+- Lo aprobado en el plan va con `decidido_por: pedro` (P5, según §5.4: el encargo decía lo
+  contrario).
+- Estricto ahora donde es barato (A1): solo espacios = vacío; `1.0` no es un entero; la versión no
+  admite metadatos de build (P6); un patrón anclado no acaba en salto de línea (P7).
+- Un id de decisión repetido es un error (A2).
+- Una clave repetida en YAML es un error de lectura (A3).
+- `quien: codex` solo en manual, para T-06 (A4).
+- Y las interpretaciones del plan: tablas con `default: {}`, `uniqueItems` en tres listas, formato
+  de los errores, la matriz en código, el `$id` en `main` y el test del wheel.
+
+Del agente, durante la implementación (con `decidido_por: agente`):
+
+- `SCHEMA_NAMES` y `format_path` públicos, para T-06 (T-05-D18).
+- Tras la revisión propia, `rama` y `proyecto.repo` rechazan también lo que git y GitHub no
+  admiten (T-05-D19), con el mismo principio de A1.
+- Las comprobaciones estrictas siguen en su recorrido, con un test que limita las palabras clave
+  de los esquemas (T-05-D20), en lugar de ampliar el validador.
+
+**Medidas**
+
+- Versiones, resueltas por `uv add`: jsonschema 4.26.0 (con attrs 26.1.0, jsonschema-specifications
+  2025.9.1, referencing 0.37.0 y rpds-py 2026.9.1) y PyYAML 6.0.4, todas con soporte para
+  Python 3.14 (3.14.10) y wheels `cp314` donde hay código compilado. `uv tree --outdated`: ninguna
+  desactualizada.
+- pyright 1.1.414 trae los stubs de PyYAML y jsonschema: no hizo falta ningún `types-*`.
+- El wheel (`uv build --wheel`) lleva `menairos/esquemas/*.schema.json`. `uv tool install --python
+  3.14 .` en carpetas temporales: `menairos --version` responde, y la CLI instalada carga los tres
+  esquemas desde su `site-packages`.
+- Los 220 tests de `test_esquemas.py`, en menos de medio segundo; los 229 del repo, también.
+- Tiempo: plan desde las 09:50 (hora local), aprobado a las 10:47; implementación y revisión hasta las
+  11:15. La hora de apertura del PR y el resultado de la N3 constan en su cuerpo (Métricas y
+  Comprobaciones).
+
+**Diferencias con la documentación y hallazgos**
+
+- JSON Schema 2020-12 cuenta `1.0` como entero, y `jsonschema` evalúa `pattern` con `re` de
+  Python: `$` acepta un salto de línea final (`"T-01\n"` pasaba `^T-[0-9]{2,3}$`) y `\d` admite
+  cifras que no son ASCII. Por eso los patrones usan `[0-9]` y el código rechaza el `1.0` y el
+  salto final.
+- `yaml.safe_load` se queda en silencio con el último valor de una clave repetida. `tomllib` ya da
+  error («Cannot overwrite a value»).
+- El hook `check-yaml` de pre-commit también rechaza las claves repetidas, así que esos casos van
+  dentro del test y no en `tests/data/`.
+- El `\S` de Python no cuenta U+FEFF como espacio, y ECMA-262 sí: «no vacío» usa `[^\s\uFEFF]`.
+- `[a-z0-9._-]+` dejaba pasar ramas que git rechaza (`a..b`, `.x`, `x.`, `x.lock`, comprobado
+  con `git check-ref-format --branch`).
+- `diseno.md` §3.3 contaba «marcada» entre los campos del fichero de decisiones; la tabla de 2.2 se
+  había quedado atrás en `area`, `modelos`/`revisores`, `modulos` y `especificacion`. Corregido.
+
+**Versiones incorrectas**
+
+Las 17 del plan, cada una aplicada sin commit, con los tests lanzados y deshecha con `git checkout`
+(el árbol quedó limpio):
+
+| Versión incorrecta | Tests que fallaron |
+| --- | --- |
+| Sin `additionalProperties: false` en `guardarrailes.max_turnos` | 2: el meta-test de objetos y `clave-desconocida-anidada` |
+| `if` sin `required: ["critica"]` | 59: todos los válidos de tareas sin `critica`, empezando por `minimo` |
+| Patrón de id sin anclas | 4, entre ellos `id-cuatro-digitos` |
+| `texto_no_vacio` con `minLength: 1` | 4, entre ellos `nombre-solo-espacios` |
+| `aviso_presupuesto_pct` con `exclusiveMaximum: 100` | 3, entre ellos `pct-100` |
+| `revisor_plan` por defecto `inactivo` | 1: defaults = diseño §3.1 |
+| `apply_defaults` con `default is not None` | 1: los defaults de una tarea (`modo: null`) |
+| `apply_defaults` sin `deepcopy` | 1: las listas no se comparten |
+| La comprobación de enteros sin seguir `$ref` | 4, entre ellos `paralelismo-uno-punto-cero` |
+| La comprobación de enteros sobre cualquier `float` | 1: `paralelismo-decimal` (dos errores en vez de uno) |
+| `is_marked` con `and` | 2: la marca con difícil + bajo y con reversible + alto |
+| La matriz con `or` | 4: los tres válidos de la matriz y `T-05.yaml` |
+| El id repetido comparado consigo mismo | 16: todos los válidos con decisiones |
+| `yaml.safe_load` a secas | 1: la clave repetida en YAML |
+| El cargador que cuenta `<<` como clave | 1: la fusión |
+| Un cargador basado en `yaml.Loader` | 1: `!!python/tuple` |
+| Índices como `.3` | 49: los inválidos con ruta de lista |
+
+Y dos más tras la revisión propia: con `anyOf` en un esquema falla el test de palabras clave, y con
+el `\S` de antes falla `titulo-solo-bom`.
+
+La primera pasada de la novena no encontró su texto: `_strict` seguía los `$ref` al entrar y
+`_children` también, así que quitar uno de los dos no lo habría detectado ningún test. Se dejó en
+un solo sitio (commit `refactor:`) y entonces sí falló.
+
+**Revisión**
+
+- `/code-review` alto sobre el diff, antes de la N3: 10 hallazgos, clasificados antes de tocar
+  nada.
+- **Corregidos:**
+  - un alias de YAML que se contiene a sí mismo hacía fallar `validate` con `ValueError` en lugar
+    de dar un error (reproducido; ahora tiene test);
+  - un texto que solo tiene U+FEFF pasaba como no vacío;
+  - `rama` y `proyecto.repo` admitían nombres que git y GitHub rechazan;
+  - las fechas salían en los mensajes como si fueran textos;
+  - el patrón del id de tarea estaba copiado en `decisiones.schema.json` (ahora `$defs/id_tarea`,
+    con un test de que coincide con el de tareas);
+  - `SCHEMA_NAMES` repetía el `Literal` a mano;
+  - los recorridos de las comprobaciones estrictas y de los defaults solo siguen `properties`,
+    `items` y `$ref`: ahora un test limita los esquemas a esas palabras clave. La alternativa de
+    ampliar el validador queda para T-06, si Pedro la prefiere.
+- **Sin corregir:**
+  - `1`/`true` o `1`/`1.0` como claves de YAML se dan por repetidas, porque en Python son la
+    misma clave y una pisaría a la otra; los tres formatos solo usan claves de texto;
+  - cachear el esquema y el validador: no hay ninguna medida que lo justifique; T-06 puede hacerlo
+    si la hay.
+
+**Pendiente**
+
+- Para T-06:
+  - `quien: codex` solo en modo manual (A4, decisión de Pedro);
+  - A01 tiene que mirar el documento antes de aplicar los valores por defecto;
+  - `spec validar` reutiliza `load_document`, `validate`, `Issue` y `format_path`.
+- Para T-09: dónde viven las plantillas (`abiertas.md`).
+- Para T-21: el nombre del fichero de decisiones frente a su `tarea`; de momento lo comprueba el
+  test de los ficheros del repo.
+- Casos conocidos que no se tratan: una `ventana_horaria` con inicio igual al fin, y las plantillas
+  que no existen (E13).
+- Con `v3.0.0` (T-28) se puede fijar el `$id` de los esquemas a la etiqueta.
+- El grep de los nombres de los proyectos anteriores lo lanza Pedro o el chat: esta sesión no
+  los conoce y no escribió ninguno.
