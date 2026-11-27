@@ -518,6 +518,8 @@ Lo que hace, en este orden:
     cerrado (`tipo:tarea`, con o sin `critica`, un área, y ningún modo o uno de los tres), y vale
     el que da la misma huella.
 - **Una marca con la huella rota** se reconoce por su tarea y su hito, y cuenta como cambiada.
+- **Solo cuenta la marca que ocupa una línea entera fuera de los bloques de código**: un issue que
+  cita el cuerpo de otro dentro de un bloque no se lleva su marca.
 
 **Etiquetas de un issue.** Publicar solo añade o quita las suyas:
 - `tipo:tarea`, `critica` y `area:*` lo son siempre, porque solo las pone el script (3.4);
@@ -540,8 +542,9 @@ Lo que hace, en este orden:
 
 **Las dependencias entre tareas del hito solo se gestionan en el YAML** (`depende_de`; decisión
 de Pedro, 2026-11-27):
-- se sincronizan en cada ejecución entre los issues que llevan una marca del hito, también los de
-  tareas borradas del YAML;
+- se sincronizan en cada ejecución, en el issue abierto de cada tarea del YAML, frente a todos los
+  issues que llevan una marca del hito, también los de tareas borradas del YAML. Las relaciones
+  del issue de una tarea borrada no se tocan, igual que el resto de ese issue;
 - por eso, **una relación «blocked by» que se añada a mano entre dos issues del hito se quita en
   la publicación siguiente**;
 - las relaciones con cualquier otro issue (un bug, otro hito, otro repo) no se tocan, y las de un
@@ -559,7 +562,9 @@ patrón de ruta y rechaza cualquier otro `DELETE` antes de llamar a `gh`.
 - sin `--json`: un resumen legible;
 - sale con `0` si se publicó todo (aunque haya avisos), `1` con errores y `2` en un error de uso,
   como `spec validar`. Son errores los de la especificación, un límite, una marca repetida o un
-  fallo de GitHub; en este último, la salida dice qué escritura quedó con resultado desconocido.
+  fallo de GitHub. En este último, la salida dice qué escritura falló:
+  - con resultado desconocido, si no hubo respuesta o fue un 5xx;
+  - que no se guardó, si GitHub la rechazó con un 4xx.
 
 | Avisos | Cuándo |
 | --- | --- |
@@ -570,7 +575,7 @@ patrón de ruta y rechaza cualquier otro `DELETE` antes de llamar a `gh`.
 | `marca-ilegible` | La huella de la marca no se puede leer |
 | `milestone-cerrado` | El milestone del hito está cerrado |
 | `posible-duplicado` | Un issue sin marca con el título de una tarea que aún no tiene issue |
-| `issue-cambiado` | El issue se cerró o perdió su marca entre la lectura y la escritura |
+| `issue-cambiado` | El issue se cerró o perdió su marca entre la lectura y la escritura: no se tocan ni él ni sus dependencias |
 
 Los errores son los de `spec validar`, más `limite`, `marca-repetida` y `github`.
 
@@ -2142,10 +2147,10 @@ YAML.*
 - `tests/data/spec_publicar/ejemplo/`: un proyecto sintético, el hito 0 con 4 tareas y 2 áreas, que
   pasa `spec validar` sin errores ni avisos. Lo usan los tests y es lo que se publicó en
   menairos-prueba.
-- Tests (159 nuevos):
-  - `tests/test_spec_publicar.py` (112): la tabla de idempotencia, los casos límite de 2.4 y del
+- Tests (169 nuevos):
+  - `tests/test_spec_publicar.py` (118): la tabla de idempotencia, los casos límite de 2.4 y del
     plan, la CLI y los dos barridos de fallos;
-  - `tests/test_cuerpo_issue.py` (28): los cuerpos esperados, escritos a mano, y la huella,
+  - `tests/test_cuerpo_issue.py` (31): los cuerpos esperados, escritos a mano, y la huella,
     recalculada con `hashlib`;
   - `tests/test_etiquetas.py` (5): el catálogo frente a la tabla de 3.4;
   - 10 en `tests/test_doble_github.py` y 4 en `tests/test_github.py`.
@@ -2159,7 +2164,7 @@ YAML.*
 
 **Decisiones del diff**
 
-Las 17 de `decisiones/T-08.yaml`.
+Las 21 de `decisiones/T-08.yaml`.
 
 De Pedro, en el encargo y en el plan:
 - la huella en la marca, en tres partes (decisión 1 y P1);
@@ -2180,7 +2185,12 @@ Del agente (`decidido_por: agente`):
 - la lectura y la escritura en un solo commit (T-08-D14);
 - cuatro ejecuciones reales más (T-08-D15);
 - los avisos `titulo-reescrito` e `issue-cambiado` (T-08-D16);
-- el test del CRLF endurecido (T-08-D17).
+- el test del CRLF endurecido (T-08-D17);
+- tras la revisión:
+  - las etiquetas siempre propias (T-08-D18);
+  - la marca fuera de los bloques de código (T-08-D19);
+  - los mensajes de un fallo de escritura (T-08-D20);
+  - un solo camino para el modo seco (T-08-D21).
 
 **Medidas**
 
@@ -2222,12 +2232,14 @@ Del agente (`decidido_por: agente`):
   | 5.ª y 6.ª, con un transporte que anota las respuestas: el original y otra vez la variante | 3 y 3 (las respuestas, en la tabla de arriba) | — |
   | 7.ª, el original | 3: deja el repo como el ejemplo | — |
   | 8.ª, después de guardar con `gh api` el cuerpo de #4 con CRLF (GitHub lo guarda tal cual, también al final) | **0** | — |
+  | 9.ª, el original, con el código final (tras la revisión) | **0** | — |
 
   Las huellas de los cuatro issues reales son las del test de valor fijo
   (`test_las_huellas_del_ejemplo_no_cambian_sin_querer`). En el HTML del issue #6, la marca no
   aparece y la casilla es una `task-list-item`. Los enlaces dan 404 porque el ejemplo no está en
   ese repo.
-- **`--seco` contra `pdromer0/menairos`** (rama de T-08, solo GET, 4 s): haría 91 escrituras, que
+- **`--seco` contra `pdromer0/menairos`** (rama de T-08, solo GET, 4 s; repetido con el código
+  final, con la misma salida): haría 91 escrituras, que
   son 17 etiquetas, el milestone, los 28 issues y las 45 dependencias. No hay ningún aviso: el repo
   no tiene issues con marca, solo los 6 PR de T-02 a T-07, que se ignoran. La salida:
 
@@ -2330,8 +2342,8 @@ Del agente (`decidido_por: agente`):
 
   Resultado: haría 91 escrituras.
   ```
-- **Tests:** 779 en el repo, en unos 8 s; los 145 de los tres ficheros nuevos, en 4,7 s. El barrido
-  de la actualización (18 llamadas × 2) tarda 1,4 s.
+- **Tests:** 789 en el repo, en unos 8 s; los 154 de los tres ficheros nuevos, en unos 5 s. El
+  barrido de la actualización (18 llamadas × 2) tarda 1,4 s.
 - **Tiempo:**
   - plan desde antes de las 15:55 (hora local);
   - aprobación a las 16:15;
@@ -2339,7 +2351,8 @@ Del agente (`decidido_por: agente`):
   - primer commit a las 16:17;
   - implementación hasta las 16:40;
   - versiones incorrectas, de 16:36 a 16:40;
-  - publicación real, de 16:40 a 16:45.
+  - publicación real, de 16:40 a 16:45;
+  - revisión propia y correcciones, de 16:47 a 17:02.
 
   La apertura del PR y la N3 constan en su cuerpo.
 
@@ -2360,35 +2373,70 @@ Del agente (`decidido_por: agente`):
 **Versiones incorrectas**
 
 34. Cada una se aplicó sin commit con un script, se lanzaron los tests de T-08 (y los del
-envoltorio y del catálogo) y se deshizo con `git checkout`; el árbol quedó limpio. Una no hizo
-fallar su test a la primera: la del CRLF. El test se endureció (T-08-D17) y después falló.
+envoltorio y del catálogo) y se deshizo con `git checkout`; el árbol quedó limpio.
+- Una no hizo fallar su test a la primera: la del CRLF. El test se endureció (T-08-D17) y después
+  falló.
+- Después de las correcciones de la revisión, se lanzaron otra vez las 34 sobre el código final; la
+  tabla da esa segunda pasada.
+- Como el script deshace con `git checkout -- src`, se lanza siempre con las correcciones ya en un
+  commit.
 
 | Versión incorrecta | Tests que fallaron |
 | --- | --- |
-| Huella sin la parte de las etiquetas | 11, entre ellos `test_modo_de_publicar_se_quita` |
-| Contenido comparado con la marca dentro | 12 |
-| Issues buscados por título | 6 |
+| Huella sin la parte de las etiquetas | 12, entre ellos `test_modo_de_publicar_se_quita` |
+| Contenido comparado con la marca dentro | 13 |
+| Issues buscados por título | 7 |
 | `GET issues` sin `state=all` | 4 |
 | Los PR sin filtrar | 1 |
-| `get` en vez de `get_all` | 1: más de 100 issues |
+| `get` en vez de `get_all` | 2, entre ellos el de más de 100 issues |
 | Marcas repetidas comprobadas tras crear las etiquetas | 2 |
-| Dependencia con el número en vez del id | 86 |
+| Dependencia con el número en vez del id | 89 |
 | Relaciones comparadas por número / se quitan todas las que sobran | 1 / 1: `test_relaciones_ajenas_no_se_tocan` |
 | Dependencias escritas junto a cada issue | 3, entre ellos la dependencia hacia delante |
 | Relaciones de publicar = solo las de las tareas del YAML | 1 |
 | Dependencias solo con la huella distinta | 18, entre ellos los barridos de fallos |
-| `PATCH` sin releer el issue | 5 |
+| `PATCH` sin releer el issue | 6 |
 | Issue cerrado tratado como abierto | 3 |
-| Se quita cualquier `modo:*` / sin deducir, un `modo:*` se quita / no se quita el de publicar | 2 / 2 / 2 |
+| Se quita cualquier `modo:*` / sin deducir, un `modo:*` se quita / no se quita el de publicar | 4 / 4 / 2 |
 | Choque de modo: se añade igual | 1 |
 | Cuerpo reescrito aunque su parte no cambie / aviso de cuerpo reescrito siempre | 2 / 8 |
 | Marca sin anclar a la línea | 3 |
-| CRLF sin pasar a LF | 0 al principio; con el test endurecido, 3 |
+| CRLF sin pasar a LF | En la primera pasada, 0; con el test endurecido, 3 |
 | Etiquetas comparadas con mayúsculas / milestones sin `state=all` | 1 / 1 |
 | `--seco` que escribe / sin la precondición / sin comprobar los límites | 3 / 2 / 3 |
 | Sin pausa / pausa antes de la primera escritura / pausa en los GET | 1 / 4 / 3 |
 | Sale con 0 tras un fallo / JSON con `ensure_ascii` | 2 / 1 |
 | Etiqueta de área sin límite en el catálogo | 2 |
+
+**Revisión**
+
+- `/code-review` alto sobre la rama, antes de la N3: 10 hallazgos, clasificados antes de tocar
+  nada.
+- **Corregidos**, cada uno con un test que falla con el código de antes (9 tests nuevos, los 9
+  comprobados contra el commit anterior a las correcciones):
+  - una `critica` o un `area:*` de más se quedaban cuando la huella deducía las etiquetas de antes,
+    y se quitaban cuando no; ahora se quitan siempre, porque son de publicar;
+  - un issue cerrado durante la publicación (`issue-cambiado`) recibía igual sus dependencias;
+  - un `ForbiddenRequest` del envoltorio (un `next` fuera de api.github.com) salía como una
+    traza, sin informe;
+  - un bug que citara el cuerpo de un issue dentro de un bloque de código se llevaba su marca: o
+    paraba todo con `marca-repetida`, o se quedaba el issue;
+  - con la marca ilegible, el título se reescribía sin aviso, y el cuerpo sí avisaba;
+  - un 4xx en una escritura se presentaba como «resultado desconocido»;
+  - `_stop` no se usaba;
+  - el modo seco tenía su propio camino para el informe, que podía separarse del real.
+
+  Ahora hay un solo `_apply`, cuyo `_send` no llama a GitHub en seco.
+- **Corregido en la especificación:** el texto de 2.4 decía que las dependencias se sincronizan
+  «entre los issues» con marca, también los de tareas borradas. Se podía leer que el issue de una
+  tarea borrada también se sincroniza, y no se hace: «no se toca» (P3). El texto lo aclara.
+- **Sin corregir:**
+  - la marca no tiene que ser la última línea: Pedro escribe sus notas al final del cuerpo, y
+    pasaría a crearse un issue duplicado;
+  - en un choque de modo, la huella guarda el modo del YAML. Si Pedro cambiara después su
+    etiqueta justo por esa y el YAML quitara el modo, publicar la quitaría. Es la contrapartida
+    elegida en el plan: con la huella de las etiquetas que se ponen, la orden no convergería y
+    escribiría en cada ejecución.
 
 **Pendiente**
 

@@ -210,3 +210,54 @@ decisiones:
     impacto: bajo
     decidido_por: agente
     por_que_no_escalo: Endurece un test del plan sin cambiar el código
+
+  - id: T-08-D18
+    decision: >-
+      Tras la revisión, tipo:tarea, critica y area:* que sobran se quitan también cuando la huella deduce las
+      etiquetas de antes, y no solo cuando no las deduce
+    motivo: Son siempre de publicar (diseno.md 3.4); las dos ramas daban resultados distintos para el mismo issue
+    alternativas:
+      - Quitar solo lo que puso publicar la vez anterior
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Aplica la regla del plan (son siempre de publicar) a las dos ramas
+
+  - id: T-08-D19
+    decision: >-
+      Tras la revisión, una marca dentro de un bloque de código cercado no cuenta; sigue sin tener que ser la
+      última línea del cuerpo
+    motivo: >-
+      Un bug que cita el cuerpo de un issue no debe parar la publicación ni quedarse el issue; exigir la última
+      línea rompería las notas que Pedro añade al final
+    alternativas:
+      - Exigir que la marca sea la última línea
+      - Dejar que valga en cualquier línea, también en un bloque de código
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Hace la lectura de la marca más estricta sin cambiar su formato
+
+  - id: T-08-D20
+    decision: >-
+      Tras la revisión, un fallo de escritura dice «resultado desconocido» solo sin respuesta o con un 5xx; con
+      un 4xx, que no se guardó; un ForbiddenRequest del envoltorio es un error del informe, no una traza
+    motivo: El mensaje tiene que decir lo que pasó y qué hacer
+    alternativas:
+      - Decir siempre que el resultado es desconocido
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Solo cambia mensajes y la forma de informar un error que ya paraba la ejecución
+
+  - id: T-08-D21
+    decision: >-
+      Tras la revisión, el modo seco y el real comparten un solo camino (_apply), con un _send que no llama a
+      GitHub en seco; un issue saltado por issue-cambiado no recibe sus dependencias; se borra _stop
+    motivo: Que lo que dice --seco no se pueda separar de lo que hace la publicación real
+    alternativas:
+      - Mantener dos caminos y un test que los compare
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es una refactorización interna con los mismos tests en verde
