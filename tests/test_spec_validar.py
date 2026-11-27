@@ -1122,7 +1122,7 @@ def test_cli_falta_un_fichero_sale_con_2(
             ["spec", "nada"],
             "orden no válida: 'nada' (se admite: 'validar', 'publicar')",
         ),
-        (["nada"], "orden no válida: 'nada' (se admite: 'spec')"),
+        (["nada"], "orden no válida: 'nada' (se admite: 'spec', 'entorno')"),
     ],
 )
 def test_cli_argumentos_mal_en_espanol(

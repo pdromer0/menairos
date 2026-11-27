@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, NoReturn, TextIO
 
-from menairos import __version__
+from menairos import __version__, environment
 from menairos.spec_publication import Item, Publication, publish_spec
 from menairos.spec_validation import (
     CONFIG_CHECKS,
@@ -150,6 +150,42 @@ def build_parser() -> argparse.ArgumentParser:
         "errores",
     )
     publicar.set_defaults(run=_spec_publicar)
+    entorno: _Parser = commands.add_parser(
+        "entorno",
+        help="prepara el entorno del proyecto: herramientas locales y repo",
+        description=(
+            "Comprueba la máquina (capa local) y prepara el repo (capa repo): escribe "
+            "las plantillas sin sobrescribir nunca un fichero, ejecuta uv sync y "
+            "pre-commit install, y hace el primer commit en main si el repo es nuevo, "
+            "sin push. Sin capa, ejecuta las dos. Cada paso acaba en ok, hecho, manual "
+            "(con la orden exacta) o error, y repetirla no cambia nada. Sale con 0 si "
+            "todo queda en ok o hecho, 1 si hay algún manual o error, y 2 si no se "
+            "puede ejecutar."
+        ),
+    )
+    entorno.add_argument_group("argumentos").add_argument(
+        "capa",
+        nargs="?",
+        choices=environment.LAYERS,
+        metavar="CAPA",
+        help=f"la capa: {' o '.join(environment.LAYERS)} (por defecto, las dos)",
+    )
+    entorno.options.add_argument(
+        "--comprobar",
+        action="store_true",
+        help="solo comprueba, sin escribir nada; lo que haría sale como manual",
+    )
+    entorno.options.add_argument(
+        "--json", action="store_true", help="salida en JSON: las capas y sus pasos"
+    )
+    entorno.options.add_argument(
+        "--raiz",
+        type=Path,
+        default=Path("."),
+        metavar="RUTA",
+        help="raíz del proyecto (por defecto, la carpeta actual)",
+    )
+    entorno.set_defaults(run=_entorno)
     return parser
 
 
@@ -369,3 +405,85 @@ def _describe(item: Item, *, removed: bool = False) -> str:
         f"dependencia  {_number(item['numero'])} {item['tarea']} {verb} "
         f"{_number(item['bloqueado_por'])} {item['depende_de']}"
     )
+
+
+# ── entorno ─────────────────────────────────────────────────────────────────
+
+
+def _entorno(args: argparse.Namespace) -> int:
+    try:
+        report = environment.run_environment(
+            args.raiz,
+            args.capa,
+            check_only=args.comprobar,
+            notify=lambda message: print(message, file=sys.stderr, flush=True),
+        )
+    except environment.UsageError as error:
+        print(f"menairos entorno: error: {error}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(_environment_json(report), ensure_ascii=False, indent=2))
+    else:
+        _print_environment(report, sys.stdout)
+    return 0 if report.ok else 1
+
+
+def _environment_json(report: environment.Report) -> dict[str, object]:
+    def step(item: environment.Step) -> dict[str, object]:
+        return {
+            "paso": item.name,
+            "estado": item.state,
+            "detalle": item.detail,
+            "orden": item.order,
+            "avisos": item.warnings,
+            **item.lists,
+        }
+
+    return {
+        "ok": report.ok,
+        "comprobar": report.check_only,
+        "raiz": str(report.root),
+        "capas": [
+            {
+                "capa": layer.name,
+                "pasos": [step(s) for s in layer.steps],
+                "sin_ejecutar": layer.not_run,
+            }
+            for layer in report.layers
+        ],
+        "despues": list(report.later),
+    }
+
+
+def _print_environment(report: environment.Report, out: TextIO) -> None:
+    print(f"menairos entorno · {report.root.resolve()}", file=out)
+    if report.check_only:
+        print("Solo se comprueba: no se escribe nada.", file=out)
+    for layer in report.layers:
+        print(f"\nCapa {layer.name}", file=out)
+        for item in layer.steps:
+            print(f"  {item.state:<7}{item.name:<18}{item.detail}".rstrip(), file=out)
+            for name, values in item.lists.items():
+                print(f"{'':9}{name.replace('_', ' ')}:", file=out)
+                for value in values:
+                    print(f"{'':11}{value}", file=out)
+            if item.order:
+                print(f"{'':9}orden: {item.order}", file=out)
+            for warning in item.warnings:
+                print(f"{'':9}aviso: {warning}", file=out)
+        if layer.not_run:
+            print(f"  Sin ejecutar: {', '.join(layer.not_run)}.", file=out)
+    if report.later:
+        print(
+            f"\nLas capas {' y '.join(report.later)} aún no están: llegan en una "
+            "versión posterior.",
+            file=out,
+        )
+    steps = list(report.steps())
+    counts = [
+        _count(sum(1 for s in steps if s.state == state), state, plural, "")
+        for state, plural in (("manual", "manuales"), ("error", "errores"))
+    ]
+    counts = [c for c in counts if c]
+    result = " y ".join(counts) if counts else "todo en verde"
+    print(f"\nResultado: {result}.", file=out)
