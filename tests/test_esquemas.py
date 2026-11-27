@@ -16,6 +16,7 @@ from menairos.schemas import (
     SchemaName,
     apply_defaults,
     check_decisions,
+    is_marked,
     load_document,
     load_schema,
     validate,
@@ -66,6 +67,25 @@ REGLAS: dict[SchemaName, set[str]] = {
         "tareas[].especificacion",
         "tareas[].criterios_aceptacion",
         "ultimo-elemento",
+    },
+    "decisiones": {
+        "claves-desconocidas",
+        "tarea",
+        "decisiones",
+        "decisiones[].id",
+        "decisiones[].decision",
+        "decisiones[].motivo",
+        "decisiones[].alternativas",
+        "decisiones[].reversibilidad",
+        "decisiones[].impacto",
+        "decisiones[].decidido_por",
+        "decisiones[].por_que_no_escalo",
+        "decisiones[].agente",
+        "decisiones[].revisor",
+        "decisiones[].revision",
+        "coherencia.id-de-la-tarea",
+        "coherencia.id-repetido",
+        "coherencia.matriz",
     },
 }
 
@@ -258,6 +278,15 @@ def test_valores_por_defecto_de_una_tarea() -> None:
     }
 
 
+def test_valores_por_defecto_de_una_decision() -> None:
+    """revision es pendiente; por_que_no_escalo, agente y revisor no tienen."""
+    documento = load_document(
+        DATOS / "decisiones" / "validos" / "pedro-sin-por-que.yaml"
+    )
+    decision = apply_defaults("decisiones", documento)["decisiones"][0]
+    assert decision == documento["decisiones"][0] | {"revision": "pendiente"}
+
+
 def test_aplicar_valores_por_defecto_no_cambia_la_entrada() -> None:
     documento = _minimo("tareas")
     copia = load_document(DATOS / "tareas" / "validos" / "minimo.yaml")
@@ -297,6 +326,74 @@ def test_el_menairos_toml_del_repo_es_valido() -> None:
 )
 def test_las_tareas_de_los_hitos_del_repo_son_validas(ruta: Path) -> None:
     assert validate("tareas", load_document(ruta)) == []
+
+
+@pytest.mark.parametrize(
+    "ruta",
+    sorted((RAIZ / "docs" / "specs").glob("hito-*/decisiones/*.yaml")),
+    ids=lambda r: f"{r.parent.parent.name}/{r.name}",
+)
+def test_los_ficheros_de_decisiones_del_repo_son_validos(ruta: Path) -> None:
+    """Cumplen el esquema y las coherencias, y se llaman como su tarea."""
+    documento = load_document(ruta)
+    assert _problemas("decisiones", documento) == []
+    assert ruta.stem == documento["tarea"]
+
+
+# ── Marca y coherencias de las decisiones ───────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("reversibilidad", "impacto", "marcada"),
+    [
+        ("reversible", "bajo", False),
+        ("dificil", "bajo", True),
+        ("reversible", "alto", True),
+        ("dificil", "alto", True),
+    ],
+)
+def test_la_marca_se_calcula_con_dificil_o_impacto_alto(
+    reversibilidad: str, impacto: str, marcada: bool
+) -> None:
+    """La marca no se escribe: está marcada si es difícil o de impacto alto (2.2)."""
+    assert is_marked({"reversibilidad": reversibilidad, "impacto": impacto}) is marcada
+
+
+def test_dificil_alto_y_agente_es_un_error_porque_tenia_que_parar() -> None:
+    """La matriz del punto 9: el agente tenía que haber parado."""
+    ruta = DATOS / "decisiones" / "invalidos" / "dificil-alto-agente.yaml"
+    documento = load_document(ruta)
+    assert validate("decisiones", documento) == []
+    [problema] = check_decisions(documento)
+    assert problema.path == "decisiones[0].decidido_por"
+    assert problema.keyword == "agent_should_have_stopped"
+    assert "tenía que haber parado" in problema.message
+    assert "punto 9" in problema.message
+
+
+def test_un_id_repetido_es_un_error_en_su_segunda_aparicion() -> None:
+    documento = load_document(DATOS / "decisiones" / "invalidos" / "id-repetido.yaml")
+    assert check_decisions(documento) == [
+        Issue(
+            "decisiones[2].id",
+            "duplicate_id",
+            "el id «T-07-D1» está repetido: ya se usó en decisiones[0]",
+        )
+    ]
+
+
+def test_un_id_de_otra_tarea_es_un_error() -> None:
+    documento = load_document(
+        DATOS / "decisiones" / "invalidos" / "id-de-otra-tarea.yaml"
+    )
+    assert check_decisions(documento) == [
+        Issue(
+            "decisiones[1].id",
+            "task_mismatch",
+            "el id «T-08-D2» no es de la tarea «T-07» del fichero: "
+            "debe empezar por «T-07-D»",
+        )
+    ]
 
 
 # ── Errores y mensajes ──────────────────────────────────────────────────────

@@ -1,0 +1,5 @@
+# Inválido: decisiones como tabla en lugar de lista.
+# regla: decisiones
+# error: decisiones type
+tarea: T-07
+decisiones: {}

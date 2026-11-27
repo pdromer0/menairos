@@ -1,0 +1,5 @@
+# Válido: un fichero sin decisiones.
+# regla: tarea
+# regla: decisiones
+tarea: T-07
+decisiones: []

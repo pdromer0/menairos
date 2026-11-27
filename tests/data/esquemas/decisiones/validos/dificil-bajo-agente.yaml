@@ -1,0 +1,13 @@
+# Válido: el agente puede tomar una difícil de impacto bajo (queda marcada).
+# regla: coherencia.matriz
+tarea: T-07
+decisiones:
+  - id: T-07-D1
+    decision: Guardar la caché en .cache/menairos/
+    motivo: Ya está en el .gitignore de la plantilla base
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: dificil
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: 'Reversible y de impacto bajo: basta con registrarla'

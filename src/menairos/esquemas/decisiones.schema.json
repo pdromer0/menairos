@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/pdromer0/menairos/main/src/menairos/esquemas/decisiones.schema.json",
+  "title": "Registro de decisiones de una tarea",
+  "description": "Formato de docs/specs/hito-N/decisiones/T-xx.yaml (hito-0.md 2.2 y 5.4, punto 9). Una clave desconocida es un error. La marca no se escribe: una decisión está marcada si es difícil de revertir o de impacto alto. La CLI comprueba además que cada id sea de la tarea del fichero y no se repita, y que una decisión difícil y de impacto alto no la haya tomado el agente.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tarea", "decisiones"],
+  "properties": {
+    "tarea": {
+      "description": "Id de la tarea del fichero (T-05).",
+      "type": "string",
+      "pattern": "^T-[0-9]{2,3}$"
+    },
+    "decisiones": {
+      "description": "Las decisiones de la tarea; puede estar vacía.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/decision"}
+    }
+  },
+  "$defs": {
+    "texto_no_vacio": {
+      "description": "Texto con al menos un carácter que no sea un espacio.",
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "decision": {
+      "description": "Una decisión. Si la tomó el agente, por_que_no_escalo es obligatorio.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "decision",
+        "motivo",
+        "alternativas",
+        "reversibilidad",
+        "impacto",
+        "decidido_por"
+      ],
+      "properties": {
+        "id": {
+          "description": "Id de la decisión: el de la tarea, -D y un número desde 1 (T-05-D1).",
+          "type": "string",
+          "pattern": "^T-[0-9]{2,3}-D[1-9][0-9]*$"
+        },
+        "decision": {
+          "description": "Qué se decidió.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "motivo": {
+          "description": "Por qué.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "alternativas": {
+          "description": "Las alternativas consideradas: al menos una.",
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/texto_no_vacio"}
+        },
+        "reversibilidad": {
+          "description": "Si es fácil o difícil de revertir.",
+          "enum": ["reversible", "dificil"]
+        },
+        "impacto": {
+          "description": "Impacto de la decisión.",
+          "enum": ["bajo", "alto"]
+        },
+        "decidido_por": {
+          "description": "pedro: lo aprobado en el plan; agente: lo decidido durante la implementación (5.4).",
+          "enum": ["agente", "pedro"]
+        },
+        "por_que_no_escalo": {
+          "description": "Por qué el agente no se lo preguntó a Pedro. Obligatorio si decidido_por es agente; sin valor por defecto.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "agente": {
+          "description": "Qué agente la tomó; sin valor por defecto.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "revisor": {
+          "description": "Quién la revisó; sin valor por defecto.",
+          "$ref": "#/$defs/texto_no_vacio"
+        },
+        "revision": {
+          "description": "Veredicto de Pedro al cerrar el hito.",
+          "enum": ["pendiente", "aceptada", "corregir", "elevar-a-adr"],
+          "default": "pendiente"
+        }
+      },
+      "if": {
+        "properties": {"decidido_por": {"const": "agente"}},
+        "required": ["decidido_por"]
+      },
+      "then": {
+        "required": ["por_que_no_escalo"]
+      }
+    }
+  }
+}

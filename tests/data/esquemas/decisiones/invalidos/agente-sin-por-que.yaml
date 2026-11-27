@@ -1,0 +1,13 @@
+# Inválido: una decisión del agente sin por_que_no_escalo.
+# regla: decisiones[].por_que_no_escalo
+# error: decisiones[0].por_que_no_escalo required
+tarea: T-07
+decisiones:
+  - id: T-07-D1
+    decision: Guardar la caché en .cache/menairos/
+    motivo: Ya está en el .gitignore de la plantilla base
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente

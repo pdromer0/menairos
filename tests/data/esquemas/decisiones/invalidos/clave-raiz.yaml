@@ -1,0 +1,14 @@
+# Inválido: una clave desconocida en la raíz.
+# regla: claves-desconocidas
+# error: hito additionalProperties
+tarea: T-07
+decisiones:
+  - id: T-07-D1
+    decision: Guardar la caché en .cache/menairos/
+    motivo: Ya está en el .gitignore de la plantilla base
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+hito: 0

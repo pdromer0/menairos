@@ -1,0 +1,30 @@
+# Inválido: la tercera decisión repite el id de la primera.
+# regla: coherencia.id-repetido
+# error: decisiones[2].id duplicate_id
+tarea: T-07
+decisiones:
+  - id: T-07-D1
+    decision: Guardar la caché en .cache/menairos/
+    motivo: Ya está en el .gitignore de la plantilla base
+    alternativas:
+      - Una carpeta temporal del sistema
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+  - id: T-07-D2
+    decision: Reintentar una vez las lecturas de la API
+    motivo: Los 502 de GitHub suelen ser pasajeros
+    alternativas:
+      - No reintentar
+      - Reintentar tres veces
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+  - id: T-07-D1
+    decision: Paginar de 100 en 100
+    motivo: Es el máximo de la API
+    alternativas:
+      - Paginar de 30 en 30
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
