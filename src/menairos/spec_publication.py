@@ -685,7 +685,7 @@ class _Publisher:
                 )
         content = content_without(found.body, found.marker)
         if old is None or old.body != new.fingerprint.body:
-            patch["body"] = f"{new.content}\n\n{marker}"
+            patch["body"] = new.body_with(marker)
             if content != new.content:
                 changes.append("cuerpo")
                 edited = old is None or digest(content) != old.body

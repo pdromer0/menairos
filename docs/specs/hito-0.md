@@ -507,6 +507,7 @@ Lo que hace, en este orden:
        publicado;
      - va sin `modo=` si la tarea no fija modo o si el issue no lo lleva (tiene otro puesto a
        mano, o Pedro lo quitó);
+     - se decide solo al escribir la marca: al crear el issue o cuando cambia la huella;
      - es lo único que mira el issue: el título, el cuerpo y la huella solo dependen del YAML y
        de `proyecto.repo`.
 4. **Dependencias nativas «blocked by»**, una por cada `depende_de`, después de crear todos los
@@ -539,8 +540,9 @@ en claro en la marca desde la auditoría de T-08):
 - nunca toca `en-curso`, `necesita-pedro`, `aprobado-pedro` ni un `modo:*` que la marca no diga;
 - si la tarea fija un modo y el issue tiene otro puesto a mano, se queda el de Pedro, con un
   aviso, y la marca va sin `modo=`;
-- un `modo:*` puesto a mano igual al de la tarea pasa a ser de publicar (decisión de Pedro tras
-  la auditoría de T-08): si el YAML quita o cambia después el modo, publicar lo quita.
+- un `modo:*` puesto a mano igual al de la tarea pasa a ser de publicar si el issue lo lleva
+  cuando se reescribe la marca (decisión de Pedro tras la auditoría de T-08): si el YAML quita o
+  cambia después el modo, publicar lo quita.
 
 **Idempotencia.** Una segunda ejecución sin cambios no hace ninguna escritura.
 

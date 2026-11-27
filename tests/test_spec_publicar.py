@@ -18,7 +18,7 @@ from doble_github import Call, FakeGitHub
 from menairos.github import GitHub, Request, Response
 from menairos.schemas import apply_defaults, load_document
 from menairos.spec_publication import Publication, publish_spec
-from menairos.task_issues import digest, marker_text, render
+from menairos.task_issues import RenderedIssue, digest, marker_text, render
 
 EJEMPLO = Path(__file__).resolve().parent / "data" / "spec_publicar" / "ejemplo"
 REPO = "pdromer0/menairos-prueba"
@@ -124,10 +124,15 @@ def de_tipo(lista: list[dict[str, Any]], tipo: str) -> list[dict[str, Any]]:
     return [item for item in lista if item["tipo"] == tipo]
 
 
-def cuerpo_generado(tid: str, raiz: Path = EJEMPLO) -> str:
+def generado(tid: str, raiz: Path = EJEMPLO) -> RenderedIssue:
+    """Lo que publicar escribe para una tarea del YAML de ``raiz``."""
     documento = apply_defaults("tareas", load_document(raiz / YAML))
     tareas = {t["id"]: t for t in documento["tareas"]}
-    return render(tareas[tid], milestone=0, repo=REPO, tasks_file=YAML).body
+    return render(tareas[tid], milestone=0, repo=REPO, tasks_file=YAML)
+
+
+def cuerpo_generado(tid: str, raiz: Path = EJEMPLO) -> str:
+    return generado(tid, raiz).body
 
 
 def marca(doble: FakeGitHub, tid: str) -> str:
@@ -141,10 +146,7 @@ def marca(doble: FakeGitHub, tid: str) -> str:
 
 def marca_de(raiz: Path, tid: str, modo: str | None) -> str:
     """La marca que debe llevar el issue de una tarea, con ``modo=`` o sin él."""
-    documento = apply_defaults("tareas", load_document(raiz / YAML))
-    tareas = {t["id"]: t for t in documento["tareas"]}
-    huella = render(tareas[tid], milestone=0, repo=REPO, tasks_file=YAML).fingerprint
-    return marker_text(tid, 0, modo, huella)
+    return marker_text(tid, 0, modo, generado(tid, raiz).fingerprint)
 
 
 def patch_de(doble: FakeGitHub, desde: int, n: int) -> dict[str, Any]:

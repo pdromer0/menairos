@@ -15,7 +15,9 @@ generated one.
 
 ``modo=`` names the ``modo:*`` label that is ``spec publicar``'s: the task's
 mode, if the issue has it once published. It is missing when the task sets no
-mode or the issue lacks it (another mode put by hand, or removed by hand).
+mode or the issue lacks it (another mode put by hand, or removed by hand). It
+is worked out only when the marker is written: on a new issue, or when the
+fingerprint changed.
 
 The title, the body and the fingerprint depend only on the task, its milestone
 and the repository name, never on GitHub's state; only ``modo=`` looks at the
@@ -114,8 +116,12 @@ class RenderedIssue:
 
     @property
     def body(self) -> str:
-        """The whole body: the content, a blank line and the marker."""
-        return f"{self.content}\n\n{self.marker}"
+        """The whole body of a new issue."""
+        return self.body_with(self.marker)
+
+    def body_with(self, marker: str) -> str:
+        """The content, a blank line and ``marker``."""
+        return f"{self.content}\n\n{marker}"
 
 
 def marker_text(
