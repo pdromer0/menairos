@@ -15,7 +15,7 @@ from doble_sistema import FakeSystem, preparado
 
 from menairos import github, stacks
 from menairos.environment import Report, run_environment
-from menairos.environment.local import PROFILE_ARGV, satisfies, version_of
+from menairos.environment.local import PROFILE_ARGV, TOOLS, satisfies, version_of
 
 
 def _local(
@@ -199,7 +199,7 @@ def test_docker_solo_si_una_plantilla_lo_pide(tmp_path: Path) -> None:
     informe = _local(sistema, raiz, roots=(stacks.PACKAGE_ROOT, plantillas))
     docker = paso(informe, "local", "docker")
     assert (docker.state, docker.order) == ("manual", None)
-    assert "docs.docker.com" in docker.detail
+    assert docker.detail.endswith(f"; instrucciones: {TOOLS['docker'].link}")
 
     sistema.install("docker", "Docker version 27.3.1, build ce12230")
     informe = _local(sistema, raiz, roots=(stacks.PACKAGE_ROOT, plantillas))

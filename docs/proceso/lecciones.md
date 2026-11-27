@@ -76,6 +76,10 @@ tareas a las que afecta.
 - **Para verificar en real una escritura que el deny de `.claude/settings.json` impide desde el
   shell** (un `DELETE`), se usa la propia orden de la CLI, que pasa por la lista de
   `menairos.github`, y no un script que esquive el deny. *Origen:* T-08 (P5).
+- **CodeQL marca `"dominio" in texto` también en los tests** («Incomplete URL substring
+  sanitization», alta), aunque no valide ninguna URL: el test compara con la URL completa, tomada
+  de la constante del módulo, y no con el dominio suelto. La alerta se corrige en el código, no se
+  descarta. *Origen:* T-11 (PR #39).
 
 ## Contratos
 
