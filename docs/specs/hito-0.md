@@ -106,10 +106,10 @@ menairos/
 ├── src/menairos/
 │   ├── __init__.py            __version__
 │   ├── cli.py                 punto de entrada `menairos` (argparse, sin dependencias)
-│   └── esquemas/              esquemas JSON (H0.1), dentro del paquete (2.2)
+│   ├── esquemas/              esquemas JSON (H0.1), dentro del paquete (2.2)
+│   └── plantillas/            plantillas de documentos y de stack (H0.2), dentro del paquete (3.2)
 ├── tests/
 ├── scripts/                   n1.sh y n3.sh (la N2, con su sello, llega con el hook Stop en T-20)
-├── plantillas/                (H0.2)
 ├── docs/
 │   ├── producto.md, diseno.md, hitos.md, abiertas.md
 │   ├── specs/hito-0.md, specs/hito-0.tareas.yaml
@@ -140,7 +140,8 @@ menairos/
   paquete, los tests, `scripts/`, la configuración del stack, el CI, las plantillas de issue y de
   PR, `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` y `menairos.toml`; `docs/` llega con T-03;
   `.claude-plugin/marketplace.json` y `plugin/`, con T-04; `src/menairos/esquemas/`, con T-05
-  (dentro del paquete; decisión de Pedro, 2026-11-27); `plantillas/`, con T-09 y T-10.
+  (dentro del paquete; decisión de Pedro, 2026-11-27); `src/menairos/plantillas/`, con T-09 y
+  T-10 (también dentro del paquete, para que viajen con la CLI; decisión de Pedro, 2026-11-27).
 - **Niveles de comprobación hasta T-10** (aceptado por Pedro el 2026-11-25): `scripts/n1.sh
   [rutas…]` (ruff, pyright y los tests de las rutas dadas) y `scripts/n3.sh` (formato comprobado,
   lint, tipos y todos los tests), los dos con salida 0 o 1 y diciendo qué ejecutaron; el CI llama
@@ -639,8 +640,10 @@ Los errores son los de `spec validar`, más `limite`, `marca-repetida` y `github
 
 ### 3.2 Plantillas de documentos
 
-En `plantillas/docs/`. Los encabezados son **fijos**: los usan las anclas de las tareas y las
-comprobaciones de `spec validar`, así que cambiar uno es un cambio de contrato.
+En `src/menairos/plantillas/docs/`, dentro del paquete para que viajen con la CLI instalada (se
+leen con `importlib.resources`, como los esquemas). Los encabezados son **fijos**: los usan las
+anclas de las tareas y las comprobaciones de `spec validar`, así que cambiar uno es un cambio de
+contrato; un test comprueba cada uno.
 
 | Plantilla | Secciones fijas |
 | --- | --- |
@@ -656,16 +659,28 @@ comprobaciones de `spec validar`, así que cambiar uno es un cambio de contrato.
 | `revision-hito-N.md` | Bloqueantes · Mejoras · Preguntas para Pedro · Predicción de paradas (4.3) |
 | `inventario-mvp.md` | Estructura · Stack detectado · Funcionalidades · Datos · Calidad · Riesgos (4.2) |
 | `pull_request_template.md` | Resumen · Closes #N · Decisiones · Comprobaciones · Revisión propia · Pendiente · Métricas |
-| Plantillas de issue | Tarea, bug e idea |
+| Plantillas de issue | Tarea, bug e idea, y `config.yml` (sin issues en blanco); la de Tarea lleva las secciones del cuerpo que genera `spec publicar` (2.4), sin la marca |
 
 **Sustitución de valores sin dependencias:** los huecos se escriben `{{clave}}`
-(`{{proyecto.nombre}}`, `{{hito.numero}}`) y los rellena la CLI con los valores de
-`menairos.toml`. No hay lógica dentro de las plantillas (nada de Jinja): si queda un hueco sin
-rellenar o se pide una clave que no existe, es un error.
+(`{{proyecto.nombre}}`, `{{hito.numero}}`) y los rellena la CLI (`menairos.templates`). No hay
+lógica dentro de las plantillas (nada de Jinja):
+
+- los valores salen de `menairos.toml`, validado y con sus valores por defecto, con claves de
+  tabla separadas por puntos, y de unas pocas claves que pasa quien llama: `hito.numero`,
+  `hito.titulo`, `fecha`, `tarea.id`, `tarea.titulo`, `adr.numero`, `adr.titulo` y `adr.tipo`;
+- un valor es un texto no vacío, sin saltos de línea ni caracteres de control, o un entero; un
+  booleano, una tabla o una lista es un error;
+- un hueco mal escrito (`{{ clave }}`, sin cerrar), un hueco sin rellenar o una clave que no existe
+  es un error; salen todos a la vez, con su línea;
+- un `{{` literal se escribe `\{{`; el texto se recorre una sola vez, así que un valor con `{{…}}`
+  se queda tal cual;
+- en las plantillas YAML, un texto solo va en un hueco entre comillas dobles (`"{{clave}}"`), y
+  la CLI lo escapa como dentro de ellas; fuera de comillas, solo un entero;
+- lo que escribe el autor va en comentarios HTML, nunca en un hueco.
 
 ### 3.3 Plantillas de stack y contrato común
 
-Cada plantilla de stack es una carpeta en `plantillas/stacks/` con un **manifiesto
+Cada plantilla de stack es una carpeta en `src/menairos/plantillas/stacks/` con un **manifiesto
 `plantilla.toml`**:
 
 ```toml
@@ -707,8 +722,7 @@ mensaje = "ruff format"
   `.gitignore` se unen, y cada plantilla aporta su sección a `AGENTS.md`.
 
 **`base`** (todo proyecto la lleva): `.gitignore`; pre-commit con gitleaks y las comprobaciones
-de higiene (fin de fichero, espacios finales, YAML y TOML válidos); plantillas de issue y de PR;
-`SECURITY.md`; el workflow `ci` fino, que llama a la orden `n3` del contrato; `AGENTS.md` y
+de higiene (fin de fichero, espacios finales, YAML y TOML válidos); `SECURITY.md`; el workflow `ci` fino, que llama a la orden `n3` del contrato; `AGENTS.md` y
 `CLAUDE.md` base; `.claude/settings.json` según el modo, con las prohibiciones del método v2 (fusión,
 push forzado, push a `main`, `DELETE` por la API) y el marketplace y el plugin de Menairos.
 
@@ -1737,7 +1751,7 @@ un solo sitio (commit `refactor:`) y entonces sí falló.
   - `quien: codex` solo en modo manual (A4, decisión de Pedro);
   - A01 tiene que mirar el documento antes de aplicar los valores por defecto;
   - `spec validar` reutiliza `load_document`, `validate`, `Issue` y `format_path`.
-- Para T-09: dónde viven las plantillas (`abiertas.md`).
+- Para T-09: dónde viven las plantillas (`abiertas.md`; cerrado en T-09, T-09-D1).
 - Para T-21: el nombre del fichero de decisiones frente a su `tarea`; de momento lo comprueba el
   test de los ficheros del repo.
 - Casos conocidos que no se tratan: una `ventana_horaria` con inicio igual al fin, y las plantillas
@@ -2467,7 +2481,8 @@ envoltorio y del catálogo) y se deshizo con `git checkout`; el árbol quedó li
   - las 12 etiquetas.
 
   Pedro puede cerrarlos cuando quiera. Si se publicara otra vez el ejemplo, no se duplicaría nada.
-- **Para T-09:** unificar la plantilla de issue «Tarea» con el cuerpo generado (`abiertas.md`).
+- **Para T-09:** unificar la plantilla de issue «Tarea» con el cuerpo generado (`abiertas.md`;
+  cerrado en T-09, T-09-D2).
 - **Para T-19:** el `desfase` puede reutilizar `task_issues` (la marca y la huella).
 - **Sin probar en real**, para no crear etiquetas que no se pueden borrar:
   - los límites de longitud de GitHub (50, 256 y 65 536), que salen de su documentación y de sus
@@ -2507,4 +2522,87 @@ envoltorio y del catálogo) y se deshizo con `git checkout`; el árbol quedó li
     una ayuda de los tests) y se aclaró 2.4. Se aceptaron sin código las marcas viejas, que solo
     hay en menairos-prueba, y la reescritura única de los cuerpos con dependencias.
 - **Pendiente:** cambiar el texto fijo del cuerpo (T-09) reescribe todos los cuerpos abiertos
-  (`abiertas.md`).
+  (`abiertas.md`; cerrado en T-09, que no cambia el cuerpo: T-09-D2).
+
+### T-09 — Plantillas de documentos y sustitución `{{…}}`
+
+*Hecha el 2026-11-27, en local (WSL2), con Claude Code (Opus 5.5, modo plan y después auto), a
+partir del issue #17 y de un encargo del chat. Tarea no crítica: plan corto, sin revisión a la
+contra. Pedro aprobó P1–P5 con la recomendación.*
+
+**Qué se hizo**
+
+- Las plantillas de 3.2 están en `src/menairos/plantillas/docs/`, dentro del paquete:
+  - los documentos `producto.md`, `diseno.md`, `hitos.md`, `hito-N.md`, `abiertas.md`, `adr.md`,
+    `anexo-tarea.md`, `revision-hito-N.md` e `inventario-mvp.md`;
+  - los YAML `hito-N.tareas.yaml` y `decisiones-tarea.yaml`;
+  - las copias exactas de la plantilla de PR y de las de issue (con `config.yml`).
+- `menairos.templates` (`read`, `values`, `fill` y `render`) hace la sustitución `{{clave}}`, con
+  las reglas de 3.2.
+- `.github/ISSUE_TEMPLATE/tarea.md` tiene ahora las secciones del cuerpo de `spec publicar`. El
+  cuerpo generado, `task_issues.py` y las huellas no cambian.
+- `hito-0.md` 1.3, 3.2 y 3.3 y `diseno.md` 2.3 dicen dónde viven las plantillas. Se cierran dos
+  puntos de `abiertas.md`.
+
+**Decisiones del diff** (registro: `hito-0/decisiones/T-09.yaml`, de T-09-D1 a D8)
+
+- D1, las plantillas dentro del paquete. D2, manda el cuerpo de `spec publicar`: la huella de
+  T-09, calculada desde el YAML, es la de la marca del issue #17.
+- D3, valores de `menairos.toml` y de una lista cerrada de claves de quien llama, textos o
+  enteros. D4, un `{{` literal se escribe `\{{` (Handlebars). D5, en YAML, un texto va entre
+  comillas dobles y se escapa.
+- D6, encabezados sin número, `config.yml` y `diseno.md` alineado con 3.2. D7 (agente):
+  `check-yaml` no mira `hito-N.tareas.yaml`, que no es YAML sin rellenar. D8 (agente, de la
+  revisión): ni caracteres de control ni textos YAML fuera de comillas.
+
+**Medidas**
+
+- 16 plantillas: 11 documentos, la de PR, las 3 de issue y `config.yml`. `templates.py` tiene
+  232 líneas; `test_plantillas.py`, 547 líneas con 156 tests, uno de ellos lento (el wheel).
+- El esqueleto da exactamente E02, E10 y E12 (con el hito 0 y con el 3). Con el contenido mínimo
+  (la tarea de ejemplo descomentada, una ✅ con su orden y un ADR de stack desde `adr.md`) pasa
+  sin errores ni avisos.
+
+**Versiones incorrectas**
+
+Las ocho del plan fallan en su test:
+1. un hueco desconocido que se deja tal cual;
+2. `True` aceptado como número;
+3. `if not value`, que rechaza el hito 0;
+4. el YAML sin escapar;
+5. la sustitución en bucle;
+6. un `- ✅` dentro del comentario de «Validación funcional»: E10 lo cuenta, porque no salta los
+   comentarios HTML;
+7. un encabezado cambiado;
+8. `## Datos` cambiado en `tarea.md`.
+
+**Revisión**
+
+- **`/code-review`:** 10 hallazgos. Se corrigieron 8:
+  - el YAML con caracteres que no admite (`\x7f`, `\x9f`, sustitutos sueltos): ahora un valor con
+    caracteres de control es un error;
+  - un texto en un hueco YAML sin comillas (`hito: {{hito.numero}}` con `"1 # x"` cargaba 1):
+    ahora solo admite enteros, y el comentario de `decisiones-tarea.yaml` ya no lleva un texto;
+  - los caracteres invisibles de este anexo;
+  - §3.3, que todavía ponía las plantillas de issue y de PR en `base`;
+  - la exclusión de `check-yaml`, limitada a `hito-N.tareas.yaml`;
+  - las referencias de T-06 y T-08 a puntos de `abiertas.md` ya cerrados;
+  - el recuento de líneas, que ya no es cuadrático.
+
+  No se corrigieron 2:
+  - `_NOT_BLANK`, repetido de `schemas.py`, que no se toca en esta tarea;
+  - que `markdown.parse` no salte los comentarios HTML, que va a Pendiente.
+
+  Las correcciones suman menos de 100 líneas de `src/`, así que no hubo segunda revisión.
+- Se repitió la lección de T-06: los escapes de U+FEFF y U+2028 acabaron escritos como los
+  caracteres, en `templates.py`, en los tests y en este anexo. U+2028 es de la categoría Zl, que la
+  búsqueda no miraba; ahora busca también Zl y Zp.
+
+**Pendiente**
+
+- T-15 (`spec nuevo`) decide dónde se escribe cada plantilla y qué valores pasa.
+- **Para Pedro:** `spec validar` no salta los comentarios HTML. Si alguien deja comentado un
+  `- ✅ …` en «Validación funcional», o un `###` en `abiertas.md`, E10 lo cuenta como comprobación
+  y E11 como punto. Las plantillas evitan esas líneas en sus comentarios; arreglarlo en
+  `markdown.parse` cambia E10 y E11, y queda para una tarea de `spec validar` (por ejemplo T-18).
+- No se migran los documentos del propio Menairos a las plantillas (decisión del encargo).

@@ -71,23 +71,6 @@ adaptar el plugin. Pedro lo decide antes de publicar `v3.0.0` (T-28); opciones v
 Apache-2.0, con el aviso de copyright a nombre de `pdromer0` (nada personal). El fichero `LICENSE`
 entra por PR, como cualquier otro cambio.
 
-### ¿Dónde viven las plantillas para que viajen con la CLI?
-
-**Justificación:** la CLI se instala con `uv tool install`, que solo empaqueta `src/menairos/`, así
-que una carpeta `plantillas/` en la raíz (`hito-0.md` 1.3 y `diseno.md` 2.3) no llegaría a la CLI
-instalada. A los esquemas les pasaba lo mismo, y en T-05 se movieron a `src/menairos/esquemas/`
-(decisión de Pedro, 2026-11-27). Se decide en **T-09**, la primera tarea que crea plantillas.
-
-### ¿Cómo se unifican la plantilla de issue «Tarea» y el cuerpo que genera `spec publicar`?
-
-**Justificación:** desde T-08, `menairos spec publicar` genera el cuerpo de los issues de tarea
-(resumen, especificación, criterios, datos y la marca; `hito-0.md` 2.4), y
-`.github/ISSUE_TEMPLATE/tarea.md` (Objetivo, Alcance, Criterios de aceptación, Dependencias) no
-cambió, así que hoy no coinciden. Se cierra en **T-09**, que crea las plantillas de documentos y de
-issue (3.2) y las unifica. Al unificarlas cambia el texto fijo del cuerpo, y con él la huella de
-todas las tareas: la publicación siguiente reescribe todos los cuerpos abiertos y pierden sus
-casillas marcadas. T-09 tiene que decidir cómo evitarlo (auditoría de T-08).
-
 ### ¿Qué versión lleva el plugin durante el desarrollo?
 
 **Justificación:** con `version` fijada en `plugin.json`, un proyecto se queda en esa versión
