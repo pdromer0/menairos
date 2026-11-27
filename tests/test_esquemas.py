@@ -1,7 +1,9 @@
 """Tests de los esquemas JSON del contrato y de su módulo (T-05)."""
 
 import re
+import subprocess
 import tomllib
+import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -495,3 +497,22 @@ def test_los_mensajes_de_menairos_toml_estan_en_espanol(
 ) -> None:
     ruta = DATOS / "menairos" / "invalidos" / f"{caso}.toml"
     assert [p.message for p in validate("menairos", load_document(ruta))] == [mensaje]
+
+
+# ── Empaquetado ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.slow
+def test_los_esquemas_viajan_en_el_wheel(tmp_path: Path) -> None:
+    """uv tool install solo instala el paquete: los esquemas tienen que ir dentro."""
+    subprocess.run(
+        ["uv", "build", "--wheel", "--out-dir", str(tmp_path)],
+        cwd=RAIZ,
+        check=True,
+        capture_output=True,
+    )
+    [rueda] = tmp_path.glob("menairos-*.whl")
+    with zipfile.ZipFile(rueda) as contenido:
+        nombres = set(contenido.namelist())
+    for esquema in REGLAS:
+        assert f"menairos/esquemas/{esquema}.schema.json" in nombres
