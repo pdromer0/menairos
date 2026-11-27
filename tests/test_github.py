@@ -263,6 +263,8 @@ def test_response_pone_las_cabeceras_en_minusculas() -> None:
         f"{REPO}/issues?state=all&per_page=100",
         "user",
         "repositories/123/labels?page=2",
+        f"{REPO}/labels/estado%3Arepo",
+        f"{REPO}/labels/a:repository",
     ],
 )
 def test_rutas_validas(ruta: str) -> None:
@@ -287,11 +289,14 @@ def test_rutas_validas(ruta: str) -> None:
         f"{REPO}/labels/",
         f"{REPO}/../../user",
         f"{REPO}/./labels",
+        f"{REPO}/labels/estado:repo",
+        f"{REPO}/labels/x:owner",
+        "repos/:owner/:repo/branches/:branch",
     ],
     ids=[
         "vacia", "barra", "url", "guion", "opcion", "llaves", "espacio", "salto",
         "tabulador", "no-ascii", "almohadilla", "doble-barra", "barra-final", "puntos",
-        "punto",
+        "punto", "dos-puntos-repo", "dos-puntos-owner", "dos-puntos-branch",
     ],
 )  # fmt: skip
 def test_rutas_rechazadas(ruta: str) -> None:
@@ -392,6 +397,16 @@ def test_parametros_codificados() -> None:
     ]
 
 
+@pytest.mark.parametrize("valor", [["tipo:tarea", "hito:0"], None, 1.5, {"a": 1}])
+def test_un_parametro_que_no_es_texto_entero_ni_booleano_se_rechaza(
+    valor: object,
+) -> None:
+    cli, transporte, _ = cliente()
+    with pytest.raises(ForbiddenRequest, match="texto, entero o booleano"):
+        cli.get(f"{REPO}/issues", {"labels": valor})
+    assert transporte.peticiones == []
+
+
 def test_el_tiempo_maximo_llega_al_transporte() -> None:
     transporte = Enlatado(ok({}))
     GitHub(transporte, timeout=7).get("user")
@@ -469,6 +484,29 @@ def test_403_que_solo_lo_dice_en_el_mensaje() -> None:
     assert str(error) == (
         f"Límite de uso de la API de GitHub alcanzado (HTTP 403) en GET {REPO}/labels."
     )
+
+
+@pytest.mark.parametrize(
+    "valor",
+    ["²", "-5", "1e9", "", " ", "１２", "9" * 19],
+)
+def test_cabeceras_de_limite_raras_no_rompen_el_error(valor: str) -> None:
+    error = _error(
+        fallo(429, {"message": "x"}, X_RateLimit_Reset=valor, Retry_After=valor)
+    )
+    assert isinstance(error, RateLimited)
+    assert (error.reset_at, error.retry_after) == (None, None)
+    assert str(error) == (
+        f"Límite de uso de la API de GitHub alcanzado (HTTP 429) en GET {REPO}/labels."
+    )
+
+
+def test_una_hora_de_renovacion_fuera_de_rango_se_ignora() -> None:
+    error = _error(fallo(403, {"message": "x"}, X_RateLimit_Remaining="0",
+                         X_RateLimit_Reset="99999999999999"))  # fmt: skip
+    assert isinstance(error, RateLimited)
+    assert error.reset_at is None
+    assert str(error).endswith(f"en GET {REPO}/labels.")
 
 
 def test_429() -> None:
@@ -636,6 +674,22 @@ def test_next_link() -> None:
     assert next_link(_link(prev="x?page=1", last="x?page=1")) is None
     assert next_link(None) is None
     assert next_link("") is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.example.com/api/v3/repositories/1/issues?page=2",
+        "http://api.github.com/repositories/1/issues?page=2",
+        "https://api.github.com.example.com/repositories/1/issues?page=2",
+    ],
+    ids=["enterprise", "http", "otro-dominio"],
+)
+def test_un_next_fuera_de_api_github_com_no_se_sigue(url: str) -> None:
+    cli, transporte, _ = cliente(ok([1], link=f'<{url}>; rel="next"'))
+    with pytest.raises(ForbiddenRequest, match="fuera de https://api.github.com/"):
+        cli.get_all(f"{REPO}/issues")
+    assert len(transporte.peticiones) == 1
 
 
 def test_get_all_sigue_el_next_tal_cual_aunque_salte_paginas_o_use_cursor() -> None:

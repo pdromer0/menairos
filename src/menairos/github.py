@@ -51,6 +51,9 @@ _ALLOWED_DELETES: tuple[re.Pattern[str], ...] = (
 
 _STATUS_LINE = re.compile(r"HTTP/[0-9.]+ ([0-9]{3})(?: .*)?")
 _LINK = re.compile(r'<([^>]*)>\s*;\s*rel="([^"]*)"')
+# gh replaces these in the endpoint too, besides {owner}, {repo} and {branch}.
+_COLON_PLACEHOLDER = re.compile(r":(?:owner|repo|branch)\b", re.ASCII)
+API_ROOT = "https://api.github.com/"
 
 
 class GitHubError(Exception):
@@ -271,6 +274,8 @@ def check_path(path: str) -> str:
         problem = "solo admite ASCII visible: codifica el resto con quote()"
     elif any(char in path for char in "{}#"):
         problem = "no admite «{», «}» ni «#»: codifícalos con quote()"
+    elif _COLON_PLACEHOLDER.search(path):
+        problem = "gh cambiaría «:owner», «:repo» o «:branch»: codifica «:» con quote()"
     elif any(
         segment in ("", ".", "..") for segment in path.split("?", 1)[0].split("/")
     ):
@@ -290,15 +295,29 @@ def _with_params(path: str, params: Mapping[str, Any] | None) -> str:
 def _param(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
-    return str(value)
+    if isinstance(value, str | int):
+        return str(value)
+    raise ForbiddenRequest(
+        "Un parámetro de la consulta tiene que ser texto, entero o booleano, "
+        f"no {value!r} (una lista de etiquetas va unida por comas)."
+    )
 
 
 def next_link(header: str | None) -> str | None:
-    """Path (with its query) of the ``rel="next"`` URL of a ``Link`` header."""
+    """Path (with its query) of the ``rel="next"`` URL of a ``Link`` header.
+
+    Only ``https://api.github.com/`` URLs are followed: Menairos talks to
+    github.com, and another host (or an ``/api/v3`` prefix) would be sent by gh
+    to the wrong place.
+    """
     if not header:
         return None
     for url, rels in _LINK.findall(header):
         if "next" in rels.split():
+            if not url.startswith(API_ROOT):
+                raise ForbiddenRequest(
+                    f"La paginación apunta fuera de {API_ROOT}: «{url}»."
+                )
             parts = urlsplit(url)
             path = parts.path.lstrip("/")
             return f"{path}?{parts.query}" if parts.query else path
@@ -503,14 +522,20 @@ def _rate_limited(response: Response, github_message: str) -> bool:
 
 
 def _int(text: str | None) -> int | None:
-    if text is None or not text.strip().isdigit():
+    """ASCII digits only (``str.isdigit`` also accepts ``²``, which ``int`` rejects)."""
+    if text is None or not re.fullmatch(r"[0-9]{1,18}", text.strip()):
         return None
     return int(text.strip())
 
 
 def _reset_at(text: str | None) -> datetime | None:
     seconds = _int(text)
-    return None if seconds is None else datetime.fromtimestamp(seconds, UTC)
+    if seconds is None:
+        return None
+    try:
+        return datetime.fromtimestamp(seconds, UTC)
+    except OverflowError, OSError, ValueError:
+        return None
 
 
 def _validation_details(data: Any) -> list[str]:
