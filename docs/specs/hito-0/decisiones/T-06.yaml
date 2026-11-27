@@ -68,7 +68,7 @@ decisiones:
     alternativas:
       - E03 cuando dos ids tengan el mismo número, sin tocar el esquema
       - No hacer nada
-    reversibilidad: dificil
+    reversibilidad: reversible
     impacto: bajo
     decidido_por: pedro
 

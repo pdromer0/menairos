@@ -1752,7 +1752,7 @@ Del agente (`decidido_por: agente`):
   - calcula el `prog` de las subórdenes con `prefix=""`, así que un `prefix or "uso: "` repetía
     «uso:» tres veces;
   - con `allow_abbrev`, `--js` valía por `--json`.
-- **Caracteres invisibles:** escribir `"﻿"` en el código acabó, en este entorno, como un BOM
+- **Caracteres invisibles:** escribir `"\ufeff"` en el código acabó, en este entorno, como un BOM
   literal invisible en el fichero. Lo detectó una versión incorrecta cuyo texto no aparecía.
 
 **Versiones incorrectas**
