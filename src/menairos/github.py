@@ -8,7 +8,8 @@ Every call the CLI makes to GitHub goes through :class:`GitHub`, in two layers:
 - the *client* :class:`GitHub` checks the path, refuses GraphQL and every
   ``DELETE`` but one, follows the ``Link`` header to paginate, retries a ``GET``
   that gets a 5xx and turns any other failure into a :class:`GitHubError` with a
-  Spanish message.
+  Spanish message. With ``write_interval`` it also waits between two writes, as
+  GitHub asks to avoid its secondary rate limit.
 
 The client knows nothing about issues or labels: callers build the REST paths.
 A path segment holding free text (a label name) must be percent-encoded by the
@@ -40,8 +41,8 @@ METHODS = frozenset({"GET", "POST", "PATCH", "PUT", "DELETE"})
 
 _ALLOWED_DELETES: tuple[re.Pattern[str], ...] = (
     # Removing a «blocked by» relation between two issues deletes a link, not
-    # data (Pedro's decision, 2026-11-27). Route as documented by GitHub; T-08
-    # verifies it against the test repository.
+    # data (Pedro's decision, 2026-11-27). The last segment is the blocking
+    # issue's id, not its number (GitHub's documentation, checked in T-08).
     re.compile(
         r"repos/[A-Za-z0-9-]+/[A-Za-z0-9._-]+/issues/[1-9][0-9]*"
         r"/dependencies/blocked_by/[1-9][0-9]*"
@@ -337,10 +338,19 @@ class GitHub:
         *,
         timeout: float = DEFAULT_TIMEOUT,
         sleep: Callable[[float], None] | None = None,
+        write_interval: float = 0.0,
     ) -> None:
+        """``write_interval``: seconds to wait before every write but the first.
+
+        GitHub asks to wait at least one second between ``POST``, ``PATCH``,
+        ``PUT`` and ``DELETE`` requests; ``spec publicar`` uses 1.0. The wait is
+        always the whole interval (no clock), and ``GET`` never waits.
+        """
         self._transport = transport if transport is not None else default_transport()
         self._timeout = timeout
         self._sleep = sleep
+        self._write_interval = write_interval
+        self._has_written = False
 
     def request(
         self,
@@ -363,6 +373,10 @@ class GitHub:
         if method in ("GET", "DELETE") and body is not None:
             raise ForbiddenRequest(f"Un {method} no lleva cuerpo ({full}).")
         request = Request(method, full, body)
+        if method != "GET":
+            if self._has_written and self._write_interval > 0:
+                self._wait(self._write_interval)
+            self._has_written = True
         retries = 0
         while True:
             response = self._transport.send(request, self._timeout)
