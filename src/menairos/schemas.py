@@ -293,17 +293,19 @@ def _resolve(schema: Mapping[str, Any], root: Mapping[str, Any]) -> dict[str, An
 
 
 def _children(
-    value: object, schema: Mapping[str, Any], root: Mapping[str, Any]
-) -> Iterator[tuple[_Part, object, dict[str, Any]]]:
-    """Yield the (key, value, schema) of the parts of ``value`` the schema describes."""
+    value: object, schema: Mapping[str, Any]
+) -> Iterator[tuple[_Part, object, Mapping[str, Any]]]:
+    """Yield (key, value, subschema) for the parts of ``value`` the schema describes.
+
+    The subschema is returned as written: the caller follows its ``$ref``.
+    """
     if isinstance(value, dict):
         for key, sub in schema.get("properties", {}).items():
             if key in value:
-                yield key, value[key], _resolve(sub, root)
+                yield key, value[key], sub
     elif isinstance(value, list) and isinstance(schema.get("items"), Mapping):
-        items = _resolve(schema["items"], root)
         for index, item in enumerate(value):
-            yield index, item, items
+            yield index, item, schema["items"]
 
 
 def _strict(
@@ -340,7 +342,7 @@ def _strict(
             "pattern",
             f"{_show(value)} no tiene el formato esperado: acaba en salto de línea",
         )
-    for key, child, child_schema in _children(value, schema, root):
+    for key, child, child_schema in _children(value, schema):
         yield from _strict(child, child_schema, root, (*parts, key))
 
 
@@ -352,6 +354,6 @@ def _fill(value: Any, schema: Mapping[str, Any], root: Mapping[str, Any]) -> Any
             sub = _resolve(sub, root)
             if key not in value and "default" in sub:
                 value[key] = copy.deepcopy(sub["default"])
-    for key, child, child_schema in _children(value, schema, root):
+    for key, child, child_schema in _children(value, schema):
         value[key] = _fill(child, child_schema, root)
     return value
