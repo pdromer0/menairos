@@ -12,16 +12,17 @@ from typing import Any
 
 import pytest
 
-from menairos.schemas import apply_defaults, load_document
+from menairos.labels import MODES
+from menairos.schemas import apply_defaults, load_document, load_schema
 from menairos.task_issues import (
     Fingerprint,
     content_without,
     find_markers,
     issue_title,
     labels_digest,
+    marker_text,
     normalize_body,
     one_line,
-    previous_labels,
     render,
     with_marker,
 )
@@ -30,6 +31,7 @@ EJEMPLO = Path(__file__).resolve().parent / "data" / "spec_publicar" / "ejemplo"
 YAML = "docs/specs/hito-0.tareas.yaml"
 REPO = "pdromer0/menairos-prueba"
 URL = f"https://github.com/{REPO}/blob/main/docs/specs/hito-0.md"
+HUELLA = "a26eef9c69ca6a2a.8322ddfaa2e11a4c.445cc2ee50b21811"
 PIE = (
     "*Generado por `menairos spec publicar` desde `docs/specs/hito-0.tareas.yaml`: "
     "los cambios se hacen allí.*"
@@ -192,12 +194,43 @@ def test_one_line_y_titulo() -> None:
 def test_la_marca_de_un_cuerpo_generado() -> None:
     issue = _render("T-02")
     [marca] = find_markers(issue.body)
-    assert (marca.task, marca.milestone, marca.fingerprint) == (
+    assert (marca.task, marca.milestone, marca.fingerprint, marca.mode) == (
         "T-02",
         0,
         issue.fingerprint,
+        None,
     )
     assert content_without(issue.body, marca) == issue.content
+
+
+def test_la_marca_lleva_el_modo_en_claro() -> None:
+    """Auditoría de T-08: el modo:* de publicar es el de la marca."""
+    issue = _render("T-03")
+    assert issue.mode == "didactico"
+    assert issue.marker == (
+        "<!-- menairos:tarea=T-03 hito=0 modo=didactico "
+        "huella=89c4e21358f17749.c8747acd4eb1cfa4.1e5cc19043220ead -->"
+    )
+    [marca] = find_markers(issue.body)
+    assert (marca.fingerprint, marca.mode) == (issue.fingerprint, "didactico")
+
+
+@pytest.mark.parametrize("modo", [None, *MODES])
+def test_la_marca_de_cada_modo_se_lee_igual(modo: str | None) -> None:
+    huella = _render("T-02").fingerprint
+    [marca] = find_markers(f"Cuerpo\n\n{marker_text('T-02', 3, modo, huella)}")
+    assert (marca.task, marca.milestone, marca.fingerprint, marca.mode) == (
+        "T-02",
+        3,
+        huella,
+        modo,
+    )
+
+
+def test_los_modos_de_la_marca_son_los_del_esquema() -> None:
+    """Si se separaran, publicar escribiría marcas que luego no puede leer."""
+    tarea = load_schema("tareas")["$defs"]["tarea"]["properties"]["modo"]
+    assert [m for m in tarea["enum"] if m is not None] == list(MODES)
 
 
 @pytest.mark.parametrize(
@@ -208,12 +241,37 @@ def test_la_marca_de_un_cuerpo_generado() -> None:
         "<!-- menairos:tarea=T-02 hito=0 huella=a26eef9c69ca6a2a.76d905ea2fab0109 -->",
         "<!-- menairos:tarea=T-02 hito=0 huella=A26EEF9C69CA6A2A."
         "76d905ea2fab0109.445cc2ee50b21811 -->",
+        f"<!-- menairos:tarea=T-02 hito=0 modo=xyz huella={HUELLA} -->",
+        f"<!-- menairos:tarea=T-02 hito=0 modo= huella={HUELLA} -->",
+        f"<!-- menairos:tarea=T-02 hito=0 modo=Manual huella={HUELLA} -->",
+        f"<!-- menairos:tarea=T-02 hito=0 modo=manual modo=manual huella={HUELLA} -->",
+        f"<!-- menairos:tarea=T-02 hito=0 huella={HUELLA} modo=manual -->",
+        "<!-- menairos:tarea=T-02 hito=0 modo=manual huella=rota -->",
+        "<!-- menairos:tarea=T-02 hito=0 modo=manual -->",
     ],
-    ids=["texto", "sin-huella", "dos-partes", "mayusculas"],
+    ids=[
+        "texto",
+        "sin-huella",
+        "dos-partes",
+        "mayusculas",
+        "modo-desconocido",
+        "modo-vacio",
+        "modo-con-mayusculas",
+        "modo-repetido",
+        "modo-detras",
+        "modo-con-la-huella-rota",
+        "modo-sin-huella",
+    ],
 )
-def test_una_marca_con_la_huella_rota_se_reconoce_pero_es_ilegible(linea: str) -> None:
+def test_una_marca_rota_se_reconoce_pero_es_ilegible(linea: str) -> None:
+    """Ni la huella ni el modo se leen por separado."""
     [marca] = find_markers(f"Cuerpo\n\n{linea}")
-    assert (marca.task, marca.milestone, marca.fingerprint) == ("T-02", 0, None)
+    assert (marca.task, marca.milestone, marca.fingerprint, marca.mode) == (
+        "T-02",
+        0,
+        None,
+        None,
+    )
 
 
 @pytest.mark.parametrize(
@@ -262,27 +320,14 @@ def test_cambiar_solo_la_marca_conserva_el_resto_del_cuerpo() -> None:
     assert content_without(cuerpo, marca) == "Editado a mano\n\n\nnota"
 
 
-# ── Etiquetas de la vez anterior ────────────────────────────────────────────
+# ── Etiquetas ───────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize(
-    "etiquetas",
-    [
-        {"tipo:tarea", "area:datos"},
-        {"tipo:tarea", "area:datos", "critica"},
-        {"tipo:tarea", "area:entorno", "modo:didactico"},
-        {"tipo:tarea", "area:entorno", "critica", "modo:automatico"},
-    ],
-)
-def test_las_etiquetas_de_antes_se_deducen_de_la_huella(etiquetas: set[str]) -> None:
-    huella = Fingerprint("0" * 16, "0" * 16, labels_digest(etiquetas))
-    assert previous_labels(huella, ["datos", "entorno"]) == etiquetas
-
-
-def test_sin_coincidencia_no_se_deduce_nada() -> None:
-    huella = Fingerprint("0" * 16, "0" * 16, labels_digest({"tipo:tarea", "area:otra"}))
-    assert previous_labels(huella, ["datos", "entorno"]) is None
-    assert previous_labels(huella, ["otra"]) == {"tipo:tarea", "area:otra"}
+def test_la_parte_de_etiquetas_lleva_el_modo_de_la_tarea() -> None:
+    """Aunque el modo vaya en claro: es lo que hace converger un choque de modo."""
+    assert _render("T-03").fingerprint.labels == _h(
+        "area:entorno\nmodo:didactico\ntipo:tarea"
+    )
 
 
 def test_labels_digest_sin_mayusculas_ni_orden_ni_repetidas() -> None:
