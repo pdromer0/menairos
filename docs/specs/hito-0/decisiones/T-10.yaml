@@ -1,0 +1,163 @@
+# Registro de decisiones de T-10 (plantillas base y python-uv, manifiesto y composición). Formato:
+# src/menairos/esquemas/decisiones.schema.json. Lo que está en el plan aprobado, o lo decidió Pedro en
+# el encargo, va con decidido_por: pedro (hito-0.md 5.4); lo que el agente decidió durante la
+# implementación sin estar en el plan, con decidido_por: agente.
+tarea: T-10
+decisiones:
+  - id: T-10-D1
+    decision: >-
+      La plantilla python-uv sale de los ficheros probados de Menairos, y Menairos adopta los scripts
+      compuestos (n1, n2 y n3 de base, y las partes de scripts/stack/python-uv/). Un test compara base +
+      python-uv con el menairos.toml del repo contra sus scripts, su CI y sus hooks, y solo admite dos
+      diferencias declaradas: spec validar en la N3 y el exclude de check-yaml (P1)
+    motivo: >-
+      Con los scripts de antes, la lista de diferencias sería tan larga que el test dejaría de vigilar;
+      Menairos se come su propia comida
+    alternativas:
+      - Mantener los scripts de Menairos y declarar todas las diferencias de estructura
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-10-D2
+    decision: >-
+      La N3 de un proyecto generado no valida su especificación todavía; el punto va a abiertas.md y se
+      cierra en T-12 o T-28
+    motivo: Haría falta una versión publicada de la CLI que fijar en el CI, y aún no hay ninguna
+    alternativas:
+      - Instalar la CLI desde la rama principal en el CI del proyecto
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-10-D3
+    decision: >-
+      El contrato común sirve para varias tecnologías: cada plantilla de lenguaje declara lo suyo en
+      [propiedad] (extensiones y carpetas; gana la extensión), los scripts del proyecto ejecutan la parte
+      de cada plantilla presente, todas aunque falle una, y salen con 0 o 1. Las órdenes del proyecto
+      (n1, n2 y n3) son de base; desaparece extensiones_formato. Dos plantillas de juguete, solo en
+      tests/data/stacks/, prueban la composición
+    motivo: Es lo que pidió Pedro para que el contrato no haya que rehacerlo con el segundo lenguaje
+    alternativas:
+      - Un contrato solo para Python, que se generaliza cuando llegue otro lenguaje
+    reversibilidad: dificil
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-10-D4
+    decision: >-
+      .claude/settings.json no es una plantilla: lo genera el código con las reglas de [permisos] de cada
+      plantilla, el marketplace fijado a v<versión> (sin ref en una versión previa) y el plugin. En el H0
+      es igual en los tres modos (P2)
+    motivo: >-
+      El fichero es uno por repo y el modo es por tarea; un ask ya falla cerrado en Actions. Una versión
+      previa como 3.0.0-dev no tiene etiqueta
+    alternativas:
+      - En automático, convertir el ask de cierre --aprobar en deny
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-10-D5
+    decision: Un stack sin ninguna plantilla de lenguaje es un error de composición; E13 no lo mira (P3)
+    motivo: El contrato pide formato, lint, tipos y tests, y base no los tiene; estricto ahora, se relaja sin romper nada
+    alternativas:
+      - Admitirlo, con n1 y n3 en verde sin ejecutar nada
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-10-D6
+    decision: >-
+      Las versiones se comprobaron con herramientas el 2026-11-27 (PyPI, git ls-remote y --version);
+      todas coinciden con Menairos salvo gitleaks, que pasa a v8.30.1 en la plantilla y en Menairos (P4)
+    motivo: La equivalencia con Menairos no admite diferencias de versión
+    alternativas:
+      - Dejar la plantilla en v8.30.0 y actualizar en otra tarea
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-10-D7
+    decision: >-
+      .github/workflows/ci.yml es fusionable: base trae el job con una línea marcador, y los pasos de cada
+      plantilla de lenguaje la sustituyen; sin pasos, el marcador desaparece (P5)
+    motivo: Preparar la herramienta (setup-uv, uv sync) es de cada lenguaje; el job y la N3, de base
+    alternativas:
+      - El CI entero en python-uv, en contra de 3.3
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-10-D8
+    decision: Todos los ficheros de las plantillas de stack llevan el sufijo .plantilla, que la composición quita (P6)
+    motivo: >-
+      Sin él, git leería el .gitignore anidado, ruff tomaría el pyproject.toml anidado y pyright y
+      check-yaml leerían los huecos
+    alternativas:
+      - Exclusiones en la configuración de Menairos
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-10-D9
+    decision: >-
+      {{paquete}} es el nombre del proyecto en minúsculas y con - → _; el nombre tiene que ser ASCII
+      ([A-Za-z][A-Za-z0-9]*([-_][A-Za-z0-9]+)*) y el paquete no puede ser una palabra reservada ni un
+      módulo de la biblioteca estándar; solo se exige si una plantilla usa el hueco (P7)
+    motivo: Así el nombre vale en pyproject.toml (PEP 508) y coincide con el módulo que espera uv_build
+    alternativas:
+      - Admitir cualquier identificador de Python
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-10-D10
+    decision: >-
+      Las rutas de scripts/n1.sh son rutas de tests, y una sin dueña es un error; los ficheros tocados solo
+      sirven, por la API (Contract.templates_for), para elegir plantilla, y uno sin dueña se ignora (P8)
+    motivo: Deducir en bash qué tests cubren un fichero tocado sería adivinar
+    alternativas:
+      - Que las rutas de n1 sean ficheros tocados
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-10-D11
+    decision: >-
+      E13 busca cada nombre en la lista de plantillas del paquete y solo necesita un menairos.toml válido:
+      si E01 falla, no se comprueba, y la CLI dice qué grupo quedó sin comprobar
+    motivo: Unir la ruta haría que «.» o «../docs» contaran como plantillas
+    alternativas:
+      - Comprobar que existe la carpeta plantillas/stacks/<nombre>
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-10-D12
+    decision: >-
+      El esquema plantilla expresa las órdenes de cada tipo con if/then/else (lenguaje / base), y
+      test_esquemas.py recorre ya el else; [herramientas] es una lista cerrada de siete herramientas
+    motivo: >-
+      En la raíz solo cabe un if, y las reglas de T-05 piden additionalProperties false en todos los
+      objetos, así que no caben claves libres
+    alternativas:
+      - Comprobar en código las órdenes de base
+      - Herramientas con claves libres (patternProperties)
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es la forma del esquema dentro de lo aprobado; relajar la lista cerrada después no rompe nada
+
+  - id: T-10-D13
+    decision: >-
+      Los mensajes de las comprobaciones deliberadas son los que salieron al provocarlas en un proyecto
+      generado: «leaks found» (gitleaks), «hook id: ruff-format», «hook id: pyright» y « failed»
+      (pytest); los de GitHub, los de T-02
+    motivo: El plan pedía comprobarlos a mano al crearlos; son textos estables de cada herramienta
+    alternativas:
+      - El nombre de la herramienta, que también sale cuando todo pasa
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: T-13 los usa y los puede ajustar; cambiarlos no rompe ningún fichero de un proyecto

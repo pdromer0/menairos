@@ -109,7 +109,7 @@ menairos/
 │   ├── esquemas/              esquemas JSON (H0.1), dentro del paquete (2.2)
 │   └── plantillas/            plantillas de documentos y de stack (H0.2), dentro del paquete (3.2)
 ├── tests/
-├── scripts/                   n1.sh y n3.sh (la N2, con su sello, llega con el hook Stop en T-20)
+├── scripts/                   n1.sh, n2.sh y n3.sh de base, y stack/ con las partes de python-uv (3.3, T-10)
 ├── docs/
 │   ├── producto.md, diseno.md, hitos.md, abiertas.md
 │   ├── specs/hito-0.md, specs/hito-0.tareas.yaml
@@ -146,7 +146,9 @@ menairos/
   [rutas…]` (ruff, pyright y los tests de las rutas dadas) y `scripts/n3.sh` (formato comprobado,
   lint, tipos y todos los tests), los dos con salida 0 o 1 y diciendo qué ejecutaron; el CI llama
   a `scripts/n3.sh`, como hará el workflow de la plantilla `base`. La N2 llega con el hook `Stop`
-  (T-20).
+  (T-20). **Desde T-10**, Menairos usa los scripts que componen `base` y `python-uv` (3.3): las
+  rutas de `scripts/n1.sh` son rutas de tests, y cada una va a la plantilla que la tiene por suya;
+  `scripts/n2.sh` ya existe y T-20 lo engancha al hook.
 
 ### 1.4 Documentos del Project al repo
 
@@ -379,8 +381,9 @@ menairos spec validar [--hito N] [--json] [--raiz RUTA]
   errores de validación.
 - **Orden:** si E01 o E02 fallan, no se comprueban E03–E09, que dependen de datos válidos; E10,
   E11 y E12 sí, porque no usan los datos. El E02 de un `hito` que no coincide con la N del nombre
-  no corta nada: los datos son válidos. A01 y A02 miran el documento tal como se escribió, antes de aplicar los valores por
-  defecto.
+  no corta nada: los datos son válidos. E13 solo necesita un `menairos.toml` válido: si E01
+  falla, no se comprueba, y la salida dice qué grupo quedó sin comprobar. A01 y A02 miran el
+  documento tal como se escribió, antes de aplicar los valores por defecto.
 
 | Código | Comprobación |
 | --- | --- |
@@ -396,7 +399,7 @@ menairos spec validar [--hito N] [--json] [--raiz RUTA]
 | E10 | El hito no tiene una sola sección «Validación funcional» con al menos una comprobación ✅ o 👁 (un elemento de lista que empieza por uno de ellos), o una ✅ no termina en ` — ` y su orden entre comillas invertidas (6.2) |
 | E11 | `abiertas.md` tiene puntos sin justificación |
 | E12 | No hay ningún ADR de tipo `stack` |
-| E13 | Una plantilla de `stack.plantillas` no existe en la versión de Menairos instalada (llega en T-10, con las plantillas de stack) |
+| E13 | Una plantilla de `stack.plantillas` no está entre las plantillas de stack de la versión de Menairos instalada (se busca en su lista: `.` o `../docs` no cuentan) |
 | A01 | `motivo_critica` presente en una tarea no crítica |
 | A02 | Tarea sin `area` explícita (con paralelismo > 1 en `menairos.toml`) |
 | A03 | Las coherencias de `menairos.toml` de 2.2 |
@@ -621,7 +624,7 @@ Los errores son los de `spec validar`, más `limite`, `marca-repetida` y `github
 - Los tres esquemas están en `src/menairos/esquemas/`, con un ejemplo válido y uno inválido por
   regla en `tests/data/esquemas/`.
 - `menairos spec validar` detecta los errores E01–E12 y los 4 avisos de 2.3, cada uno con su test, y
-  los casos límite tienen test. E13 llega en T-10, con las plantillas de stack.
+  los casos límite tienen test. E13 llegó en T-10, con las plantillas de stack.
 - `menairos spec publicar` es idempotente contra el doble de GitHub y tiene test cada caso de la
   tabla de idempotencia y cada caso límite.
 - Una publicación real contra `pdromer0/menairos-prueba` con un YAML de ejemplo, ejecutada dos
@@ -680,65 +683,115 @@ lógica dentro de las plantillas (nada de Jinja):
 
 ### 3.3 Plantillas de stack y contrato común
 
-Cada plantilla de stack es una carpeta en `src/menairos/plantillas/stacks/` con un **manifiesto
-`plantilla.toml`**:
+Cada plantilla de stack es una carpeta en `src/menairos/plantillas/stacks/` (dentro del paquete,
+para que viaje con la CLI) con un **manifiesto `plantilla.toml`** y una carpeta `ficheros/` que
+refleja el proyecto. **Cada fichero lleva el sufijo `.plantilla`**, que la composición quita: así
+git no lee el `.gitignore` anidado, ruff no toma el `pyproject.toml` anidado y pyright y
+`check-yaml` no se topan con los huecos (decisión de Pedro, T-10). Los huecos son los de 3.2,
+también en las rutas (`src/{{paquete}}/__init__.py`), más `{{paquete}}`: el nombre del proyecto en
+minúsculas y con `-` → `_`. El nombre tiene que ser ASCII, empezar por letra y separar las palabras
+con un solo `-` o `_`, y el paquete no puede ser una palabra reservada ni un módulo de la
+biblioteca estándar; si no, la composición da un error (solo si alguna plantilla usa el hueco).
+
+El manifiesto lo valida `esquemas/plantilla.schema.json`. Hay dos tipos: **`base`** (una sola, que
+se llama así, y la llevan todos los proyectos) y **`lenguaje`** (al menos una por stack; las
+extras llegarán con su tipo):
 
 ```toml
 [plantilla]
 nombre = "python-uv"
 version = "1.0.0"
+tipo = "lenguaje"
 requiere = ["base"]
 
-[herramientas]                   # lo que comprueba la capa local
-uv = ">=0.9"
+[herramientas]                   # lo que comprueba la capa local; lista cerrada, con su fecha
+uv = ">=0.13.10"                 # comprobada con herramientas al crear la plantilla
 python = "3.14"
 
-[ordenes]                        # el contrato común: /implementar solo usa estas
-formato = "uv run ruff format ."
-formato_fichero = "uv run ruff format {fichero}"   # para el hook PostToolUse (5.5)
-extensiones_formato = [".py"]
-lint = "uv run ruff check ."
-tipos = "uv run pyright"
-tests_area = "uv run pytest {rutas}"
-n1 = "scripts/n1.sh"
-n2 = "scripts/n2.sh"
-n3 = "scripts/n3.sh"
+[propiedad]                      # lo que es de la plantilla (solo las de lenguaje)
+extensiones = [".py", ".pyi"]
+carpetas = ["src/", "tests/"]
+
+[ordenes]                        # el contrato común: /implementar y los hooks solo usan estas
+formato = "uv run --frozen ruff format ."
+formato_fichero = "uv run --frozen ruff format {fichero}"   # hook PostToolUse (5.5)
+lint = "uv run --frozen ruff check ."
+tipos = "uv run --frozen pyright"
+tests_area = 'uv run --frozen pytest -m "not slow" {rutas}'
+
+[permisos]                       # reglas de .claude/settings.json
+permitir = ["Bash(uv run *)", "Bash(uv sync *)"]
 
 [ficheros]
-fusionables = [".pre-commit-config.yaml", ".gitignore", "AGENTS.md"]
+fusionables = [".gitignore", ".pre-commit-config.yaml", ".github/workflows/ci.yml", "AGENTS.md"]
 
 [[comprobaciones]]               # las deliberadas (3.6)
 nombre = "formato"
-provoca = "fichero Python mal formateado"
-salta = "pre-commit"
-mensaje = "ruff format"
+provoca = "un fichero Python mal formateado"
+salta = "pre-commit"             # pre-commit | n3 | github
+mensaje = "hook id: ruff-format"
 ```
 
-- **Las versiones del manifiesto** se fijan al crear la plantilla, comprobadas con herramientas
-  en ese momento.
-- **Composición:** la CLI aplica las plantillas en el orden de `requiere` y después el de
-  `stack.plantillas`. Si dos plantillas traen el mismo fichero y no es fusionable, es un error.
-  Los fusionables se combinan por secciones: los hooks de pre-commit se suman, las líneas de
-  `.gitignore` se unen, y cada plantilla aporta su sección a `AGENTS.md`.
+`base` declara en `[ordenes]` las del proyecto (`n1`, `n2` y `n3`), en `[permisos]` las
+prohibiciones (`denegar`), la regla `preguntar` de `menairos cierre * --aprobar` (6.3) y lo que se
+permite, y en `[[comprobaciones]]` la clave falsa y las dos remotas.
+
+- **Las versiones del manifiesto** se fijan al crear la plantilla, comprobadas con herramientas en
+  ese momento, y se anotan con su fecha.
+- **Propiedad** (decisión de Pedro, T-10): un fichero es de la plantilla cuya extensión coincide
+  (lo que va tras el último punto del nombre, quitados los puntos del principio); si ninguna, de la
+  dueña de la carpeta que lo contiene. Dos plantillas no comparten extensiones ni tienen carpetas
+  que se solapen. `formato_fichero` se elige solo por extensión.
+- **Cómo lo usan T-20 y T-22:** `menairos.stacks.contract()` da el `Contract`. El hook
+  `PostToolUse` (5.5) llama a su `format_command(fichero)` en el mismo proceso. `/implementar`
+  (5.2) ejecuta `scripts/n1.sh` con las rutas de tests, que las reparte solo; para elegir el
+  `tests_area` según los ficheros tocados, usa `templates_for` (un fichero tocado sin dueña, como
+  `docs/…`, se ignora) y `tests_commands` (una ruta de test sin dueña es un error), con la orden
+  de la CLI que decida T-22.
+- **Composición:** la CLI aplica las plantillas en el orden de `requiere` (cada una detrás de las
+  que requiere) y, entre las demás, en el de `stack.plantillas`. Son errores una plantilla que no
+  existe, un `requiere` que no está en `stack.plantillas`, un ciclo, un stack sin plantilla de
+  lenguaje y dos plantillas que traen el mismo fichero sin declararlo las dos fusionable. Los
+  fusionables se combinan así:
+
+  | Fichero | Regla |
+  | --- | --- |
+  | `.gitignore` | El de `base` tal cual y, tras una línea en blanco, las líneas nuevas de cada plantilla |
+  | `.pre-commit-config.yaml` | Cada fragmento empieza por `repos:`; los cuerpos se unen con una línea en blanco (los hooks se suman) |
+  | `.github/workflows/ci.yml` | `base` trae el job con una línea marcador; los pasos de cada plantilla de lenguaje (preparar su herramienta) la sustituyen |
+  | `AGENTS.md` | El de `base` y la sección de cada plantilla |
+
+- **Lo que genera el código** (no son plantillas, y ninguna plantilla los puede traer):
+  `.claude/settings.json`, con las reglas de `[permisos]` de cada plantilla, el marketplace de
+  Menairos fijado a `v<menairos.version>` (sin `ref` si es una versión previa, como `3.0.0-dev`,
+  que aún no tiene etiqueta) y el plugin habilitado; y `scripts/stack/plantillas.txt`, una línea
+  por plantilla de lenguaje con lo que es suyo. **En el H0, `.claude/settings.json` es igual en los
+  tres modos** (decisión de Pedro, T-10): el fichero es uno por repo y el modo es por tarea, y un
+  `ask` ya falla cerrado en Actions; las diferencias por modo, si hacen falta, llegan en el H1.
+- **La N3 de un proyecto generado no valida su especificación** todavía (`abiertas.md`).
 
 **`base`** (todo proyecto la lleva): `.gitignore`; pre-commit con gitleaks y las comprobaciones
-de higiene (fin de fichero, espacios finales, YAML y TOML válidos); `SECURITY.md`; el workflow `ci` fino, que llama a la orden `n3` del contrato; `AGENTS.md` y
-`CLAUDE.md` base; `.claude/settings.json` según el modo, con las prohibiciones del método v2 (fusión,
-push forzado, push a `main`, `DELETE` por la API) y el marketplace y el plugin de Menairos.
+de higiene (fin de fichero, espacios finales, YAML y TOML válidos); `SECURITY.md`; el workflow `ci`
+fino, que llama a la orden `n3` del contrato; `AGENTS.md` y `CLAUDE.md` base; y los scripts del
+proyecto, que componen las partes de cada plantilla de lenguaje.
 
 **`python-uv`:** `pyproject.toml` (Python 3.14; ruff; pyright en modo estándar; pytest con
 `timeout = 60` y la marca `slow`); `src/{{paquete}}/__init__.py`; `tests/test_humo.py`;
-`.python-version`; hooks locales de ruff y pyright con `uv run --frozen`; y los scripts del
-contrato:
+`.python-version`; hooks locales de ruff y pyright con `uv run --frozen`; los pasos de uv del CI;
+y sus partes `scripts/stack/python-uv/n1.sh` (admite `--sin-tests`) y `n3.sh`.
 
 | Script | Qué hace | Cuándo |
 | --- | --- | --- |
-| `scripts/n1.sh [rutas…]` | ruff, pyright y los tests de las rutas dadas | Antes de cada commit |
-| `scripts/n2.sh` | La rápida con sello: solo si cambió algo desde el último verde (sello en `.cache/menairos/`) | Al final de cada turno (hook `Stop`) |
-| `scripts/n3.sh` | Formato comprobado, lint, tipos y todos los tests | Antes del push y en el CI |
+| `scripts/n1.sh [rutas de tests…]` | Reparte las rutas por propiedad (una ruta sin dueña o fuera del repo es un error) y ejecuta la parte N1 de cada plantilla de lenguaje: con sus rutas, sin argumentos si no se dio ninguna, o con `--sin-tests` si ninguna es suya | Antes de cada commit |
+| `scripts/n2.sh` | La N1 con sello: solo si el árbol cambió desde el último verde. La huella es el árbol de git de un índice temporal con todo lo no ignorado; el sello, en `.cache/menairos/` | Al final de cada turno (hook `Stop`) |
+| `scripts/n3.sh` | La parte N3 de cada plantilla: formato comprobado, lint, tipos y todos los tests | Antes del push y en el CI |
 
-Los tres salen con `0` en verde y `1` en rojo, y dicen qué ejecutaron (lección de un proyecto anterior: un verde
-sin decir qué revisó no vale).
+Los tres ejecutan todas las partes aunque falle una, salen con `0` en verde y `1` en rojo (sea cual
+sea el código de la parte) y dicen qué ejecutaron (lección de un proyecto anterior: un verde sin
+decir qué revisó no vale). Son bash porque el CI de un proyecto no tiene la CLI (ver arriba) y el
+contrato sirve para cualquier lenguaje. **Un test vigila que no se separen de Menairos**: `base` +
+`python-uv` con el `menairos.toml` del repo dan sus scripts, su CI y sus hooks, salvo una lista
+declarada de diferencias (decisión de Pedro, T-10).
 
 ### 3.4 `menairos entorno`
 
@@ -1085,7 +1138,7 @@ Todos se implementan como **`menairos hook <nombre>`, en Python** **[propuesta]*
 | --- | --- |
 | `SessionStart` | Mete en el contexto la rama, la última etiqueta, el hito en curso, la tarea `en-curso` y `git status -sb`. Solo git local |
 | `Stop` | Ejecuta la orden `n2` (la rápida con sello); no hace nada en modo plan; avisa de que empieza, para que la espera no parezca un cuelgue |
-| `PostToolUse` (Edit, Write) | Formatea el fichero editado con `formato_fichero`, si su extensión está en `extensiones_formato` del manifiesto |
+| `PostToolUse` (Edit, Write) | Formatea el fichero editado con el `formato_fichero` de la plantilla dueña de su extensión (`[propiedad]` del manifiesto, 3.3; `Contract.format_command`); si ninguna lo es, no hace nada |
 | Anti-bucle (`PostToolUse` + `PreToolUse` de Bash) | `PostToolUse` anota cada comando con su código de salida y una huella del árbol de trabajo; `PreToolUse` bloquea un comando si ya falló **3 veces seguidas sin que cambiara ningún fichero** entre medias (punto 17) |
 
 - **El anti-bucle también está activo en manual** **[propuesta]**: es barato y protege igual. En
@@ -2606,3 +2659,84 @@ Las ocho del plan fallan en su test:
   y E11 como punto. Las plantillas evitan esas líneas en sus comentarios; arreglarlo en
   `markdown.parse` cambia E10 y E11, y queda para una tarea de `spec validar` (por ejemplo T-18).
 - No se migran los documentos del propio Menairos a las plantillas (decisión del encargo).
+
+### T-10 — Plantillas base y python-uv, manifiesto y composición
+
+*Hecha el 2026-11-27, en local (WSL2), con Claude Code (Opus 5.5, modo plan y después auto), a
+partir del issue #18 y de un encargo del chat. Tarea crítica: plan revisado a la contra por un
+subagente (15 hallazgos, criba en el plan) y en el chat; Pedro aprobó P1–P8 con la recomendación
+y añadió la prueba de faltas de la N3 de Menairos.*
+
+**Qué se hizo**
+
+- `base` y `python-uv` en `src/menairos/plantillas/stacks/`: `plantilla.toml` (validado por
+  `esquemas/plantilla.schema.json`) y ficheros con el sufijo `.plantilla`.
+- `menairos.stacks`: carga y ordena las plantillas (`requiere` y `stack.plantillas`), compone en
+  memoria con cuatro reglas de fusión (`.gitignore`, pre-commit, CI con marcador y `AGENTS.md`),
+  genera `.claude/settings.json` y `scripts/stack/plantillas.txt`, y da el `Contract`.
+- Scripts del contrato: `n1.sh` reparte las rutas de tests por propiedad, `n2.sh` sella con la
+  huella del árbol (índice temporal y `git write-tree`) y `n3.sh` ejecuta las partes de cada
+  plantilla. Menairos los usa ya.
+- E13 en `spec validar`. §3.3 reescrita; 1.3, 2.3, 2.5 y 5.5, `diseno.md` 2.3, 5 y 6,
+  `AGENTS.md` y un punto nuevo en `abiertas.md`.
+
+**Decisiones del diff** (registro: `hito-0/decisiones/T-10.yaml`, de T-10-D1 a D13)
+
+- D1: Menairos adopta los scripts compuestos; la equivalencia admite dos diferencias. D2: la N3
+  generada no valida la especificación. D3: el contrato sirve para varias tecnologías. D4: los
+  ajustes, iguales en los tres modos en el H0.
+- D5–D11: solo `base` es un error, gitleaks v8.30.1, CI fusionable, el sufijo, `{{paquete}}`, las
+  rutas de tests y E13 por lista. D12 (agente): `if`/`then`/`else` en el esquema. D13 (agente):
+  los mensajes de las comprobaciones.
+
+**Medidas**
+
+- Versiones (2026-11-27, PyPI, `git ls-remote` y `--version`): ruff 0.17.6, pyright 1.1.414,
+  pytest 9.2.0, pytest-timeout 2.4.0, pre-commit 4.7.0, uv 0.13.10, pre-commit-hooks v6.0.0 y
+  gitleaks v8.30.1 (la única nueva). Las acciones conservan los SHA de T-02.
+- `stacks.py` tiene 767 líneas. Hay 154 tests nuevos (111 de composición y contrato, 41 de los
+  scripts y 2 lentos); el del proyecto generado tarda unos 5 s con la caché de uv.
+- Mensajes comprobados provocando cada falta en un proyecto generado:
+
+  | Falta | Mensaje |
+  | --- | --- |
+  | Formato | `hook id: ruff-format` |
+  | Tipos | `hook id: pyright` |
+  | Clave `ghp_` inventada | `leaks found` (`github-pat`) |
+  | Test que falla | `1 failed` |
+- **La N3 nueva de Menairos no da un verde falso** (añadido de Pedro). Una falta de cada tipo en
+  el repo, deshecha después, y en todas `scripts/n3.sh` salió con 1 y nombró el paso:
+
+  | Falta | Paso que falló |
+  | --- | --- |
+  | Mal formato | `ruff format --check`, con el fichero |
+  | Error de tipos | `pyright`, con la línea |
+  | Test que falla | `pytest`, con el test |
+  | Punto sin justificación | `spec` (E11) y `pytest`, por `test_el_propio_repo_valida` |
+
+**Versiones incorrectas**
+
+Las 22 del plan fallan en su test; un script aplica cada una, ejecuta su test y la deshace.
+Entre ellas: la N1 que para en la primera parte, el `GIT_INDEX_FILE` solo en `git add`, el
+marcador que queda, una línea más en un script de Menairos y un fichero oculto fuera del wheel.
+
+**Revisión**
+
+- **`/code-review` (alto):** 10 hallazgos. Se corrigieron 6:
+  - un nombre propio en el `CLAUDE.md` de `base`;
+  - las rutas relativas, que por un enlace simbólico salían del repo (reproducido, con test);
+  - toda plantilla de lenguaje requiere `base`;
+  - `plantillas.txt` sin una plantilla del stack es un error;
+  - dos limpiezas.
+
+  No se corrigieron 4: `git push *` permitido (decisión de T-02, y el ruleset es la primera
+  barrera); bash 4 y el `realpath` de GNU (el entorno es WSL2 o Linux); `--frozen` sin `uv.lock`
+  (el `uv sync` es de T-11); y `contract()` relee las plantillas en cada llamada (milisegundos).
+  Menos de 100 líneas de `src/`, sin segunda revisión.
+
+**Pendiente**
+
+- T-11: escribir sin sobrescribir, con el bit de ejecución, y `uv sync` antes del primer commit.
+  T-13: provocar las comprobaciones por `salta`. T-20: `Stop` lanza `scripts/n2.sh` y
+  `PostToolUse` usa `Contract.format_command`. T-22: la orden de `tests_commands`.
+- **Para Pedro:** los scripts necesitan bash 4 y el `realpath` de GNU: no van en un macOS de serie.

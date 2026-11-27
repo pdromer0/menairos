@@ -111,17 +111,20 @@ Actions.
 ```
 src/menairos/plantillas/      dentro del paquete, para que viajen con la CLI instalada
 ├── docs/        las plantillas de documentos de hito-0.md 3.2, con las de issue y de PR
-├── agentes/     AGENTS.md, CLAUDE.md, .claude/settings.json por modo
-├── stacks/
-│   ├── base/        pre-commit, gitleaks, .gitignore, CI mínimo
-│   └── python-uv/   pyproject (ruff, pytest, pyright, timeout), scripts N1–N3
+├── stacks/      una carpeta por plantilla: plantilla.toml y ficheros/ (con el sufijo .plantilla)
+│   ├── base/        pre-commit, gitleaks, .gitignore, CI fino, AGENTS.md, CLAUDE.md, scripts N1–N3
+│   └── python-uv/   pyproject (ruff, pytest, pyright, timeout), sus partes de N1 y N3
 └── extras/
     └── servicios/   compose.yaml, N3 de integración (módulo opcional)
 ```
 
 Toda plantilla de stack cumple el **contrato común** (punto 11): las órdenes de lint, formato,
 tipos y tests; `scripts/n1.sh`, `scripts/n2.sh`, `scripts/n3.sh`; pre-commit; el job de CI; los
-permisos del agente; y la sección de comandos de `AGENTS.md`.
+permisos del agente; y la sección de comandos de `AGENTS.md`. El contrato está pensado para varias
+tecnologías (decisión de Pedro, T-10): cada plantilla de lenguaje declara qué ficheros son suyos
+(por extensión y por carpeta), los scripts del proyecto ejecutan la parte de cada plantilla
+presente, y el formato y los tests de un fichero se eligen por su dueña. `.claude/settings.json`
+no es una plantilla: lo genera la CLI con las reglas de cada una. El detalle, en `hito-0.md` 3.3.
 
 ### 2.4 Workflows reutilizables **[aceptada]**
 
@@ -290,7 +293,10 @@ escribe: se calcula (difícil de revertir o de impacto alto; `hito-0.md` 2.2).
 - **Python 3.14 con uv**, ruff, pytest (con timeout), pyright y pre-commit con gitleaks: el stack
   ya probado con el método v2, que es la primera plantilla que Menairos ofrece (se come su propia
   comida).
-- Bash solo para los hooks y los envoltorios mínimos; la lógica, en Python con tests.
+- Bash solo para los hooks y los envoltorios mínimos; la lógica, en Python con tests. La excepción
+  son los scripts N1–N3 de las plantillas (el reparto de rutas y el sello de la N2): el CI de un
+  proyecto no tiene la CLI de Menairos y el contrato sirve para cualquier lenguaje; tienen tests,
+  y uno compara su reparto con el de la CLI.
 - Dependencias mínimas: lectura de TOML de la biblioteca estándar, un validador de JSON Schema y
   un lector de YAML. Todo lo de GitHub, por `gh api`.
 
@@ -301,7 +307,9 @@ escribe: se calcula (difícil de revertir o de impacto alto; `hito-0.md` 2.2).
 - **Dobles de GitHub con tope** (`RunawayLoop`): ningún test llama a GitHub de verdad.
 - **Proyecto de prueba** para los tests de punta a punta de los comandos: un repo público de
   usar y tirar donde se ejercitan `/preparar-entorno`, `/validar-spec` y el orquestador.
-- Las **comprobaciones deliberadas** del punto 11 forman parte de la N3 de la plantilla.
+- Las **comprobaciones deliberadas** del punto 11 van en el manifiesto de cada plantilla; las que
+  ve la N3 (formato, tipos y un test que falla) las prueba un test lento sobre un proyecto
+  generado, y todas las provoca `menairos entorno comprobaciones` (T-13).
 
 ## 7. Coste
 

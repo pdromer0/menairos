@@ -90,6 +90,22 @@ REGLAS: dict[SchemaName, set[str]] = {
         "coherencia.id-repetido",
         "coherencia.matriz",
     },
+    "plantilla": {
+        "claves-desconocidas",
+        "tablas-obligatorias",
+        "plantilla.nombre",
+        "plantilla.version",
+        "plantilla.tipo",
+        "plantilla.requiere",
+        "herramientas",
+        "propiedad",
+        "ordenes",
+        "tipo-base",
+        "tipo-lenguaje",
+        "permisos",
+        "ficheros.fusionables",
+        "comprobaciones",
+    },
 }
 
 # Claves opcionales sin valor por defecto (decisión de Pedro, P2).
@@ -98,12 +114,33 @@ SIN_DEFAULT: set[tuple[SchemaName, str]] = {
     ("decisiones", "por_que_no_escalo"),
     ("decisiones", "agente"),
     ("decisiones", "revisor"),
+    # Manifiesto de plantilla (T-10): las herramientas, las órdenes y la propiedad
+    # dependen de la plantilla; no hay un valor natural.
+    ("plantilla", "propiedad"),
+    *(
+        ("plantilla", clave)
+        for clave in ("git", "gh", "claude", "uv", "python", "codex", "docker")
+    ),
+    *(
+        ("plantilla", clave)
+        for clave in (
+            "n1",
+            "n2",
+            "n3",
+            "formato",
+            "formato_fichero",
+            "lint",
+            "tipos",
+            "tests_area",
+        )
+    ),
 }
 
 EXTENSION: dict[SchemaName, str] = {
     "menairos": "toml",
     "tareas": "yaml",
     "decisiones": "yaml",
+    "plantilla": "toml",
 }
 
 
@@ -141,7 +178,7 @@ def _minimo(esquema: SchemaName) -> Any:
 
 
 def _subesquemas(esquema: Any) -> Iterator[dict[str, Any]]:
-    """Los subesquemas que describen datos: properties, items, $defs, if y then."""
+    """Los subesquemas que describen datos: properties, items, $defs y if/then/else."""
     if not isinstance(esquema, dict):
         return
     yield esquema
@@ -149,7 +186,7 @@ def _subesquemas(esquema: Any) -> Iterator[dict[str, Any]]:
         yield from _subesquemas(hijo)
     for hijo in esquema.get("$defs", {}).values():
         yield from _subesquemas(hijo)
-    for clave in ("items", "if", "then"):
+    for clave in ("items", "if", "then", "else"):
         yield from _subesquemas(esquema.get(clave))
 
 
@@ -171,6 +208,7 @@ PALABRAS_CLAVE = {
     "items",
     "if",
     "then",
+    "else",
     "enum",
     "const",
     "pattern",
@@ -186,7 +224,16 @@ PALABRAS_CLAVE = {
 
 
 def test_hay_reglas_para_cada_esquema() -> None:
-    assert set(REGLAS) == set(SCHEMA_NAMES) == {"menairos", "tareas", "decisiones"}
+    assert (
+        set(REGLAS)
+        == set(SCHEMA_NAMES)
+        == {
+            "menairos",
+            "tareas",
+            "decisiones",
+            "plantilla",
+        }
+    )
 
 
 @pytest.mark.parametrize("esquema", SCHEMA_NAMES)

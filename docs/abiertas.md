@@ -84,6 +84,13 @@ sesiones en la nube. Sería una vía sin script de entorno, pero con una sola ve
 proyectos y subida a mano. No hace falta mientras funcione el script de entorno; se revisa al
 cerrar el H0 (T-28).
 
+### ¿Cuándo valida el CI de un proyecto su especificación?
+
+**Justificación:** la N3 de un proyecto generado con las plantillas de stack no ejecuta
+`menairos spec validar`, porque necesitaría la CLI de Menairos instalada en el CI, fijada a una
+versión publicada, y todavía no hay ninguna (decisión de Pedro, T-10). Se cierra en **T-12**, si el
+CI puede instalarla como el script de la nube, o en **T-28**, con `v3.0.0`.
+
 ### ¿Respeta `uv tool install` el `uv.lock`?
 
 **Justificación:** las dependencias del paquete (jsonschema y PyYAML) solo tienen cota inferior en

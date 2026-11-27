@@ -1,0 +1,30 @@
+# Plantilla de lenguaje de juguete: solo vive en los tests y demuestra la composición con dos
+# plantillas de lenguaje (decisión 3 de Pedro en T-10).
+[plantilla]
+nombre = "juguete"
+version = "1.0.0"
+tipo = "lenguaje"
+requiere = ["base"]
+
+[propiedad]
+extensiones = [".jug"]
+carpetas = ["juguete/"]
+
+[ordenes]
+formato = "true"
+formato_fichero = "juguete-formato {fichero}"
+lint = "true"
+tipos = "true"
+tests_area = "scripts/stack/juguete/n1.sh {rutas}"
+
+[permisos]
+permitir = ["Bash(juguete *)", "Bash(git status *)"]
+
+[ficheros]
+fusionables = [".gitignore", ".pre-commit-config.yaml", ".github/workflows/ci.yml", "AGENTS.md"]
+
+[[comprobaciones]]
+nombre = "juguete-roto"
+provoca = "un .jug que no dice bien"
+salta = "n3"
+mensaje = "juguete n3"

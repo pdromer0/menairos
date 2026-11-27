@@ -33,10 +33,15 @@ Mientras no exista `/implementar`, cada tarea sigue estos pasos:
 ```bash
 uv sync                                  # instala dependencias
 scripts/n1.sh [rutas de tests]           # comprobación rápida
+scripts/n2.sh                            # la rápida con sello: solo si algo cambió
 scripts/n3.sh                            # comprobación completa
 uv run menairos --version                # humo de la CLI
 uv run pre-commit run --all-files        # todos los hooks
 ```
+
+Los scripts `n1`–`n3` son los de las plantillas de stack `base` y `python-uv` (un test vigila que
+no se separen): cada ruta de tests va a la plantilla que la tiene por suya, según
+`scripts/stack/plantillas.txt`.
 
 ## Idiomas
 

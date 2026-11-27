@@ -1,4 +1,4 @@
-"""Tests de `menairos spec validar` (T-06): E01–E12, A01–A04 y casos límite de 2.3.
+"""Tests de `menairos spec validar` (T-06 y T-10): E01–E13, A01–A04 y casos de 2.3.
 
 Cada test construye un proyecto mínimo válido en una carpeta temporal y le cambia
 lo que prueba. Los datos son sintéticos.
@@ -16,6 +16,7 @@ import yaml
 from menairos import spec_validation
 from menairos.cli import _translate, main  # pyright: ignore[reportPrivateUsage]
 from menairos.spec_validation import (
+    CONFIG_CHECKS,
     DATA_CHECKS,
     Report,
     UsageError,
@@ -216,7 +217,7 @@ def test_con_e01_no_se_comprueba_e03_a_e09_pero_si_e10_a_e12(tmp_path: Path) -> 
         "E11",
         "E12",
     ]
-    assert informe.skipped == DATA_CHECKS
+    assert informe.skipped == DATA_CHECKS + CONFIG_CHECKS
 
 
 # ── E02: hito-N.tareas.yaml ─────────────────────────────────────────────────
@@ -1015,6 +1016,17 @@ def test_cli_dice_que_se_omitieron_e03_a_e09(
         "tareas cumplan su esquema." in out
     )
     assert out.endswith("Resultado: 4 errores y ningún aviso.\n")
+    assert "No se comprobó E13: necesita que menairos.toml cumpla su esquema." in out
+
+
+def test_cli_dice_que_e13_si_se_comprobo_si_solo_falla_e02(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    raiz = _proyecto(tmp_path, tareas={"hito": 1})
+    codigo, out, _ = _cli(capsys, "--raiz", str(raiz))
+    assert codigo == 1
+    assert "No se comprobaron E03–E09" in out
+    assert "E13" not in out
 
 
 def test_cli_json(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -1203,3 +1215,49 @@ def test_cli_un_valor_en_una_opcion_sin_valor(
     with pytest.raises(SystemExit):
         main(["spec", "validar", "--json=x"])
     assert "--json no admite un valor: 'x'" in capsys.readouterr().err
+
+
+# ── E13: plantillas de stack ────────────────────────────────────────────────
+
+
+def _con_plantillas(tmp_path: Path, *plantillas: str) -> Report:
+    lista = ", ".join(json.dumps(p) for p in plantillas)
+    toml = TOML.replace('plantillas = ["base"]', f"plantillas = [{lista}]")
+    return validate_spec(_proyecto(tmp_path, toml=toml))
+
+
+def test_e13_las_plantillas_que_existen_no_dan_error(tmp_path: Path) -> None:
+    assert _con_plantillas(tmp_path, "base", "python-uv").errors == ()
+
+
+def test_e13_plantilla_que_no_existe(tmp_path: Path) -> None:
+    informe = _con_plantillas(tmp_path, "rust", "base", ".", "../docs", "Base")
+    assert _codigos(informe) == [
+        ("E13", "menairos.toml", "stack.plantillas[0]"),
+        ("E13", "menairos.toml", "stack.plantillas[2]"),
+        ("E13", "menairos.toml", "stack.plantillas[3]"),
+        ("E13", "menairos.toml", "stack.plantillas[4]"),
+    ]
+    assert informe.errors[0].message == (
+        "la plantilla «rust» no existe en esta versión de Menairos; las que hay: "
+        "base, python-uv"
+    )
+
+
+def test_e13_la_ultima_de_la_lista(tmp_path: Path) -> None:
+    informe = _con_plantillas(tmp_path, "base", "python-uv", "go")
+    assert _codigos(informe) == [("E13", "menairos.toml", "stack.plantillas[2]")]
+
+
+def test_e13_no_se_comprueba_si_e01_falla(tmp_path: Path) -> None:
+    toml = TOML.replace('plantillas = ["base"]', 'plantillas = ["rust"]')
+    informe = validate_spec(_proyecto(tmp_path, toml=toml))
+    assert [f.code for f in informe.errors] == ["E01"]
+    assert "E13" in informe.skipped
+
+
+def test_e13_se_comprueba_si_solo_falla_e02(tmp_path: Path) -> None:
+    toml = TOML.replace('plantillas = ["base"]', 'plantillas = ["base", "rust"]')
+    informe = validate_spec(_proyecto(tmp_path, toml=toml, tareas={"hito": 1}))
+    assert "E13" in [f.code for f in informe.errors]
+    assert informe.skipped == DATA_CHECKS

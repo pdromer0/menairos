@@ -15,7 +15,14 @@ from typing import Any, NoReturn, TextIO
 
 from menairos import __version__
 from menairos.spec_publication import Item, Publication, publish_spec
-from menairos.spec_validation import Finding, Report, UsageError, validate_spec
+from menairos.spec_validation import (
+    CONFIG_CHECKS,
+    DATA_CHECKS,
+    Finding,
+    Report,
+    UsageError,
+    validate_spec,
+)
 
 _ARGPARSE_ERRORS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"unrecognized arguments: (.*)"), "argumentos no reconocidos: {0}"),
@@ -112,7 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validar: _Parser = spec_commands.add_parser(
         "validar",
-        help="comprueba la especificación (errores E01–E12 y avisos A01–A04)",
+        help="comprueba la especificación (errores E01–E13 y avisos A01–A04)",
         description=(
             "Comprueba menairos.toml, docs/specs/hito-N.md y hito-N.tareas.yaml, "
             "docs/abiertas.md y docs/decisiones/. Sale con 0 sin errores (aunque "
@@ -218,10 +225,16 @@ def _print_report(report: Report, out: TextIO) -> None:
                 f"  {finding.code}  {finding.file}  {finding.path}".rstrip(), file=out
             )
             print(f"       {finding.message}", file=out)
-    if report.skipped:
+    if set(DATA_CHECKS) <= set(report.skipped):
         print(
-            f"\nNo se comprobaron {report.skipped[0]}–{report.skipped[-1]}: necesitan "
+            f"\nNo se comprobaron {DATA_CHECKS[0]}–{DATA_CHECKS[-1]}: necesitan "
             "que menairos.toml y el YAML de tareas cumplan su esquema.",
+            file=out,
+        )
+    if set(CONFIG_CHECKS) <= set(report.skipped):
+        print(
+            f"\nNo se comprobó {', '.join(CONFIG_CHECKS)}: necesita que menairos.toml "
+            "cumpla su esquema.",
             file=out,
         )
     errors = _count(len(report.errors), "error", "errores", "ningún error")

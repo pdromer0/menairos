@@ -1,0 +1,50 @@
+# Plantilla de stack de Python con uv (hito-0.md 3.3, ADR 0020).
+[plantilla]
+nombre = "python-uv"
+version = "1.0.0"
+tipo = "lenguaje"
+requiere = ["base"]
+
+# Comprobadas el 2026-11-27 (uv --version; Python 3.14, ADR 0020).
+[herramientas]
+uv = ">=0.13.10"
+python = "3.14"
+
+# Lo que es de esta plantilla: por extensión y, si ninguna coincide, por carpeta.
+[propiedad]
+extensiones = [".py", ".pyi"]
+carpetas = ["src/", "tests/"]
+
+# Las partes de la N1 y la N3 son scripts/stack/python-uv/n1.sh y n3.sh; usan estas órdenes.
+[ordenes]
+formato = "uv run --frozen ruff format ."
+formato_fichero = "uv run --frozen ruff format {fichero}"
+lint = "uv run --frozen ruff check ."
+tipos = "uv run --frozen pyright"
+tests_area = 'uv run --frozen pytest -m "not slow" {rutas}'
+
+[permisos]
+permitir = ["Bash(uv run *)", "Bash(uv sync *)"]
+
+[ficheros]
+fusionables = [".gitignore", ".pre-commit-config.yaml", ".github/workflows/ci.yml", "AGENTS.md"]
+
+# Comprobaciones deliberadas (hito-0.md 3.6); las provoca T-13. Los mensajes se comprobaron
+# provocando cada fallo en un proyecto generado (2026-11-27).
+[[comprobaciones]]
+nombre = "formato"
+provoca = "un fichero Python mal formateado"
+salta = "pre-commit"
+mensaje = "hook id: ruff-format"
+
+[[comprobaciones]]
+nombre = "tipos"
+provoca = "un error de tipos en src/"
+salta = "pre-commit"
+mensaje = "hook id: pyright"
+
+[[comprobaciones]]
+nombre = "test-que-falla"
+provoca = "un test que falla"
+salta = "n3"
+mensaje = " failed"

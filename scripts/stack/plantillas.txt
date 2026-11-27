@@ -1,0 +1,4 @@
+# Generado por menairos a partir de los manifiestos: no se edita a mano.
+# Cada línea: una plantilla de lenguaje y lo que es suyo, primero las
+# extensiones (.x) y después las carpetas (x/). Lo lee scripts/n1.sh.
+python-uv .py .pyi src/ tests/

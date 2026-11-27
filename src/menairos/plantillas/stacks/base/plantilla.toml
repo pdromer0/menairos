@@ -1,0 +1,72 @@
+# Plantilla de stack base: la llevan todos los proyectos (hito-0.md 3.3).
+[plantilla]
+nombre = "base"
+version = "1.0.0"
+tipo = "base"
+requiere = []
+
+# Versiones mínimas, comprobadas con --version el 2026-11-27.
+[herramientas]
+git = ">=2.43.0"
+gh = ">=2.103.3"
+claude = ">=2.1.326"
+
+# Las órdenes del proyecto: componen las de cada plantilla de lenguaje.
+[ordenes]
+n1 = "scripts/n1.sh {rutas}"
+n2 = "scripts/n2.sh"
+n3 = "scripts/n3.sh"
+
+# Reglas de .claude/settings.json, que genera la CLI (no es una plantilla). Las de denegar son las
+# del propio Menairos; un test lo comprueba.
+[permisos]
+denegar = [
+    "Bash(git push *--force*)",
+    "Bash(git push -f *)",
+    "Bash(git push * -f)",
+    "Bash(git push * -f *)",
+    "Bash(git push * +*)",
+    "Bash(git push * main)",
+    "Bash(git push * main *)",
+    "Bash(git push *:main)",
+    "Bash(git push *:main *)",
+    "Bash(git push *--no-verify*)",
+    "Bash(git commit *--no-verify*)",
+    "Bash(gh pr merge *)",
+    "Bash(gh api *DELETE*)",
+    "Bash(gh repo delete *)",
+]
+preguntar = ["Bash(menairos cierre * --aprobar)"]
+permitir = [
+    "Bash(scripts/n1.sh *)",
+    "Bash(scripts/n2.sh *)",
+    "Bash(scripts/n3.sh *)",
+    "Bash(git status *)",
+    "Bash(git diff *)",
+    "Bash(git log *)",
+    "Bash(git push *)",
+]
+
+[ficheros]
+fusionables = [".gitignore", ".pre-commit-config.yaml", ".github/workflows/ci.yml", "AGENTS.md"]
+
+# Comprobaciones deliberadas (hito-0.md 3.6); las provoca T-13. El mensaje de la clave falsa se
+# comprobó provocándola en un proyecto generado (2026-11-27); los de GitHub son los que dio en
+# T-02 (anexo de hito-0.md).
+[[comprobaciones]]
+nombre = "clave-falsa"
+provoca = "una clave con el formato de un proveedor real, inventada en cada ejecución"
+salta = "pre-commit"
+mensaje = "leaks found"
+
+[[comprobaciones]]
+nombre = "check-obligatorio"
+provoca = "un PR sin el check ci en verde"
+salta = "github"
+mensaje = 'Required status check "ci" is expected'
+
+[[comprobaciones]]
+nombre = "push-a-main"
+provoca = "un push directo a main"
+salta = "github"
+mensaje = "GH013"
