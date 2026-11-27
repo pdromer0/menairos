@@ -773,8 +773,8 @@ def test_dependencia_a_un_issue_cerrado_se_crea_una_vez(
 
 def test_cuerpo_con_crlf_se_reconoce(raiz: Path, doble: FakeGitHub) -> None:
     publicar(raiz)
-    for i in doble.issues.values():
-        i["body"] = i["body"].replace("\n", "\r\n")
+    for i in doble.issues.values():  # como los guarda la web: CRLF, también al final
+        i["body"] = i["body"].replace("\n", "\r\n") + "\r\n"
     antes = len(doble.calls)
     resultado = publicar(raiz)
     assert escrituras(doble, antes) == []
