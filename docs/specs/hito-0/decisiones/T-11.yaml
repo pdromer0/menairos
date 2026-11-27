@@ -1,0 +1,126 @@
+# Registro de decisiones de T-11 (menairos entorno: capas local y repo). Formato:
+# src/menairos/esquemas/decisiones.schema.json. Lo que está en el plan aprobado, o lo decidió Pedro en
+# el encargo, va con decidido_por: pedro (hito-0.md 5.4); lo que el agente decidió durante la
+# implementación sin estar en el plan, con decidido_por: agente.
+tarea: T-11
+decisiones:
+  - id: T-11-D1
+    decision: >-
+      Lo que una plantilla de lenguaje necesita tras escribir sus ficheros va en una tabla del código,
+      por plantilla: python-uv hace uv sync y uv run --frozen pre-commit install. Cuando llegue una
+      segunda plantilla de lenguaje, pasa a una orden opcional del manifiesto (P1)
+    motivo: >-
+      Con una sola plantilla de lenguaje, una orden nueva en el esquema es un cambio de contrato que
+      además tendría que declarar cómo se comprueba; añadirla después como opcional no rompe nada
+    alternativas:
+      - Añadir ya ordenes.preparar al esquema de plantilla.toml
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-11-D2
+    decision: >-
+      pre-commit install va en la capa repo, no en la local como decía 3.4, y la tabla de 3.4 se
+      corrige (P2)
+    motivo: >-
+      Necesita el .git, el .pre-commit-config.yaml y el pre-commit que instala uv sync: en una
+      carpeta vacía, la capa local no podría hacerlo
+    alternativas:
+      - Dejarlo en la capa local, que fallaría en un proyecto nuevo
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-11-D3
+    decision: >-
+      El primer commit de un repo nuevo lleva todo lo que no ignora el .gitignore (git add -A), y la
+      salida lista lo que no es de las plantillas. Con conflictos no hay commit, ni uv sync, ni
+      pre-commit install: la capa para en el primer paso que no queda en ok o hecho (P3)
+    motivo: >-
+      menairos.toml y los docs de /crear-spec tienen que entrar en el primer commit; con conflictos,
+      el repo no está completo y cualquier paso posterior trabajaría sobre ficheros a medias
+    alternativas:
+      - Añadir solo lo compuesto, uv.lock y menairos.toml
+    reversibilidad: reversible
+    impacto: alto
+    decidido_por: pedro
+
+  - id: T-11-D4
+    decision: >-
+      Con --comprobar, lo que la orden haría (un fichero que falta, el entorno sin sincronizar, el
+      primer commit) es un paso manual con la orden exacta, menairos entorno repo; la orden sale con 1
+      (P4)
+    motivo: >-
+      Es lo que le toca hacer a Pedro, y /preparar-entorno repite --comprobar hasta tenerlo en verde
+    alternativas:
+      - Marcarlo como error
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-11-D5
+    decision: >-
+      Sin capa, la de repo solo se ejecuta si la local queda en verde; si no, sale un paso manual que
+      lo dice. Con entorno repo, cada paso comprueba lo que necesita (P5)
+    motivo: Sin las herramientas, los pasos del repo fallarían en cadena con errores menos claros
+    alternativas:
+      - Ejecutar la capa repo aunque la local no esté en verde
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-11-D6
+    decision: >-
+      Un repo en cualquier unidad de Windows (/mnt/<letra>/, mirado tras resolver los enlaces) es un
+      error, no solo en /mnt/c; /mnt/wsl no cuenta (P6)
+    motivo: El problema de lentitud y de permisos es el mismo en cualquier unidad montada de Windows
+    alternativas:
+      - Solo /mnt/c, como decía el encargo
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-11-D7
+    decision: >-
+      Lo que el plan interpretó: los cuatro estados, los códigos de salida 0, 1 y 2, el System
+      inyectable con un doble y una barrera autouse, github.PROGRAM para que solo github.py nombre gh,
+      Python buscado con uv python find, codex sin versión mínima, y uv sync con --locked si ya había
+      uv.lock, para no reescribirlo nunca
+    motivo: Son las piezas del plan aprobado que no venían en el encargo ni en 3.4
+    alternativas:
+      - Comprobar Python con el python3 del sistema, que no es el que usa el proyecto
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: pedro
+
+  - id: T-11-D8
+    decision: >-
+      menairos.environment es un paquete (core, local y repo) y no un solo módulo; cada paso se crea
+      con maker(capa, paso)
+    motivo: >-
+      En un solo fichero, formateado, pasaba de las 600 líneas que el plan ponía como límite antes de
+      partirlo; así ninguno llega a 350
+    alternativas:
+      - Un solo módulo environment.py de unas 880 líneas
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Es la organización interna del código, sin efecto en la orden ni en su salida
+
+  - id: T-11-D9
+    decision: >-
+      Si un .sh es igual pero le falta el bit de ejecución, se le pone y el paso queda en hecho; un
+      enlace simbólico en cualquier parte del camino de un fichero es un conflicto, aunque apunte
+      dentro de la raíz; y la identidad de git se mira con git var, que da lo mismo que verá el
+      commit
+    motivo: >-
+      Poner el bit no cambia el contenido; no seguir ningún enlace es la regla más estricta y barata
+      (lecciones, Contratos); git var respeta las variables GIT_AUTHOR_* además de la configuración
+    alternativas:
+      - Tratar el bit que falta como conflicto
+      - Seguir los enlaces que no salen de la raíz
+      - Mirar solo user.name y user.email con git config
+    reversibilidad: reversible
+    impacto: bajo
+    decidido_por: agente
+    por_que_no_escalo: Concretan reglas ya aprobadas (nunca sobrescribir, nada fuera de la raíz) sin cambiarlas
