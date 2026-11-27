@@ -451,7 +451,7 @@ menairos spec publicar [--hito N] [--seco] [--json] [--raiz RUTA]
 
 - **Precondición:** `spec validar` sin errores. Si los hay, no publica nada y sale con `1`.
 - **Siempre por `gh api`** (ADR 0016), con un envoltorio fino que en los tests se sustituye por un
-  doble con tope.
+  doble con tope: el envoltorio es `menairos.github` y el doble, `tests/doble_github.py` (T-07).
 - **`--seco`** muestra lo que haría sin escribir nada en GitHub. `/validar-spec` lo enseña a Pedro
   antes de pedir el OK.
 
@@ -481,7 +481,10 @@ YAML:
 | Tarea borrada del YAML | No cierra ni borra el issue; lo informa como aviso |
 | Dependencia nueva o quitada | Añade o quita la relación «blocked by» |
 
-**Nunca borra ni cierra nada** (las reglas del método v2: nada de `DELETE` por la API).
+**Nunca borra ni cierra nada** (las reglas del método v2: nada de `DELETE` por la API), salvo una
+excepción (decisión de Pedro, 2026-11-27): quitar una relación «blocked by» entre dos issues, que
+borra un enlace y no datos. El envoltorio de `gh api` la permite con una lista explícita de un solo
+patrón de ruta y rechaza cualquier otro `DELETE` antes de llamar a `gh`.
 
 **Salida:** con `--json`, `{"creados": [...], "actualizados": [...], "sin_cambios": [...],
 "avisos": [...]}`; sin `--json`, un resumen legible.
