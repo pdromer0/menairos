@@ -1133,3 +1133,70 @@ def test_cli_ayuda_en_espanol(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_un_mensaje_de_argparse_desconocido_se_deja_igual() -> None:
     assert _translate("otro mensaje") == "otro mensaje"
+
+
+# ── Hallazgos de la revisión propia ─────────────────────────────────────────
+
+
+def test_una_raiz_con_puntos_dobles_valida_igual(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raiz = _proyecto(tmp_path)
+    monkeypatch.chdir(raiz)
+    assert _codigos(validate_spec(Path("docs/.."))) == []
+    assert _codigos(validate_spec(raiz / "docs" / "..")) == []
+
+
+@pytest.mark.parametrize(
+    "lineas",
+    [
+        "- ✅ La orden — `a` falla — `uv run x`",
+        "- ✅ Con raya en la orden — `echo a — b`",
+        "1. ✅ Numerada — `uv run x`\n2. 👁 Otra",
+        "- ✅ Con subelemento — `uv run x`\n    - un detalle\n- 👁 Otra",
+    ],
+    ids=["dos-rayas", "raya-en-el-codigo", "numerada", "subelemento"],
+)
+def test_e10_comprobaciones_validas_tras_la_revision(
+    tmp_path: Path, lineas: str
+) -> None:
+    assert _e10(tmp_path, f"## Validación funcional\n\n{lineas}\n") == []
+
+
+def test_e10_un_subelemento_sin_orden_cuenta_aparte(tmp_path: Path) -> None:
+    seccion = "## Validación funcional\n\n- 👁 Uno\n    1. ✅ Sin orden\n"
+    assert [m for _, m in _e10(tmp_path, seccion)] == [
+        "la comprobación ✅ de la línea 10 no termina con su orden: « — `orden`» (6.2)"
+    ]
+
+
+@pytest.mark.skipif(
+    hasattr(__import__("os"), "geteuid") and __import__("os").geteuid() == 0,
+    reason="root puede leer una carpeta sin permisos",
+)
+def test_carpetas_que_no_se_pueden_leer_no_rompen(tmp_path: Path) -> None:
+    raiz = _proyecto(tmp_path, tareas=_enlaces("privada/x.md"))
+    privada = raiz / "docs" / "specs" / "privada"
+    privada.mkdir()
+    (privada / "x.md").write_text("# X\n", encoding="utf-8")
+    decisiones = raiz / "docs" / "decisiones"
+    privada.chmod(0o300)  # se puede atravesar pero no listar
+    decisiones.chmod(0o300)
+    try:
+        informe = validate_spec(raiz)
+    finally:
+        privada.chmod(0o700)
+        decisiones.chmod(0o700)
+    assert _codigos(informe) == [
+        ("E08", TAREAS, "tareas[2].especificacion[0]"),
+        ("E12", "docs/decisiones/", ""),
+    ]
+    assert "no se puede leer la carpeta" in informe.errors[0].message
+
+
+def test_cli_un_valor_en_una_opcion_sin_valor(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        main(["spec", "validar", "--json=x"])
+    assert "--json no admite un valor: 'x'" in capsys.readouterr().err

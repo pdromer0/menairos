@@ -27,6 +27,10 @@ _ARGPARSE_ERRORS: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"the following arguments are required: (.*)"),
         "falta un argumento obligatorio: {0}",
     ),
+    (
+        re.compile(r"argument (\S+): ignored explicit argument (.*)"),
+        "{0} no admite un valor: {1}",
+    ),
     (re.compile(r"argument (\S+): (.*)"), "{0}: {1}"),
 )
 

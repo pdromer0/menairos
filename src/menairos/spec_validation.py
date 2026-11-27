@@ -46,9 +46,10 @@ _TASKS_FILE = re.compile(r"hito-(0|[1-9][0-9]*)\.tareas\.yaml")
 _ADR_FILE = re.compile(r"[0-9]{4}-.*\.md")
 _ADR_STACK_LINE = "- **Tipo:** stack"
 _JUSTIFICATION = "**Justificación:**"
-_LIST_ITEM = re.compile(r" {0,3}[-*+](?:[ \t]+(.*))?")
+_LIST_ITEM = re.compile(r"[ \t]*(?:[-*+]|[0-9]{1,9}[.)])(?:[ \t]+(.*))?")
 _CHECK_MARKS = ("✅", "👁")
-_COMMAND_AT_END = re.compile(r"\s—\s+(`+)(.+?)\1[ \t]*$")
+_DASH = re.compile(r"\s—\s+")
+_CODE_SPAN = re.compile(r"(`+)(.+?)\1")
 
 
 class UsageError(Exception):
@@ -89,11 +90,11 @@ class Report:
 def latest_milestone(root: Path) -> int:
     """The highest N with a ``docs/specs/hito-N.tareas.yaml``."""
     specs = root / SPECS_DIR
-    found = (
-        [int(m[1]) for p in specs.iterdir() if (m := _TASKS_FILE.fullmatch(p.name))]
-        if specs.is_dir()
-        else []
-    )
+    try:
+        names = [p.name for p in specs.iterdir()] if specs.is_dir() else []
+    except OSError as error:
+        raise UsageError(f"no se puede leer «{SPECS_DIR}»: {error.strerror}") from None
+    found = [int(m[1]) for name in names if (m := _TASKS_FILE.fullmatch(name))]
     if not found:
         raise UsageError(
             f"no hay ningún {SPECS_DIR}/hito-N.tareas.yaml en «{root}»: "
@@ -106,6 +107,7 @@ def validate_spec(root: Path, milestone: int | None = None) -> Report:
     """Validate the specification of ``milestone`` (by default, the latest)."""
     if not root.is_dir():
         raise UsageError(f"la raíz «{root}» no existe o no es una carpeta")
+    root = Path(os.path.normpath(root))  # «docs/..» would not contain its own links
     if milestone is None:
         milestone = latest_milestone(root)
     tasks_file = f"{SPECS_DIR}/hito-{milestone}.tareas.yaml"
@@ -407,7 +409,11 @@ def _target_problem(root: Path, real_root: Path, base: Path, name: str) -> str |
         return f"el fichero «{name}» no existe (se busca en «{shown}»)"
     folder = root
     for part in lexical.relative_to(root).parts:
-        if part not in os.listdir(folder):
+        try:
+            names = os.listdir(folder)
+        except OSError as error:
+            return f"«{name}»: no se puede leer la carpeta: {error.strerror}"
+        if part not in names:
             return (
                 f"«{name}» no coincide en mayúsculas con el fichero del repo: "
                 "GitHub distingue mayúsculas"
@@ -481,12 +487,17 @@ def _list_items(lines: Sequence[markdown.Line]) -> Iterator[tuple[int, str]]:
 
 
 def _ends_with_command(text: str) -> bool:
-    match = _COMMAND_AT_END.search(text)
-    if not match:
-        return False
-    ticks, code = match[1], match[2]
-    inner = re.search(rf"(?<!`)`{{{len(ticks)}}}(?!`)", code)
-    return bool(code.strip()) and inner is None
+    """The item ends in « — » and a single non-empty code span (any « — » may be it)."""
+    text = text.rstrip(" \t")
+    for dash in _DASH.finditer(text):
+        span = _CODE_SPAN.fullmatch(text, dash.end())
+        if span is None:
+            continue
+        ticks, code = span[1], span[2]
+        inner = re.search(rf"(?<!`)`{{{len(ticks)}}}(?!`)", code)
+        if code.strip() and inner is None:
+            return True
+    return False
 
 
 def _open_questions(root: Path) -> list[Finding]:
@@ -523,7 +534,12 @@ def _stack_adr(root: Path) -> list[Finding]:
     folder = root / ADR_DIR
     found: list[Finding] = []
     has_stack = False
-    for path in sorted(folder.iterdir()):
+    try:
+        paths = sorted(folder.iterdir())
+    except OSError as error:
+        message = f"no se puede leer la carpeta: {error.strerror}"
+        return [Finding("E12", message, f"{ADR_DIR}/", "")]
+    for path in paths:
         if not (_ADR_FILE.fullmatch(path.name) and path.is_file()):
             continue
         document = _read_markdown(path)
