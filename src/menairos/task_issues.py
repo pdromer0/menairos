@@ -131,7 +131,6 @@ def issue_labels(task: Mapping[str, Any]) -> tuple[str, ...]:
 
 def render(
     task: Mapping[str, Any],
-    tasks: Mapping[str, Mapping[str, Any]],
     *,
     milestone: int,
     repo: str,
@@ -139,12 +138,12 @@ def render(
 ) -> RenderedIssue:
     """The issue of ``task`` (with the defaults of its schema applied).
 
-    ``tasks`` maps every task id of the milestone to its task, for the titles
-    of the dependencies; ``tasks_file`` is the YAML's path from the root, with
-    ``/``, from which the links of ``especificacion`` are resolved.
+    ``tasks_file`` is the YAML's path from the root, with ``/``, from which the
+    links of ``especificacion`` are resolved. Nothing of another task goes in:
+    renaming a task must not rewrite the bodies of the tasks that depend on it.
     """
     title = issue_title(task)
-    content = _content(task, tasks, milestone, repo, tasks_file)
+    content = _content(task, milestone, repo, tasks_file)
     names = issue_labels(task)
     fingerprint = Fingerprint(digest(title), digest(content), labels_digest(names))
     return RenderedIssue(
@@ -159,7 +158,6 @@ def render(
 
 def _content(
     task: Mapping[str, Any],
-    tasks: Mapping[str, Mapping[str, Any]],
     milestone: int,
     repo: str,
     tasks_file: str,
@@ -186,7 +184,7 @@ def _content(
         "## Datos",
         "",
         f"- **Rama:** `{task['rama']}`",
-        f"- **Depende de:** {_dependencies(task['depende_de'], tasks)}",
+        f"- **Depende de:** {_dependencies(task['depende_de'])}",
         "- **Necesita el portátil:** "
         + ("sí (donde: local)" if task["donde"] == "local" else "no"),
         f"- **La hace:** {_WHO.get(task['quien'], task['quien'])}",
@@ -204,14 +202,9 @@ def _list_item(text: str) -> str:
     return "\n".join([first, *(f"  {line}" if line.strip() else "" for line in rest)])
 
 
-def _dependencies(ids: Sequence[str], tasks: Mapping[str, Mapping[str, Any]]) -> str:
-    if not ids:
-        return "ninguna"
-    shown = [
-        f"{tid} · {one_line(tasks[tid]['titulo'])}" if tid in tasks else tid
-        for tid in ids
-    ]
-    return "; ".join(shown)
+def _dependencies(ids: Sequence[str]) -> str:
+    """Only the ids: the native «blocked by» relation already shows the titles."""
+    return ", ".join(ids) if ids else "ninguna"
 
 
 def _mode(mode: str | None) -> str:

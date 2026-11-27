@@ -127,7 +127,7 @@ def de_tipo(lista: list[dict[str, Any]], tipo: str) -> list[dict[str, Any]]:
 def cuerpo_generado(tid: str, raiz: Path = EJEMPLO) -> str:
     documento = apply_defaults("tareas", load_document(raiz / YAML))
     tareas = {t["id"]: t for t in documento["tareas"]}
-    return render(tareas[tid], tareas, milestone=0, repo=REPO, tasks_file=YAML).body
+    return render(tareas[tid], milestone=0, repo=REPO, tasks_file=YAML).body
 
 
 def patch_de(doble: FakeGitHub, desde: int, n: int) -> dict[str, Any]:
@@ -249,6 +249,26 @@ def test_tarea_cambiada_issue_abierto_actualiza_solo_lo_cambiado(
     antes = len(doble.calls)
     assert publicar(raiz).ok
     assert escrituras(doble, antes) == []
+
+
+def test_renombrar_una_tarea_no_toca_los_issues_que_dependen_de_ella(
+    raiz: Path, doble: FakeGitHub
+) -> None:
+    """Auditoría de T-08: el cuerpo nombra las dependencias solo por id."""
+    publicar(raiz)
+    n, dos = numero(doble, "T-01"), numero(doble, "T-02")
+    marcado = doble.issues[dos]["body"].replace("- [ ] Lee", "- [x] Lee")
+    doble.issues[dos]["body"] = marcado
+    editar(raiz, lambda d: tarea(d, "T-01").update(titulo="Datos, renombrados"))
+    antes = len(doble.calls)
+    resultado = publicar(raiz)
+    assert resultado.ok, resultado.errors
+    assert [(c.method, c.path) for c in escrituras(doble, antes)] == [
+        ("PATCH", f"{BASE}/issues/{n}")
+    ]
+    assert [i["tarea"] for i in resultado.updated] == ["T-01"]
+    assert doble.issues[dos]["body"] == marcado
+    assert resultado.warnings == []
 
 
 def test_cuerpo_a_mano_se_conserva_si_solo_cambia_el_titulo(

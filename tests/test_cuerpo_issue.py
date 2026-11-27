@@ -52,7 +52,7 @@ Tarea **T-02** del hito 0, área `datos`.
 ## Datos
 
 - **Rama:** `feat/h0-lectura`
-- **Depende de:** T-01 · Datos de ejemplo
+- **Depende de:** T-01
 - **Necesita el portátil:** no
 - **La hace:** Claude
 - **Modo:** el del hito
@@ -73,7 +73,7 @@ Tarea **T-03** del hito 0, área `entorno`.
 ## Datos
 
 - **Rama:** `chore/h0-entorno`
-- **Depende de:** T-01 · Datos de ejemplo
+- **Depende de:** T-01
 - **Necesita el portátil:** sí (donde: local)
 - **La hace:** Claude
 - **Modo:** didáctico (etiqueta `modo:didactico`)
@@ -92,7 +92,7 @@ def _tareas() -> dict[str, dict[str, Any]]:
 
 def _render(tid: str, tareas: dict[str, dict[str, Any]] | None = None) -> Any:
     tareas = tareas or _tareas()
-    return render(tareas[tid], tareas, milestone=0, repo=REPO, tasks_file=YAML)
+    return render(tareas[tid], milestone=0, repo=REPO, tasks_file=YAML)
 
 
 # ── Cuerpo, título y etiquetas ──────────────────────────────────────────────
@@ -114,10 +114,19 @@ def test_cuerpo_exacto_de_una_tarea_local_con_modo() -> None:
 def test_codex_y_varias_dependencias() -> None:
     contenido = _render("T-04").content
     assert "- **La hace:** Codex" in contenido
-    assert "- **Depende de:** T-02 · Lectura de los datos; T-03 · Entorno local" in (
-        contenido
-    )
+    assert "- **Depende de:** T-02, T-03" in contenido
     assert "- **Depende de:** ninguna" in _render("T-01").content
+
+
+def test_renombrar_una_tarea_no_cambia_el_cuerpo_de_las_que_dependen_de_ella() -> None:
+    """Auditoría de T-08: solo los ids, para no reescribir esos cuerpos."""
+    tareas = _tareas()
+    antes = {tid: _render(tid, tareas) for tid in ("T-02", "T-03", "T-04")}
+    tareas["T-01"] = {**tareas["T-01"], "titulo": "Otro título"}
+    tareas["T-02"] = {**tareas["T-02"], "titulo": "Lectura, renombrada"}
+    assert _render("T-03", tareas) == antes["T-03"]
+    assert _render("T-04", tareas) == antes["T-04"]
+    assert _render("T-02", tareas).content == antes["T-02"].content
 
 
 def test_huella_de_valor_fijo_y_recalculada_a_mano() -> None:
@@ -129,11 +138,11 @@ def test_huella_de_valor_fijo_y_recalculada_a_mano() -> None:
     )
     assert issue.fingerprint == a_mano
     assert (
-        str(issue.fingerprint) == "a26eef9c69ca6a2a.76d905ea2fab0109.445cc2ee50b21811"
+        str(issue.fingerprint) == "a26eef9c69ca6a2a.8322ddfaa2e11a4c.445cc2ee50b21811"
     )
     assert issue.marker == (
         "<!-- menairos:tarea=T-02 hito=0 "
-        "huella=a26eef9c69ca6a2a.76d905ea2fab0109.445cc2ee50b21811 -->"
+        "huella=a26eef9c69ca6a2a.8322ddfaa2e11a4c.445cc2ee50b21811 -->"
     )
     assert issue.body == f"{CUERPO_T02}\n\n{issue.marker}"
 
@@ -142,9 +151,9 @@ def test_las_huellas_del_ejemplo_no_cambian_sin_querer() -> None:
     huellas = {tid: str(_render(tid).fingerprint) for tid in _tareas()}
     assert huellas == {
         "T-01": "0735601b7fc1792a.4abaaa0a736e2b35.108ff8eedf4a38e9",
-        "T-02": "a26eef9c69ca6a2a.76d905ea2fab0109.445cc2ee50b21811",
-        "T-03": "89c4e21358f17749.f327d4d3d9988cdb.1e5cc19043220ead",
-        "T-04": "7cbb55ac53cd2ebf.865cbbf9cb23f4d4.9204a1791163504b",
+        "T-02": "a26eef9c69ca6a2a.8322ddfaa2e11a4c.445cc2ee50b21811",
+        "T-03": "89c4e21358f17749.c8747acd4eb1cfa4.1e5cc19043220ead",
+        "T-04": "7cbb55ac53cd2ebf.690b9f7ba2acfcc0.9204a1791163504b",
     }
 
 
@@ -152,7 +161,7 @@ def test_rutas_normalizadas_y_codificadas() -> None:
     tareas = _tareas()
     tarea = copy.deepcopy(tareas["T-01"])
     tarea["especificacion"] = ["../specs/./hito-0.md#x", "sub/a b.md", "c[1].md"]
-    contenido = render(tarea, tareas, milestone=0, repo=REPO, tasks_file=YAML).content
+    contenido = render(tarea, milestone=0, repo=REPO, tasks_file=YAML).content
     assert f"- [../specs/./hito-0.md#x]({URL}#x)" in contenido
     base = f"https://github.com/{REPO}/blob/main/docs/specs"
     assert f"- [sub/a b.md]({base}/sub/a%20b.md)" in contenido
@@ -165,12 +174,10 @@ def test_textos_de_varias_lineas() -> None:
     tarea["titulo"] = "Dos\nlíneas"
     tarea["motivo_critica"] = "Motivo\n<!-- menairos:tarea=T-09 hito=0 -->"
     tarea["criterios_aceptacion"] = ["Primera\nsegunda\n\n# no es un encabezado"]
-    tareas["T-01"] = {**tareas["T-01"], "titulo": "Datos\nde ejemplo"}
-    issue = render(tarea, tareas, milestone=0, repo=REPO, tasks_file=YAML)
+    issue = render(tarea, milestone=0, repo=REPO, tasks_file=YAML)
     assert issue.title == "T-02 · Dos líneas"
     assert "**Crítica:** Motivo <!-- menairos:tarea=T-09 hito=0 -->" in issue.content
     assert "- [ ] Primera\n  segunda\n\n  # no es un encabezado" in issue.content
-    assert "- **Depende de:** T-01 · Datos de ejemplo" in issue.content
     assert [m.task for m in find_markers(issue.body)] == ["T-02"]
 
 

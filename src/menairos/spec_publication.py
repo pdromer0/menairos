@@ -198,10 +198,9 @@ class _Publisher:
         self.milestone = milestone
         self.milestone_title = spec["titulo"].strip()
         self.tasks: list[Mapping[str, Any]] = spec["tareas"]
-        by_id = {task["id"]: task for task in self.tasks}
         self.rendered: dict[str, RenderedIssue] = {
             task["id"]: render(
-                task, by_id, milestone=milestone, repo=repo, tasks_file=tasks_file
+                task, milestone=milestone, repo=repo, tasks_file=tasks_file
             )
             for task in self.tasks
         }
